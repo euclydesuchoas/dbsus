@@ -1,0 +1,11 @@
+# Normalise line endings of text files to LF in the repository.
+* text=auto
+
+# dBase files (compressed and plain) are binary: no EOL conversion, no textual diff.
+*.dbc binary
+*.DBC binary
+*.dbf binary
+*.DBF binary
+
+# Strong-name key pair.
+*.snk binary
