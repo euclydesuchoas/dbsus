@@ -430,3 +430,9 @@ FodyWeavers.xsd
 
 # Large local-only sample files (never committed)
 tests/data/local/
+
+# DATASUS data files are never committed (samples are fetched by tools/fetch-samples)
+*.dbc
+*.DBC
+*.dbf
+*.DBF
