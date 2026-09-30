@@ -10,6 +10,8 @@ internal static class RepositoryPaths
 
     public static string LocalSamples => Path.Combine(Root, "tests", "data", "local");
 
+    public static string Fixtures => Path.Combine(Root, "tests", "data", "fixtures");
+
     private static string FindRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
