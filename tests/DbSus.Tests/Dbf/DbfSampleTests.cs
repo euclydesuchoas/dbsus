@@ -64,6 +64,37 @@ public class DbfSampleTests
     }
 
     [Fact]
+    public void OpenDbcReader_LocalPaMgParts_ReadsBothPartsAsOneTable()
+    {
+        var first = Path.Combine(RepositoryPaths.LocalSamples, "PAMG2407a.dbc");
+        if (!File.Exists(first))
+        {
+            Assert.Skip("PAMG2407a.dbc is not in tests/data/local.");
+        }
+
+        var parts = DbSusFile.FindParts(first);
+        using var reader = DbSusFile.OpenDbcReader(parts, new DbfReadOptions { Columns = ["PA_VALAPR"] });
+        long records = 0;
+        var partSwitchAt = 0L;
+
+        // Read() returning false also means both parts' checksums matched.
+        while (reader.Read())
+        {
+            records++;
+            _ = reader.GetDecimal(0);
+            if (partSwitchAt == 0 && reader.PartIndex == 1)
+            {
+                partSwitchAt = reader.RecordNumber;
+            }
+        }
+
+        Assert.Equal(2, reader.PartCount);
+        Assert.Equal(5_024_385 + 2_956_469, reader.TotalRecordCount);
+        Assert.Equal(reader.TotalRecordCount, records);
+        Assert.Equal(5_024_385 + 1, partSwitchAt);
+    }
+
+    [Fact]
     public void DataTableLoad_CommittedFixture_LoadsTypedColumns()
     {
         using var reader = DbSusFile.OpenDbcReader(Path.Combine(RepositoryPaths.Fixtures, "LTRR0610.dbc"));
