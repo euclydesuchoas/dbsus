@@ -1,0 +1,59 @@
+{
+  "oracle": "pyreaddbc 2.0.4",
+  "ftpHost": "ftp.datasus.gov.br",
+  "files": [
+    {
+      "file": "EQRR0509.dbc",
+      "source": "/dissemin/publicos/CNES/200508_/Dados/EQ/EQRR0509.dbc",
+      "dbcSha256": "80fbe66d395c215fa25ded25259a9d47bc0d44ef53371f92822eab765b1bb34c",
+      "dbcSize": 1213,
+      "dbfSha256": "193ca9b5205d16d412ad08b9547450f4cef07c2f4bc2e6eb46e6d9ff8e9c1095",
+      "dbfSize": 3516
+    },
+    {
+      "file": "LTRR0610.dbc",
+      "source": "/dissemin/publicos/CNES/200508_/Dados/LT/LTRR0610.dbc",
+      "dbcSha256": "00a404b42829c26770bc5de0eac16714cff91c72b241f2df8f5b624cee24f0d7",
+      "dbcSize": 2065,
+      "dbfSha256": "f9fb34485cca40e1f1a4fa0d74159247b347c10fb0330b68a1d4e82c77386ce7",
+      "dbfSize": 11709
+    },
+    {
+      "file": "RDRR2206.dbc",
+      "source": "/dissemin/publicos/SIHSUS/200801_/Dados/RDRR2206.dbc",
+      "dbcSha256": "22fea9cb1c5517d2c79de4d620cbf234be9715c2c78fcad54d7c68c38e9c2b77",
+      "dbcSize": 50318,
+      "dbfSha256": "d5ef5df2f72ea9f155eae4ea4fac7909d0bf64872d641db9d05d48ba0725b738",
+      "dbfSize": 472585
+    },
+    {
+      "file": "PAAP2004.dbc",
+      "source": "/dissemin/publicos/SIASUS/200801_/Dados/PAAP2004.dbc",
+      "dbcSha256": "2eaa825a0b29718142036355ab59f4b58c4895ef7b3b9cc8ee15c30d12f222d9",
+      "dbcSize": 229625,
+      "dbfSha256": "0f47cb5a7f925c95c0df5ad71f5eaee953bae4c84974b8bcf556891d327c8767",
+      "dbfSize": 3168823
+    },
+    {
+      "file": "RDMG2407.dbc",
+      "dbcSha256": "f5cc0227a82d245fdbc3a657a690d72ae904eb943d337a31b9ffbe80948dfe69",
+      "dbcSize": 10177738,
+      "dbfSha256": "f2e0ca6cd4c2aa4df32b43293b2e04b78e592b8fb4b0231553ac5588088895b0",
+      "dbfSize": 92904223
+    },
+    {
+      "file": "PAMG2407b.dbc",
+      "dbcSha256": "54214e2b27ce9bc7b70d347a84eb621cfcbd217d6395483766b68e9ba45a77d3",
+      "dbcSize": 125874718,
+      "dbfSha256": "f48f5b601c32f86a2b01b0d1e58b4092a7c23ca4648dd3891c3464db9b823cf7",
+      "dbfSize": 1173720147
+    },
+    {
+      "file": "PAMG2407a.dbc",
+      "dbcSha256": "89aea12178df70f51ee0e81f0db1f82b1e970c44f985208ba233a28c11fb7b1f",
+      "dbcSize": 183994941,
+      "dbfSha256": "16555d733b2e910ec314769056845b6d559ab2480adada02e9023b940abd5e14",
+      "dbfSize": 1994682799
+    }
+  ]
+}
