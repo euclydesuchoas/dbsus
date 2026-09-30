@@ -19,6 +19,15 @@
       "dbfSize": 11709
     },
     {
+      "file": "STRR2301.dbc",
+      "source": "/dissemin/publicos/CNES/200508_/Dados/ST/STRR2301.dbc",
+      "dbcSha256": "21317fb046d6790d4143b39e1b300caff5b151d7cde368b62175871f8091d03a",
+      "dbcSize": 40745,
+      "dbfSha256": "26bd237ef735bf29c26c5871ea023351def0027e8e90994d5ed521298340d503",
+      "dbfSize": 448804,
+      "dbfHashOrigin": "DbSus output validated by the CRC-32 stored in the DBC; pyreaddbc rewrites the last header byte (0x00 to 0x0D) and its output does not match that CRC"
+    },
+    {
       "file": "RDRR2206.dbc",
       "source": "/dissemin/publicos/SIHSUS/200801_/Dados/RDRR2206.dbc",
       "dbcSha256": "22fea9cb1c5517d2c79de4d620cbf234be9715c2c78fcad54d7c68c38e9c2b77",
