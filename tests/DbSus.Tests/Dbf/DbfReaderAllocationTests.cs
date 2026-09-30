@@ -1,0 +1,63 @@
+#if NET
+using DbSus.Dbf;
+using DbSus.Tests.TestSupport;
+using Xunit;
+
+namespace DbSus.Tests.Dbf;
+
+// GC.GetAllocatedBytesForCurrentThread is not available on .NET Framework, so this guard runs on
+// the net10.0 target only.
+public class DbfReaderAllocationTests
+{
+    [Fact]
+    public void ReadAndTypedGetters_DoNotAllocatePerRecord()
+    {
+        var builder = new DbfBuilder()
+            .Field("QTY", 'N', 11)
+            .Field("SMALL", 'N', 5)
+            .Field("VAL", 'N', 20, 2)
+            .Field("AGE", 'C', 3)
+            .Field("WHEN", 'D', 8)
+            .Field("BIRTH", 'C', 8)
+            .Field("FLAG", 'L', 1);
+        for (var i = 0; i < 1000; i++)
+        {
+            builder.Record("         42", "  123", "            12345.67", "034", "20240101", "31012024", "T");
+        }
+
+        var options = new DbfReadOptions();
+        options.Conversions["AGE"] = DbfFieldConversion.Int32();
+        options.Conversions["BIRTH"] = DbfFieldConversion.Date("ddMMyyyy");
+        using var reader = DbfReader.Open(new MemoryStream(builder.Build()), options);
+        Assert.True(reader.Read());
+        ReadTyped(reader); // warm up
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var records = 0;
+        while (reader.Read())
+        {
+            ReadTyped(reader);
+            records++;
+        }
+
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal(999, records);
+        Assert.Equal(0, allocated);
+    }
+
+    private static void ReadTyped(DbfReader reader)
+    {
+        _ = reader.GetInt64(0);
+        _ = reader.GetInt32(1);
+        _ = reader.GetDecimal(2);
+        _ = reader.IsDBNull(3);
+        _ = reader.GetInt32(3);
+        _ = reader.GetDateTime(4);
+        _ = reader.GetDateTime(5);
+        _ = reader.GetBoolean(6);
+        _ = reader.GetDouble(2);
+        _ = reader.GetFieldValue<int?>(3);
+        _ = reader.GetRawBytes(3);
+    }
+}
+#endif
