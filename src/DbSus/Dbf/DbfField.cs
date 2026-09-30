@@ -5,7 +5,7 @@ namespace DbSus.Dbf;
 /// </summary>
 public sealed class DbfField
 {
-    internal DbfField(string name, char typeCode, int length, int decimalCount, int index, int offset)
+    internal DbfField(string name, char typeCode, int length, int decimalCount, int index, int offset, DbfFieldConversion? conversion = null)
     {
         Name = name;
         TypeCode = typeCode;
@@ -13,7 +13,8 @@ public sealed class DbfField
         DecimalCount = decimalCount;
         Index = index;
         Offset = offset;
-        Kind = KindOf(typeCode, length, decimalCount);
+        Conversion = conversion;
+        Kind = conversion?.Kind ?? KindOf(typeCode, length, decimalCount);
         FieldType = TypeOf(Kind);
     }
 
@@ -45,6 +46,13 @@ public sealed class DbfField
     public Type FieldType { get; }
 
     /// <summary>
+    /// Gets the conversion declared for this character field in
+    /// <see cref="DbfReadOptions.Conversions"/>, or <see langword="null"/>. When set,
+    /// <see cref="FieldType"/> is the conversion's target type.
+    /// </summary>
+    public DbfFieldConversion? Conversion { get; }
+
+    /// <summary>
     /// Gets a value indicating whether DbSus interprets this field's type. Unsupported fields (for
     /// example <c>M</c>, memo, whose data lives in a separate file) are exposed only as raw bytes.
     /// </summary>
@@ -55,8 +63,14 @@ public sealed class DbfField
 
     internal DbfValueKind Kind { get; }
 
+    internal bool DayFirst => Conversion?.DayFirst ?? false;
+
+    internal DbfField WithConversion(DbfFieldConversion conversion) =>
+        new(Name, TypeCode, Length, DecimalCount, Index, Offset, conversion);
+
     /// <inheritdoc/>
-    public override string ToString() => $"{Name} {TypeCode}({Length},{DecimalCount})";
+    public override string ToString() =>
+        Conversion is null ? $"{Name} {TypeCode}({Length},{DecimalCount})" : $"{Name} {TypeCode}({Length},{DecimalCount}) as {Conversion}";
 
     private static DbfValueKind KindOf(char typeCode, int length, int decimalCount) => typeCode switch
     {

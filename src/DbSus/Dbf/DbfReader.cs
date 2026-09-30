@@ -63,7 +63,7 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
 
         Header = ReadHeader(stream);
         Encoding = DbfEncodings.Resolve(Header.LanguageDriverId, options);
-        _fields = Project(Header.Fields, options.Columns);
+        _fields = Project(ApplyConversions([.. Header.Fields], options.Conversions), options.Columns);
         Fields = new ReadOnlyCollection<DbfField>(_fields);
         // Backwards, so that with duplicate names the first field wins.
         _ordinals = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -267,7 +267,7 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             case DbfValueKind.Int32 or DbfValueKind.Int64 or DbfValueKind.Decimal:
                 return DbfValueParser.IsBlank(bytes);
             case DbfValueKind.Date:
-                return DbfValueParser.TryParseDate(DbfValueParser.Trim(bytes), out var date) && date is null;
+                return DbfValueParser.TryParseDate(DbfValueParser.Trim(bytes), field.DayFirst, out var date) && date is null;
             case DbfValueKind.Boolean:
                 return DbfValueParser.TryParseBoolean(DbfValueParser.Trim(bytes), out var flag) && flag is null;
             default:
@@ -287,9 +287,9 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             case DbfValueKind.String:
                 return ReadString(field) ?? (object)DBNull.Value;
             case DbfValueKind.Int32:
-                return ReadDecimal(field) is { } int32 ? (object)ToInt32(field, int32) : DBNull.Value;
+                return ReadInt32(field) is { } int32 ? (object)int32 : DBNull.Value;
             case DbfValueKind.Int64:
-                return ReadDecimal(field) is { } int64 ? (object)ToInt64(field, int64) : DBNull.Value;
+                return ReadInt64(field) is { } int64 ? (object)int64 : DBNull.Value;
             case DbfValueKind.Decimal:
                 return ReadDecimal(field) is { } number ? (object)number : DBNull.Value;
             case DbfValueKind.Date:
@@ -339,6 +339,11 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     public override int GetInt32(int ordinal)
     {
         var field = Field(ordinal);
+        if (field.Kind == DbfValueKind.Int32)
+        {
+            return ReadInt32(field) ?? throw NullValue(field);
+        }
+
         return checked((int)ToWhole(field, ReadNumber(field)));
     }
 
@@ -351,6 +356,11 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     public override long GetInt64(int ordinal)
     {
         var field = Field(ordinal);
+        if (field.Kind is DbfValueKind.Int32 or DbfValueKind.Int64)
+        {
+            return ReadInt64(field) ?? throw NullValue(field);
+        }
+
         return checked((long)ToWhole(field, ReadNumber(field)));
     }
 
@@ -587,15 +597,42 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
         return DbfHeader.Parse(header);
     }
 
-    private static DbfField[] Project(IReadOnlyList<DbfField> fields, IReadOnlyList<string>? columns)
+    private static DbfField[] ApplyConversions(DbfField[] result, IDictionary<string, DbfFieldConversion> conversions)
+    {
+        foreach (var conversion in conversions)
+        {
+            var index = Array.FindIndex(result, field => string.Equals(field.Name, conversion.Key, StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+            {
+                throw new ArgumentException($"Cannot convert field '{conversion.Key}': the DBF has no field with that name.", nameof(conversions));
+            }
+
+            var field = result[index];
+            if (field.TypeCode != 'C')
+            {
+                throw new ArgumentException($"Cannot convert field {field}: only character (C) fields can be converted.", nameof(conversions));
+            }
+
+            if (conversion.Value.Kind == DbfValueKind.Date && field.Length < 8)
+            {
+                throw new ArgumentException($"Cannot convert field {field} to a date: it is narrower than 8 characters.", nameof(conversions));
+            }
+
+            result[index] = field.WithConversion(conversion.Value);
+        }
+
+        return result;
+    }
+
+    private static DbfField[] Project(DbfField[] fields, IReadOnlyList<string>? columns)
     {
         if (columns is null)
         {
-            return [.. fields];
+            return fields;
         }
 
         var byName = new Dictionary<string, DbfField>(StringComparer.OrdinalIgnoreCase);
-        for (var i = fields.Count - 1; i >= 0; i--)
+        for (var i = fields.Length - 1; i >= 0; i--)
         {
             byName[fields[i].Name] = fields[i];
         }
@@ -731,9 +768,35 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     }
 
     private DateTime? ReadDate(DbfField field) =>
-        DbfValueParser.TryParseDate(DbfValueParser.Trim(CurrentRecord().AsSpan(field.Offset, field.Length)), out var value)
+        DbfValueParser.TryParseDate(DbfValueParser.Trim(CurrentRecord().AsSpan(field.Offset, field.Length)), field.DayFirst, out var value)
             ? value
-            : throw Invalid(field, "a YYYYMMDD date");
+            : throw Invalid(field, field.DayFirst ? "a DDMMYYYY date" : "a YYYYMMDD date");
+
+    // Values read as the field's own integer type: a fraction or an out-of-range value means the
+    // data does not match the declared type, so it is a format error (the value is not reported).
+    private int? ReadInt32(DbfField field)
+    {
+        if (ReadDecimal(field) is not { } value)
+        {
+            return null;
+        }
+
+        return decimal.Truncate(value) == value && value >= int.MinValue && value <= int.MaxValue
+            ? (int)value
+            : throw Invalid(field, "a whole number that fits in Int32");
+    }
+
+    private long? ReadInt64(DbfField field)
+    {
+        if (ReadDecimal(field) is not { } value)
+        {
+            return null;
+        }
+
+        return decimal.Truncate(value) == value && value >= long.MinValue && value <= long.MaxValue
+            ? (long)value
+            : throw Invalid(field, "a whole number that fits in Int64");
+    }
 
     private bool? ReadBoolean(DbfField field) =>
         DbfValueParser.TryParseBoolean(DbfValueParser.Trim(CurrentRecord().AsSpan(field.Offset, field.Length)), out var value)
@@ -744,10 +807,6 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
         decimal.Truncate(value) == value
             ? value
             : throw new InvalidCastException($"Field {field.Name} holds a fractional value in record {RecordNumber}; use GetDecimal.");
-
-    private int ToInt32(DbfField field, decimal value) => checked((int)ToWhole(field, value));
-
-    private long ToInt64(DbfField field, decimal value) => checked((long)ToWhole(field, value));
 
     // The value itself is deliberately left out of the message: DATASUS data can be personal.
     private FormatException Invalid(DbfField field, string expected) =>

@@ -80,8 +80,11 @@ internal static class DbfValueParser
         return true;
     }
 
-    /// <summary>Parses a <c>D</c> value (<c>YYYYMMDD</c>). Blank or all zeros is null.</summary>
-    public static bool TryParseDate(ReadOnlySpan<byte> trimmed, out DateTime? value)
+    /// <summary>
+    /// Parses an eight-digit date, <c>YYYYMMDD</c> (as in <c>D</c> fields) or, with
+    /// <paramref name="dayFirst"/>, <c>DDMMYYYY</c>. Blank or all zeros is null.
+    /// </summary>
+    public static bool TryParseDate(ReadOnlySpan<byte> trimmed, bool dayFirst, out DateTime? value)
     {
         value = null;
         if (trimmed.IsEmpty || IsAllZeros(trimmed))
@@ -89,8 +92,10 @@ internal static class DbfValueParser
             return true;
         }
 
-        if (trimmed.Length != 8 || !TryParseDigits(trimmed.Slice(0, 4), out var year)
-            || !TryParseDigits(trimmed.Slice(4, 2), out var month) || !TryParseDigits(trimmed.Slice(6, 2), out var day))
+        if (trimmed.Length != 8
+            || !TryParseDigits(trimmed.Slice(dayFirst ? 4 : 0, 4), out var year)
+            || !TryParseDigits(trimmed.Slice(dayFirst ? 2 : 4, 2), out var month)
+            || !TryParseDigits(trimmed.Slice(dayFirst ? 0 : 6, 2), out var day))
         {
             return false;
         }

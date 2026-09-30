@@ -49,4 +49,12 @@ public sealed class DbfReadOptions
     /// <see cref="DBNull"/> instead of an empty string. The default is <see langword="false"/>.
     /// </summary>
     public bool BlankStringsAsNull { get; set; }
+
+    /// <summary>
+    /// Gets the opt-in conversions of character (<c>C</c>) fields into typed values, keyed by field
+    /// name (case-insensitive). Example: <c>Conversions["DTOBITO"] = DbfFieldConversion.Date("ddMMyyyy")</c>.
+    /// Each name must be a <c>C</c> field of the file, or opening fails with <see cref="ArgumentException"/>.
+    /// </summary>
+    public IDictionary<string, DbfFieldConversion> Conversions { get; } =
+        new Dictionary<string, DbfFieldConversion>(StringComparer.OrdinalIgnoreCase);
 }
