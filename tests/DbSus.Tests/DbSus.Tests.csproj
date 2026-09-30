@@ -13,6 +13,10 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(TargetFramework)' == 'net481'">
+    <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\DbSus\DbSus.csproj" />
   </ItemGroup>
