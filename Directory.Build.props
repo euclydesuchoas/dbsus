@@ -1,0 +1,71 @@
+<Project>
+
+  <PropertyGroup Label="Language">
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!--
+    Compiler warnings and quality analyzers (CA rules) fail the build. Code style (IDE rules)
+    stays at the severities in .editorconfig and is not enforced on build. NuGet audit warnings
+    are reported but do not fail the build.
+  -->
+  <PropertyGroup Label="Analysis">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Build">
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!--
+    The key pair is committed on purpose, following Microsoft's guidance for open-source
+    libraries. It must never change: doing so changes the assembly identity.
+  -->
+  <PropertyGroup Label="Strong naming">
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)DbSus.snk</AssemblyOriginatorKeyFile>
+    <DbSusPublicKey>00240000048000009400000006020000002400005253413100040000010001006de1d1e9da37194b6fda87342666e327d18f8786a1cf0d5ba211accd36e0482bdcf4729bbad45a5886d027cd24b154b6a2a682428686569b43229e8db84ce04effecf0fd46f4aaae7cb8440b89745933881c802545d9c81f47606b2730b9687139325e017b7c58c7003f8328eddac50b0e219d1f09c5dc8c0bdc0ed4e92f4dce</DbSusPublicKey>
+  </PropertyGroup>
+
+  <!--
+    Versions are set by hand while publishing is manual. During 0.x the AssemblyVersion carries
+    Major.Minor (0.1.0.0, 0.2.0.0, ...) because every 0.x minor may break; from 1.0 onwards it
+    carries the major only (1.0.0.0, 2.0.0.0, ...).
+  -->
+  <PropertyGroup Label="Versioning">
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionSuffix>preview.1</VersionSuffix>
+    <AssemblyVersion>$([System.Version]::Parse($(VersionPrefix)).ToString(2)).0.0</AssemblyVersion>
+    <FileVersion>$(VersionPrefix).0</FileVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Package">
+    <Authors>Euclydes Uchoas</Authors>
+    <Copyright>Copyright (c) 2026 Euclydes Uchoas</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/euclydesuchoas/dbsus</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/euclydesuchoas/dbsus.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>datasus;sus;dbc;dbf;dbase;brazil;health</PackageTags>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <EnablePackageValidation>true</EnablePackageValidation>
+  </PropertyGroup>
+
+  <ItemGroup Label="Package files" Condition="'$(IsPackable)' != 'false'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="\" Visible="false"
+          Condition="Exists('$(MSBuildThisFileDirectory)THIRD-PARTY-NOTICES.md')" />
+  </ItemGroup>
+
+</Project>
