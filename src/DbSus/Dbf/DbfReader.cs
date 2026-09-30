@@ -579,26 +579,114 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// </summary>
     public override T GetFieldValue<T>(int ordinal)
     {
+        // The typeof(T) checks are constants per T once compiled, and on modern .NET the JIT turns
+        // (T)(object)value into a plain copy for value types, so these paths do not allocate.
+        if (typeof(T) == typeof(int))
+        {
+            return (T)(object)GetInt32(ordinal);
+        }
+
+        if (typeof(T) == typeof(long))
+        {
+            return (T)(object)GetInt64(ordinal);
+        }
+
+        if (typeof(T) == typeof(decimal))
+        {
+            return (T)(object)GetDecimal(ordinal);
+        }
+
+        if (typeof(T) == typeof(double))
+        {
+            return (T)(object)GetDouble(ordinal);
+        }
+
+        if (typeof(T) == typeof(float))
+        {
+            return (T)(object)GetFloat(ordinal);
+        }
+
+        if (typeof(T) == typeof(short))
+        {
+            return (T)(object)GetInt16(ordinal);
+        }
+
+        if (typeof(T) == typeof(byte))
+        {
+            return (T)(object)GetByte(ordinal);
+        }
+
+        if (typeof(T) == typeof(DateTime))
+        {
+            return (T)(object)GetDateTime(ordinal);
+        }
+
+        if (typeof(T) == typeof(bool))
+        {
+            return (T)(object)GetBoolean(ordinal);
+        }
+
         if (IsDBNull(ordinal))
         {
             return default(T) is null ? default! : throw NullValue(Field(ordinal));
         }
 
-        var type = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
-        object value =
-            type == typeof(int) ? GetInt32(ordinal)
-            : type == typeof(long) ? GetInt64(ordinal)
-            : type == typeof(decimal) ? GetDecimal(ordinal)
-            : type == typeof(double) ? GetDouble(ordinal)
-            : type == typeof(float) ? GetFloat(ordinal)
-            : type == typeof(short) ? GetInt16(ordinal)
-            : type == typeof(byte) ? GetByte(ordinal)
-            : type == typeof(string) ? GetString(ordinal)
-            : type == typeof(DateTime) ? GetDateTime(ordinal)
-            : type == typeof(bool) ? GetBoolean(ordinal)
-            : type == typeof(byte[]) ? GetRawBytes(ordinal).ToArray()
-            : GetValue(ordinal);
-        return (T)value;
+        if (typeof(T) == typeof(int?))
+        {
+            return (T)(object)(int?)GetInt32(ordinal);
+        }
+
+        if (typeof(T) == typeof(long?))
+        {
+            return (T)(object)(long?)GetInt64(ordinal);
+        }
+
+        if (typeof(T) == typeof(decimal?))
+        {
+            return (T)(object)(decimal?)GetDecimal(ordinal);
+        }
+
+        if (typeof(T) == typeof(double?))
+        {
+            return (T)(object)(double?)GetDouble(ordinal);
+        }
+
+        if (typeof(T) == typeof(DateTime?))
+        {
+            return (T)(object)(DateTime?)GetDateTime(ordinal);
+        }
+
+        if (typeof(T) == typeof(bool?))
+        {
+            return (T)(object)(bool?)GetBoolean(ordinal);
+        }
+
+        if (typeof(T) == typeof(string))
+        {
+            return (T)(object)GetString(ordinal);
+        }
+
+        if (typeof(T) == typeof(byte[]))
+        {
+            return (T)(object)GetRawBytes(ordinal).ToArray();
+        }
+
+        if (typeof(T) == typeof(float?))
+        {
+            return (T)(object)(float?)GetFloat(ordinal);
+        }
+
+        if (typeof(T) == typeof(short?))
+        {
+            return (T)(object)(short?)GetInt16(ordinal);
+        }
+
+        if (typeof(T) == typeof(byte?))
+        {
+            return (T)(object)(byte?)GetByte(ordinal);
+        }
+
+        return (T)GetValue(ordinal);
     }
 
     /// <summary>Returns a field value as <typeparamref name="T"/>, by field name.</summary>
