@@ -436,3 +436,6 @@ tests/data/local/
 *.DBC
 *.dbf
 *.DBF
+
+# Exception: tiny establishment-level fixtures, see tests/data/fixtures/README.md
+!tests/data/fixtures/*.dbc
