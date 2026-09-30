@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <RootNamespace>DbSus</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId>DbSus</PackageId>
+    <Description>Fully managed reader for the .dbc (compressed dBase) and .dbf files distributed by DATASUS: DBC decompression, streaming DBF reading and a DbDataReader. Independent project, not affiliated with the Brazilian Ministry of Health or DATASUS.</Description>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Memory" />
+    <PackageReference Include="System.Text.Encoding.CodePages" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbSus.Tests" Key="$(DbSusPublicKey)" />
+  </ItemGroup>
+
+</Project>
