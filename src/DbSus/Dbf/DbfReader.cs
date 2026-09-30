@@ -396,7 +396,11 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// <summary>Returns whether a field of the current record is null, by field name.</summary>
     public bool IsDBNull(string name) => IsDBNull(GetOrdinal(name));
 
-    /// <inheritdoc/>
+    /// <summary>Returns a field value boxed as its <see cref="GetFieldType(int)"/> type, or <see cref="DBNull"/>.</summary>
+    /// <exception cref="FormatException">
+    /// The stored content does not parse as the field's type, including an integer field whose
+    /// value has a fraction or does not fit its type (<see cref="int"/> or <see cref="long"/>).
+    /// </exception>
     public override object GetValue(int ordinal)
     {
         var field = Field(ordinal);
@@ -452,8 +456,16 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     public decimal GetDecimal(string name) => GetDecimal(GetOrdinal(name));
 
     /// <summary>Returns a numeric field as a 32-bit integer.</summary>
-    /// <exception cref="InvalidCastException">The field is not numeric, the value is null or has a fraction.</exception>
-    /// <exception cref="OverflowException">The value does not fit.</exception>
+    /// <remarks>
+    /// On a field whose own type is <see cref="int"/> (a narrow <c>N</c> field, or a <c>C</c> field
+    /// converted with <see cref="DbfFieldConversion.Int32"/>), a stored value with a fraction or out
+    /// of range means the data does not match the declared type and throws
+    /// <see cref="FormatException"/>. On other numeric fields the value is converted, and the
+    /// failures are <see cref="InvalidCastException"/> (fraction) or <see cref="OverflowException"/>.
+    /// </remarks>
+    /// <exception cref="InvalidCastException">The field is not numeric, the value is null, or (on a wider field) it has a fraction.</exception>
+    /// <exception cref="OverflowException">On a wider numeric field, the value does not fit.</exception>
+    /// <exception cref="FormatException">On an <see cref="int"/> field, the stored content does not parse, has a fraction or does not fit.</exception>
     public override int GetInt32(int ordinal)
     {
         var field = Field(ordinal);
@@ -469,8 +481,16 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     public int GetInt32(string name) => GetInt32(GetOrdinal(name));
 
     /// <summary>Returns a numeric field as a 64-bit integer.</summary>
-    /// <exception cref="InvalidCastException">The field is not numeric, the value is null or has a fraction.</exception>
-    /// <exception cref="OverflowException">The value does not fit.</exception>
+    /// <remarks>
+    /// On a field whose own type is <see cref="int"/> or <see cref="long"/> (an <c>N</c> field up to
+    /// 18 digits without decimals, or a converted <c>C</c> field), a stored value with a fraction or
+    /// out of range throws <see cref="FormatException"/>. On <see cref="decimal"/> fields the value
+    /// is converted, and the failures are <see cref="InvalidCastException"/> (fraction) or
+    /// <see cref="OverflowException"/>.
+    /// </remarks>
+    /// <exception cref="InvalidCastException">The field is not numeric, the value is null, or (on a decimal field) it has a fraction.</exception>
+    /// <exception cref="OverflowException">On a decimal field, the value does not fit.</exception>
+    /// <exception cref="FormatException">On an integer field, the stored content does not parse, has a fraction or does not fit.</exception>
     public override long GetInt64(int ordinal)
     {
         var field = Field(ordinal);
@@ -577,6 +597,14 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// Returns a field value as <typeparamref name="T"/>. Nullable types and reference types
     /// receive <see langword="null"/> for null values; numeric types convert as the typed getters do.
     /// </summary>
+    /// <remarks>
+    /// On .NET 5 and later, value types such as <see cref="int"/>, <see cref="decimal"/> or
+    /// <see cref="DateTime"/>, and their nullable forms, are returned without allocating. On .NET
+    /// Framework (which uses the <c>netstandard2.0</c> build) the non-nullable forms do not allocate
+    /// either, but the nullable forms (e.g. <c>GetFieldValue&lt;int?&gt;</c>) box on every call,
+    /// about 24 bytes each (measured on .NET Framework 4.8.1, x64); there, prefer
+    /// <see cref="IsDBNull(int)"/> plus a typed getter in hot loops.
+    /// </remarks>
     public override T GetFieldValue<T>(int ordinal)
     {
         // The typeof(T) checks are constants per T once compiled, and on modern .NET the JIT turns
