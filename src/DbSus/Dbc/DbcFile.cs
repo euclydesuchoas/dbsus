@@ -3,6 +3,16 @@ namespace DbSus.Dbc;
 /// <summary>
 /// Reads DBC files (compressed dBase files as distributed by DATASUS) as the DBF they contain.
 /// </summary>
+/// <remarks>
+/// <para>
+/// Opening reads the DBF header and the stored checksum right away, so an invalid file fails at
+/// open. With a network or pipe stream, <c>OpenAsDbf</c> therefore blocks until those bytes arrive.
+/// </para>
+/// <para>
+/// Reading stops at the end code of the compressed data. Any bytes that follow it in the DBC are
+/// neither read nor checked; the files examined so far have none.
+/// </para>
+/// </remarks>
 public static class DbcFile
 {
     private const int CopyBufferSize = 81920;
@@ -44,7 +54,8 @@ public static class DbcFile
     /// </summary>
     /// <param name="dbc">
     /// A readable stream positioned at the start of the DBC data. It is read sequentially and never
-    /// seeked, so network and pipe streams work.
+    /// seeked, so network and pipe streams work. This method blocks until the DBF header and the
+    /// checksum have been read from it.
     /// </param>
     /// <param name="options">
     /// Read options, or <see langword="null"/> for the defaults. <see cref="DbcReadOptions.LeaveOpen"/>
@@ -71,7 +82,7 @@ public static class DbcFile
     }
 
     /// <summary>
-    /// Converts a DBC file into a DBF file, replacing the destination if it exists.
+    /// Converts a DBC file into a DBF file. An existing destination file is replaced.
     /// </summary>
     /// <param name="dbcPath">Path of the DBC file to read.</param>
     /// <param name="dbfPath">Path of the DBF file to write.</param>
