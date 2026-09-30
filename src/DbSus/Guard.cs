@@ -15,6 +15,18 @@ internal static class Guard
 #endif
     }
 
+    public static void NotDisposed(bool disposed, object instance)
+    {
+#if NET
+        ObjectDisposedException.ThrowIf(disposed, instance);
+#else
+        if (disposed)
+        {
+            throw new ObjectDisposedException(instance.GetType().FullName);
+        }
+#endif
+    }
+
     public static void Positive(int value, string paramName)
     {
 #if NET
