@@ -11,6 +11,10 @@
     <PackageVersion Include="System.Text.Encoding.CodePages" Version="10.0.12" />
   </ItemGroup>
 
+  <ItemGroup Label="Benchmarks">
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+  </ItemGroup>
+
   <!-- System.Text.Json is in-box on net10.0; the net481 test target needs the package. -->
   <ItemGroup Label="Tests">
     <PackageVersion Include="System.Text.Json" Version="10.0.12" />
