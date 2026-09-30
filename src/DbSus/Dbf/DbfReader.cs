@@ -20,6 +20,13 @@ namespace DbSus.Dbf;
 /// every record.
 /// </para>
 /// <para>
+/// A table split into parts (SIA-PA's <c>a</c>, <c>b</c>, <c>c</c>, ... files) can be read as one:
+/// every part's header is read and checked when the reader opens, before any record, and the
+/// parts must have identical fields (names, types, widths, decimals), record length and encoding.
+/// <see cref="RecordNumber"/> counts across parts; <see cref="PartIndex"/> tells the current part.
+/// Messages name the part, never the values.
+/// </para>
+/// <para>
 /// A reader is not thread-safe. The asynchronous methods inherited from
 /// <see cref="DbDataReader"/> (such as <c>ReadAsync</c>) currently complete synchronously.
 /// </para>
@@ -41,29 +48,38 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     private const byte DeletedFlag = (byte)'*';
     private const byte Space = (byte)' ';
 
-    private readonly Stream _stream;
-    private readonly IDisposable[] _ownedResources;
-    private readonly bool _drainAtEnd;
+    private readonly DbfPart[] _parts;
     private readonly bool _includeDeleted;
     private readonly bool _blankStringsAsNull;
     private readonly DbfField[] _fields;
     private readonly Dictionary<string, int> _ordinals;
     private readonly byte[] _record;
-    private long _recordsConsumed;
+    private int _partIndex;
+    private long _consumedInPart;
+    private long _recordNumber;
     private bool _hasRecord;
     private bool _closed;
 
-    private DbfReader(Stream stream, DbfReadOptions options, IDisposable[] ownedResources, bool drainAtEnd)
+    private DbfReader(DbfPart[] parts, DbfReadOptions options)
     {
-        _stream = stream;
-        _ownedResources = ownedResources;
-        _drainAtEnd = drainAtEnd;
+        _parts = parts;
         _includeDeleted = options.IncludeDeletedRecords;
         _blankStringsAsNull = options.BlankStringsAsNull;
 
-        Header = ReadHeader(stream);
-        Encoding = DbfEncodings.Resolve(Header.LanguageDriverId, options);
-        _fields = Project(ApplyConversions([.. Header.Fields], options.Conversions), options.Columns);
+        var first = parts[0];
+        foreach (var part in parts)
+        {
+            part.Header = ReadHeader(part);
+        }
+
+        Encoding = DbfEncodings.Resolve(first.Header!.LanguageDriverId, options);
+        for (var i = 1; i < parts.Length; i++)
+        {
+            EnsureSameSchema(first, parts[i], options, Encoding);
+        }
+
+        TotalRecordCount = parts.Sum(part => part.Header!.RecordCount);
+        _fields = Project(ApplyConversions([.. first.Header.Fields], options.Conversions), options.Columns);
         Fields = new ReadOnlyCollection<DbfField>(_fields);
         // Backwards, so that with duplicate names the first field wins.
         _ordinals = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -72,11 +88,23 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             _ordinals[_fields[i].Name] = i;
         }
 
-        _record = new byte[Header.RecordLength];
+        _record = new byte[first.Header.RecordLength];
     }
 
-    /// <summary>Gets the table header.</summary>
-    public DbfHeader Header { get; }
+    /// <summary>
+    /// Gets the header of the current part (the first part before the first <see cref="Read"/>).
+    /// For a single file, simply its header.
+    /// </summary>
+    public DbfHeader Header => _parts[_partIndex].Header!;
+
+    /// <summary>Gets the number of parts this reader reads, 1 for a single file.</summary>
+    public int PartCount => _parts.Length;
+
+    /// <summary>Gets the zero-based index of the part the current record comes from.</summary>
+    public int PartIndex => _partIndex;
+
+    /// <summary>Gets the number of records declared across all parts, deleted ones included.</summary>
+    public long TotalRecordCount { get; }
 
     /// <summary>
     /// Gets the fields this reader exposes, in ordinal order: all fields in file order, or the
@@ -88,10 +116,10 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     public Encoding Encoding { get; }
 
     /// <summary>
-    /// Gets the 1-based physical number of the current record in the file (deleted records count),
-    /// or 0 before the first <see cref="Read"/>.
+    /// Gets the 1-based physical number of the current record, counted across all parts (deleted
+    /// records count), or 0 when there is no current record.
     /// </summary>
-    public long RecordNumber => _hasRecord ? _recordsConsumed : 0;
+    public long RecordNumber => _hasRecord ? _recordNumber : 0;
 
     /// <summary>
     /// Gets a value indicating whether the current record is marked as deleted. Only possible with
@@ -106,7 +134,7 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// Gets a value indicating whether the table declares any records. It can be true even when
     /// every record is deleted and none will be returned.
     /// </summary>
-    public override bool HasRows => Header.RecordCount > 0;
+    public override bool HasRows => TotalRecordCount > 0;
 
     /// <inheritdoc/>
     public override bool IsClosed => _closed;
@@ -132,14 +160,34 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     public static DbfReader Open(string path, DbfReadOptions? options = null)
     {
         Guard.NotNull(path, nameof(path));
-        var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.SequentialScan);
+        return Open([path], options);
+    }
+
+    /// <summary>
+    /// Opens the parts of a table split into several DBF files as a single reader, in the order given.
+    /// </summary>
+    /// <param name="paths">Paths of the parts, in reading order (e.g. from <c>DbSusFile.FindParts</c>).</param>
+    /// <param name="options">Read options, or <see langword="null"/> for the defaults. They apply to every part.</param>
+    /// <returns>A reader positioned before the first record. Disposing it closes every file.</returns>
+    /// <exception cref="InvalidDataException">A header is invalid, or the parts do not share the same schema.</exception>
+    /// <exception cref="ArgumentException">No path is given, or a projected column does not exist or is repeated.</exception>
+    public static DbfReader Open(IEnumerable<string> paths, DbfReadOptions? options = null)
+    {
+        var list = RequireParts(paths, nameof(paths));
+        var parts = new List<DbfPart>();
         try
         {
-            return new DbfReader(file, options ?? new DbfReadOptions(), [file], drainAtEnd: false);
+            foreach (var path in list)
+            {
+                var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.SequentialScan);
+                parts.Add(new DbfPart(Path.GetFileName(path), file, [file], [file], drainAtEnd: false));
+            }
+
+            return Create(parts, options);
         }
         catch
         {
-            file.Dispose();
+            DbfPart.DisposeCreated(parts);
             throw;
         }
     }
@@ -165,45 +213,115 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             throw new ArgumentException("The DBF stream must be readable.", nameof(dbf));
         }
 
-        options ??= new DbfReadOptions();
-        return new DbfReader(dbf, options, options.LeaveOpen ? [] : [dbf], drainAtEnd: false);
+        return Open([dbf], options);
     }
 
     /// <summary>
-    /// Opens a reader over a DBF stream decompressed from a DBC. Once the last record has been
-    /// read, the rest of the stream is drained so that the DBC checksum is verified; a mismatch
-    /// surfaces as an <see cref="InvalidDataException"/> from that final <see cref="Read"/>.
+    /// Opens the parts of a table split into several DBF streams as a single reader, in the order given.
     /// </summary>
-    internal static DbfReader OpenDecompressed(Stream dbf, DbfReadOptions? options, IDisposable[] ownedResources) =>
-        new(dbf, options ?? new DbfReadOptions(), ownedResources, drainAtEnd: true);
+    /// <param name="parts">
+    /// Readable streams positioned at the start of each part; never seeked. Every header is read
+    /// before this method returns. If it throws, no stream is disposed.
+    /// </param>
+    /// <param name="options">
+    /// Read options, or <see langword="null"/> for the defaults. They apply to every part;
+    /// <see cref="DbfReadOptions.LeaveOpen"/> applies to every stream.
+    /// </param>
+    /// <returns>A reader positioned before the first record.</returns>
+    /// <exception cref="InvalidDataException">A header is invalid, or the parts do not share the same schema.</exception>
+    /// <exception cref="ArgumentException">No stream is given, a stream is not readable, or a projected column does not exist or is repeated.</exception>
+    public static DbfReader Open(IEnumerable<Stream> parts, DbfReadOptions? options = null)
+    {
+        var list = RequireParts(parts, nameof(parts));
+        var leaveOpen = options?.LeaveOpen ?? false;
+        var wrapped = new List<DbfPart>();
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (!list[i].CanRead)
+            {
+                throw new ArgumentException("Every DBF stream must be readable.", nameof(parts));
+            }
 
-    /// <summary>Advances to the next record, skipping deleted ones unless configured otherwise.</summary>
+            var name = list.Count == 1 ? null : $"part {i + 1}";
+            wrapped.Add(new DbfPart(name, list[i], leaveOpen ? [] : [list[i]], [], drainAtEnd: false));
+        }
+
+        return Create(wrapped, options);
+    }
+
+    /// <summary>
+    /// Creates a reader over prepared parts. On failure, disposes only what DbSus created for them.
+    /// </summary>
+    internal static DbfReader Create(IReadOnlyList<DbfPart> parts, DbfReadOptions? options)
+    {
+        try
+        {
+            return new DbfReader([.. parts], options ?? new DbfReadOptions());
+        }
+        catch
+        {
+            DbfPart.DisposeCreated(parts);
+            throw;
+        }
+    }
+
+    internal static List<T> RequireParts<T>(IEnumerable<T> parts, string paramName)
+        where T : class
+    {
+        Guard.NotNull(parts, paramName);
+        var list = parts.ToList();
+        if (list.Count == 0)
+        {
+            throw new ArgumentException("At least one part is required.", paramName);
+        }
+
+        if (list.Any(part => part is null))
+        {
+            throw new ArgumentException("Parts cannot be null.", paramName);
+        }
+
+        return list;
+    }
+
+    /// <summary>
+    /// Advances to the next record, skipping deleted ones unless configured otherwise, and moving on
+    /// to the next part when one ends.
+    /// </summary>
     /// <returns><see langword="true"/> if there is a current record; <see langword="false"/> at the end.</returns>
-    /// <exception cref="InvalidDataException">The data ends before the declared number of records.</exception>
+    /// <exception cref="InvalidDataException">
+    /// The data ends before the declared number of records, or (for DBC data) a part's checksum does
+    /// not match once that part has been read to its end.
+    /// </exception>
     public override bool Read()
     {
         Guard.NotDisposed(_closed, this);
-        while (_recordsConsumed < Header.RecordCount)
+        while (true)
         {
-            ReadRecord();
-            _recordsConsumed++;
-            if (_includeDeleted || _record[0] != DeletedFlag)
+            var part = _parts[_partIndex];
+            if (_consumedInPart < part.Header!.RecordCount)
             {
-                _hasRecord = true;
-                return true;
-            }
-        }
+                ReadRecord(part);
+                _consumedInPart++;
+                _recordNumber++;
+                if (_includeDeleted || _record[0] != DeletedFlag)
+                {
+                    _hasRecord = true;
+                    return true;
+                }
 
-        if (_hasRecord || _recordsConsumed == Header.RecordCount)
-        {
+                continue;
+            }
+
             _hasRecord = false;
-            if (_drainAtEnd)
+            FinishPart(part);
+            if (_partIndex + 1 == _parts.Length)
             {
-                Drain();
+                return false;
             }
-        }
 
-        return false;
+            _partIndex++;
+            _consumedInPart = 0;
+        }
     }
 
     /// <summary>Returns <see langword="false"/>: a DBF file holds a single table.</summary>
@@ -556,9 +674,9 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
 
         _closed = true;
         _hasRecord = false;
-        foreach (var resource in _ownedResources)
+        foreach (var part in _parts)
         {
-            resource.Dispose();
+            part.Release();
         }
     }
 
@@ -573,28 +691,74 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
         base.Dispose(disposing);
     }
 
-    private static DbfHeader ReadHeader(Stream stream)
+    private static DbfHeader ReadHeader(DbfPart part)
     {
-        var prefix = new byte[TableHeaderLength];
-        if (ReadFully(stream, prefix, 0, prefix.Length) != prefix.Length)
+        try
         {
-            throw new InvalidDataException("Invalid DBF: the data ends inside the 32-byte table header.");
+            var prefix = new byte[TableHeaderLength];
+            if (ReadFully(part.Stream, prefix, 0, prefix.Length) != prefix.Length)
+            {
+                throw new InvalidDataException("Invalid DBF: the data ends inside the 32-byte table header.");
+            }
+
+            var headerLength = prefix[8] | (prefix[9] << 8);
+            if (headerLength < TableHeaderLength)
+            {
+                throw new InvalidDataException($"Invalid DBF: the header length is {headerLength}, below 32.");
+            }
+
+            var header = new byte[headerLength];
+            Buffer.BlockCopy(prefix, 0, header, 0, prefix.Length);
+            if (ReadFully(part.Stream, header, prefix.Length, headerLength - prefix.Length) != headerLength - prefix.Length)
+            {
+                throw new InvalidDataException("Invalid DBF: the data ends inside the header.");
+            }
+
+            return DbfHeader.Parse(header);
+        }
+        catch (InvalidDataException exception) when (part.Name is not null)
+        {
+            throw new InvalidDataException(part.Prefix + exception.Message, exception);
+        }
+    }
+
+    private static void EnsureSameSchema(DbfPart first, DbfPart other, DbfReadOptions options, Encoding encoding)
+    {
+        var expected = first.Header!;
+        var actual = other.Header!;
+        string? difference = null;
+        if (actual.Fields.Count != expected.Fields.Count)
+        {
+            difference = $"it has {actual.Fields.Count} fields and the first part has {expected.Fields.Count}";
+        }
+        else
+        {
+            for (var i = 0; i < expected.Fields.Count && difference is null; i++)
+            {
+                var a = expected.Fields[i];
+                var b = actual.Fields[i];
+                if (a.Name != b.Name || a.TypeCode != b.TypeCode || a.Length != b.Length || a.DecimalCount != b.DecimalCount)
+                {
+                    difference = $"field {i + 1} is {a} in the first part and {b} here";
+                }
+            }
         }
 
-        var headerLength = prefix[8] | (prefix[9] << 8);
-        if (headerLength < TableHeaderLength)
+        if (difference is null && actual.RecordLength != expected.RecordLength)
         {
-            throw new InvalidDataException($"Invalid DBF: the header length is {headerLength}, below 32.");
+            difference = $"its record length is {actual.RecordLength} and the first part's is {expected.RecordLength}";
         }
 
-        var header = new byte[headerLength];
-        Buffer.BlockCopy(prefix, 0, header, 0, prefix.Length);
-        if (ReadFully(stream, header, prefix.Length, headerLength - prefix.Length) != headerLength - prefix.Length)
+        if (difference is null && options.Encoding is null
+            && DbfEncodings.Resolve(actual.LanguageDriverId, options).CodePage != encoding.CodePage)
         {
-            throw new InvalidDataException("Invalid DBF: the data ends inside the header.");
+            difference = $"its language driver ID 0x{actual.LanguageDriverId:X2} selects another code page than the first part's 0x{expected.LanguageDriverId:X2}";
         }
 
-        return DbfHeader.Parse(header);
+        if (difference is not null)
+        {
+            throw new InvalidDataException($"{other.Name} does not match {first.Name}: {difference}.");
+        }
     }
 
     private static DbfField[] ApplyConversions(DbfField[] result, IDictionary<string, DbfFieldConversion> conversions)
@@ -696,25 +860,43 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
         _ => true,
     };
 
-    private void ReadRecord()
+    private void ReadRecord(DbfPart part)
     {
-        var read = ReadFully(_stream, _record, 0, _record.Length);
+        var read = ReadFully(part.Stream, _record, 0, _record.Length);
         if (read != _record.Length)
         {
             _hasRecord = false;
             throw new InvalidDataException(
-                $"The DBF data ends inside record {_recordsConsumed + 1} of {Header.RecordCount}.");
+                $"{part.Prefix}The DBF data ends inside record {_consumedInPart + 1} of {part.Header!.RecordCount}.");
         }
     }
 
-    // Reads the rest of the stream (normally just the 0x1A marker) so a decompressing stream
-    // reaches its end and verifies its checksum.
-    private void Drain()
+    // After a part's last record: read the rest of its stream (normally just the 0x1A marker) so
+    // a decompressing stream reaches its end and verifies its checksum, then release the part.
+    private static void FinishPart(DbfPart part)
     {
-        var buffer = new byte[4096];
-        while (_stream.Read(buffer, 0, buffer.Length) > 0)
+        if (part.Finished)
         {
+            return;
         }
+
+        part.Finished = true;
+        if (part.DrainAtEnd)
+        {
+            try
+            {
+                var buffer = new byte[4096];
+                while (part.Stream.Read(buffer, 0, buffer.Length) > 0)
+                {
+                }
+            }
+            catch (InvalidDataException exception) when (part.Name is not null)
+            {
+                throw new InvalidDataException(part.Prefix + exception.Message, exception);
+            }
+        }
+
+        part.Release();
     }
 
     private byte[] CurrentRecord()
@@ -809,8 +991,11 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             : throw new InvalidCastException($"Field {field.Name} holds a fractional value in record {RecordNumber}; use GetDecimal.");
 
     // The value itself is deliberately left out of the message: DATASUS data can be personal.
-    private FormatException Invalid(DbfField field, string expected) =>
-        new($"Field {field.Name} ({field.TypeCode}) of record {RecordNumber} does not hold {expected}.");
+    private FormatException Invalid(DbfField field, string expected)
+    {
+        var part = _parts[_partIndex].Name is { } name ? $" ({name})" : string.Empty;
+        return new($"Field {field.Name} ({field.TypeCode}) of record {RecordNumber}{part} does not hold {expected}.");
+    }
 
     private sealed class DbfColumn : DbColumn
     {
