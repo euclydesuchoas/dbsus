@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The SDK version comes from global.json; SDK 10 is required for .slnx and for
+      # running dotnet test on Microsoft Testing Platform.
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - run: dotnet restore DbSus.slnx
+
+      - run: dotnet build DbSus.slnx --configuration Release --no-restore
+
+      # Tests that need the large local-only samples skip themselves when the files are absent.
+      - run: dotnet test --solution DbSus.slnx --configuration Release --no-build
