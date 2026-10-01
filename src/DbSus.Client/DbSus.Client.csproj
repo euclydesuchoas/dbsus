@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="DbSus.Client.Tests" Key="$(DbSusPublicKey)" />
+    <InternalsVisibleTo Include="DbSus.Client.LockHelper" Key="$(DbSusPublicKey)" />
   </ItemGroup>
 
 </Project>

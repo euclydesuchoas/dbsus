@@ -15,6 +15,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DbSus.Client\DbSus.Client.csproj" />
+    <!-- Built first so the cross-process tests can start it; not referenced as an assembly. -->
+    <ProjectReference Include="..\DbSus.Client.LockHelper\DbSus.Client.LockHelper.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- Synthetic DBF/DBC builders shared with the core tests. -->
