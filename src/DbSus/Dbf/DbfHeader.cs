@@ -59,6 +59,39 @@ public sealed class DbfHeader
     /// </summary>
     public int UnusedRecordBytes { get; }
 
+    /// <summary>
+    /// Reads only the table header from the start of a stream, leaving the stream positioned right
+    /// after it. Works for DBF data and also for DBC files, whose header is stored uncompressed: it
+    /// gives the schema and the record count without decompressing or downloading the rest.
+    /// </summary>
+    /// <param name="stream">A readable stream positioned at the start of the data; never seeked.</param>
+    /// <returns>The parsed header.</returns>
+    /// <exception cref="InvalidDataException">The data ends inside the header or the header is invalid.</exception>
+    public static DbfHeader Read(Stream stream)
+    {
+        Guard.NotNull(stream, nameof(stream));
+        var prefix = new byte[TableHeaderLength];
+        if (ReadFully(stream, prefix, 0, prefix.Length) != prefix.Length)
+        {
+            throw new InvalidDataException("Invalid DBF: the data ends inside the 32-byte table header.");
+        }
+
+        var headerLength = prefix[8] | (prefix[9] << 8);
+        if (headerLength < TableHeaderLength)
+        {
+            throw new InvalidDataException($"Invalid DBF: the header length is {headerLength}, below 32.");
+        }
+
+        var header = new byte[headerLength];
+        Buffer.BlockCopy(prefix, 0, header, 0, prefix.Length);
+        if (ReadFully(stream, header, prefix.Length, headerLength - prefix.Length) != headerLength - prefix.Length)
+        {
+            throw new InvalidDataException("Invalid DBF: the data ends inside the header.");
+        }
+
+        return Parse(header);
+    }
+
     internal static DbfHeader Parse(byte[] header)
     {
         var headerLength = header[8] | (header[9] << 8);
@@ -93,6 +126,23 @@ public sealed class DbfHeader
             header[29],
             fields,
             recordLength - offset);
+    }
+
+    private static int ReadFully(Stream stream, byte[] buffer, int offset, int count)
+    {
+        var total = 0;
+        while (total < count)
+        {
+            var read = stream.Read(buffer, offset + total, count - total);
+            if (read <= 0)
+            {
+                break;
+            }
+
+            total += read;
+        }
+
+        return total;
     }
 
     private static string ReadName(byte[] header, int position)

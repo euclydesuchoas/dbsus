@@ -44,7 +44,6 @@ namespace DbSus.Dbf;
 [SuppressMessage("Design", "CA1010", Justification = "The non-generic IEnumerable comes from DbDataReader; its items are records, as in every ADO.NET reader.")]
 public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
 {
-    private const int TableHeaderLength = 32;
     private const byte DeletedFlag = (byte)'*';
     private const byte Space = (byte)' ';
 
@@ -811,26 +810,7 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     {
         try
         {
-            var prefix = new byte[TableHeaderLength];
-            if (ReadFully(part.Stream, prefix, 0, prefix.Length) != prefix.Length)
-            {
-                throw new InvalidDataException("Invalid DBF: the data ends inside the 32-byte table header.");
-            }
-
-            var headerLength = prefix[8] | (prefix[9] << 8);
-            if (headerLength < TableHeaderLength)
-            {
-                throw new InvalidDataException($"Invalid DBF: the header length is {headerLength}, below 32.");
-            }
-
-            var header = new byte[headerLength];
-            Buffer.BlockCopy(prefix, 0, header, 0, prefix.Length);
-            if (ReadFully(part.Stream, header, prefix.Length, headerLength - prefix.Length) != headerLength - prefix.Length)
-            {
-                throw new InvalidDataException("Invalid DBF: the data ends inside the header.");
-            }
-
-            return DbfHeader.Parse(header);
+            return DbfHeader.Read(part.Stream);
         }
         catch (InvalidDataException exception) when (part.Name is not null)
         {
@@ -1006,8 +986,10 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
                 {
                 }
             }
-            catch (InvalidDataException exception) when (part.Name is not null)
+            catch (InvalidDataException exception) when (part.Name is not null && exception.GetType() == typeof(InvalidDataException))
             {
+                // Plain errors get the part name; specific ones (such as a DBC checksum error,
+                // which already names its part) keep their type.
                 throw new InvalidDataException(part.Prefix + exception.Message, exception);
             }
         }
