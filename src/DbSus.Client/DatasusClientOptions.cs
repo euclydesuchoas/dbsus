@@ -23,6 +23,12 @@ public sealed class DatasusClientOptions
     /// Gets or sets the directory of the persistent download cache, or <see langword="null"/> (the
     /// default) for no cache: downloads then go to temporary files.
     /// </summary>
+    /// <remarks>
+    /// Layout: <c>&lt;cache&gt;/&lt;remote path&gt;/&lt;file&gt;/&lt;size&gt;-&lt;MDTM&gt;/</c> with the file,
+    /// <c>entry.meta</c> (plain text) and <c>entry.lock</c> (an empty file used as a lock between
+    /// threads and processes). Lock files and empty folders stay after pruning and are removed by
+    /// <see cref="DatasusClient.ClearCacheAsync"/>.
+    /// </remarks>
     public string? CacheDirectory { get; set; }
 
     /// <summary>

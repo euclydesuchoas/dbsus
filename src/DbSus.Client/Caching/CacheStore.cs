@@ -171,14 +171,52 @@ internal sealed class CacheStore(string root, long? maxBytes, Func<DateTime> utc
         }
     }
 
+    /// <summary>
+    /// Removes every entry nobody is using, then its lock file, then every empty folder. Lock files
+    /// are only deleted here: pruning keeps them, because a lock file that disappears while another
+    /// process waits on it could let two processes believe they hold the same lock.
+    /// </summary>
     public void Clear()
     {
         foreach (var entry in Entries())
         {
-            using var held = FileLocks.TryAcquire(entry.LockPath);
-            if (held is not null)
+            bool removed;
+            using (var held = FileLocks.TryAcquire(entry.LockPath))
             {
-                entry.TryRemove();
+                removed = held is not null && entry.TryRemove();
+            }
+
+            if (removed)
+            {
+                FileLocks.TryDelete(entry.LockPath);
+            }
+        }
+
+        RemoveEmptyDirectories(Root);
+    }
+
+    private static void RemoveEmptyDirectories(string directory)
+    {
+        if (!Directory.Exists(directory))
+        {
+            return;
+        }
+
+        foreach (var child in Directory.EnumerateDirectories(directory).ToList())
+        {
+            RemoveEmptyDirectories(child);
+            if (!Directory.EnumerateFileSystemEntries(child).Any())
+            {
+                try
+                {
+                    Directory.Delete(child);
+                }
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
             }
         }
     }

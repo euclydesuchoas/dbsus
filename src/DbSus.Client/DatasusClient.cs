@@ -231,7 +231,11 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
         }
     }
 
-    /// <summary>Removes every cache entry that is not in use. Does nothing without a cache.</summary>
+    /// <summary>
+    /// Removes every cache entry that is not in use, together with its lock file, and the folders
+    /// left empty. Entries open by a reader are skipped. Meant for a cache that no other process is
+    /// downloading into at the same moment. Does nothing without a cache.
+    /// </summary>
     public Task ClearCacheAsync(CancellationToken cancellationToken = default)
     {
         Guard.NotDisposed(_disposed, this);
@@ -241,7 +245,9 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     /// <summary>
     /// Removes orphans (partial downloads and temporary files older than 24 hours whose lock is
     /// free), entries marked invalid, and, above <see cref="DatasusClientOptions.MaxCacheSizeBytes"/>,
-    /// the least recently used entries. Entries in use are never removed.
+    /// the least recently used entries. Entries in use are never removed. Each entry's small
+    /// <c>entry.lock</c> file and the folders that become empty are kept (a lock file must not
+    /// vanish while another process may be waiting on it); <see cref="ClearCacheAsync"/> removes them.
     /// </summary>
     public Task PruneCacheAsync(CancellationToken cancellationToken = default)
     {
