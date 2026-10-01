@@ -5,6 +5,7 @@
     <RootNamespace>DbSus.Client</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>DbSus.Client</PackageId>
+    <PackageTags>datasus;sus;dbc;dbf;dbase;ftp;download;brazil;brasil;health;saude</PackageTags>
     <Description>Downloads DATASUS files from its public FTP server and opens them with DbSus: listing, split-table discovery, resumable downloads with retries, and an optional local cache. Independent project, not affiliated with the Brazilian Ministry of Health or DATASUS.</Description>
   </PropertyGroup>
 
