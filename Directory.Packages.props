@@ -5,8 +5,12 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
-  <!-- Referenced by the netstandard2.0 target only; both are in-box on net10.0. -->
-  <ItemGroup Label="netstandard2.0 polyfills">
+  <!--
+    Polyfills for the netstandard2.0 build (and System.Memory for net472); in-box on net10.0.
+    These are the versions tests and benchmarks use; the libraries declare lower minimums in
+    src/Directory.Packages.props. The same applies to Microsoft.Bcl.AsyncInterfaces below.
+  -->
+  <ItemGroup Label="Polyfills">
     <PackageVersion Include="System.Memory" Version="4.6.3" />
     <PackageVersion Include="System.Text.Encoding.CodePages" Version="10.0.12" />
   </ItemGroup>

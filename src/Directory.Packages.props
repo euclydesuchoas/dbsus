@@ -1,0 +1,23 @@
+<Project>
+
+  <!--
+    The libraries declare the lowest versions of their polyfill dependencies that work, so an
+    application that already references an older version does not hit a downgrade error (NU1605).
+    Tests and benchmarks keep the newer versions from the root file. System.Memory 4.5.0 and 4.5.1
+    fail on .NET Framework (FileLoadException for System.Runtime.CompilerServices.Unsafe); the
+    package consumer in CI checks these minimums.
+  -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove(Directory.Packages.props, $(MSBuildThisFileDirectory)..))" />
+
+  <!-- Without pinning, the client does not list the core's dependencies as its own. -->
+  <PropertyGroup>
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageVersion Update="System.Memory" Version="4.5.3" />
+    <PackageVersion Update="System.Text.Encoding.CodePages" Version="4.4.0" />
+    <PackageVersion Update="Microsoft.Bcl.AsyncInterfaces" Version="1.0.0" />
+  </ItemGroup>
+
+</Project>
