@@ -40,7 +40,7 @@ jobs:
 
   # Packs DbSus and DbSus.Client and runs an outside consumer against the packages, once per asset
   # (net8.0 -> netstandard2.0, net10.0 -> net10.0 and, on Windows, net481 -> net472), then with the
-  # oldest accepted dependency versions pinned.
+  # oldest accepted dependency versions pinned, and the net8.0 consumer once more built with SDK 8.
   packages:
     name: Package consumers (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -56,7 +56,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # SDK 10 from global.json, plus .NET 8 for the netstandard2.0 consumer.
+      # SDK 10 from global.json, plus SDK 8 for the net8.0 consumers (runtime 8, and the build with SDK 8).
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
@@ -81,3 +81,11 @@ jobs:
 
       - if: runner.os == 'Windows'
         run: dotnet run --project tests/package-consumer --configuration Release --framework net481 -p:DbSusVersion=${{ steps.version.outputs.value }} -p:PinOldestDependencies=true
+
+      # The net8.0 consumer built with SDK 8 (global.json in that folder), which, unlike SDK 10, does
+      # not prune in-box packages from the restore.
+      - working-directory: tests/package-consumer/sdk8
+        run: dotnet --version
+
+      - working-directory: tests/package-consumer/sdk8
+        run: dotnet run --configuration Release -p:DbSusVersion=${{ steps.version.outputs.value }}

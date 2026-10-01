@@ -1,6 +1,6 @@
 <!--
-  Stops the repository's build settings (signing, analyzers) from applying: this project plays an
-  outside consumer.
+  Stops the repository's build settings (signing, analyzers) from applying: these projects play an
+  outside consumer. Shared by PackageConsumer.csproj and sdk8/PackageConsumer.Sdk8.csproj.
 -->
 <Project>
 

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The net8.0 consumer built with SDK 8 (global.json in this folder; run from here). Unlike SDK 10,
+       SDK 8 does not prune packages that are part of the framework, so the netstandard2.0 build's
+       dependencies are restored as an application on SDK 8 sees them. Same program as the parent. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../Program.cs" />
+  </ItemGroup>
+
+</Project>
