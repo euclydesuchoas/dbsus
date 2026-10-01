@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- net481 consumes the netstandard2.0 assets of DbSus and DbSus.Client. -->
+  <PropertyGroup>
+    <TargetFrameworks>net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(TargetFrameworks);net481</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DbSus.Client\DbSus.Client.csproj" />
+  </ItemGroup>
+
+  <!-- Synthetic DBF/DBC builders shared with the core tests. -->
+  <ItemGroup>
+    <Compile Include="..\DbSus.Tests\TestSupport\DbfBuilder.cs" Link="TestSupport\DbfBuilder.cs" />
+    <Compile Include="..\DbSus.Tests\TestSupport\SyntheticDbc.cs" Link="TestSupport\SyntheticDbc.cs" />
+    <Compile Include="..\DbSus.Tests\TestSupport\ReferenceCrc32.cs" Link="TestSupport\ReferenceCrc32.cs" />
+    <Compile Include="..\DbSus.Tests\TestSupport\RepositoryPaths.cs" Link="TestSupport\RepositoryPaths.cs" />
+  </ItemGroup>
+
+</Project>
