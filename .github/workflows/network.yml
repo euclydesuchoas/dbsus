@@ -1,0 +1,33 @@
+name: Network tests
+
+# Optional checks against the real DATASUS FTP server. Separate from CI on purpose: a network or
+# server problem never blocks a build. Runs on demand and once a week, with one connection.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * 1" # Mondays 09:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  network:
+    name: DATASUS FTP
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+      DBSUS_NETWORK_TESTS: "1"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - run: dotnet build tests/DbSus.Client.Tests --configuration Release
+
+      - run: dotnet test --project tests/DbSus.Client.Tests --configuration Release --no-build --filter-class "*NetworkTests"
