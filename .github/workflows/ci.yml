@@ -37,3 +37,39 @@ jobs:
 
       # Tests that need the large local-only samples skip themselves when the files are absent.
       - run: dotnet test --solution DbSus.slnx --configuration Release --no-build
+
+  # Packs DbSus and DbSus.Client and runs an outside consumer against the packages, once per asset:
+  # net8.0 -> netstandard2.0, net10.0 -> net10.0 and, on Windows, net481 -> net472.
+  packages:
+    name: Package consumers (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # SDK 10 from global.json, plus .NET 8 for the netstandard2.0 consumer.
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          dotnet-version: 8.0.x
+
+      - run: dotnet pack DbSus.slnx --configuration Release --output artifacts/packages
+
+      - id: version
+        shell: bash
+        run: echo "value=$(dotnet msbuild src/DbSus/DbSus.csproj -getProperty:PackageVersion)" >> "$GITHUB_OUTPUT"
+
+      - run: dotnet run --project tests/package-consumer --configuration Release --framework net8.0 -p:DbSusVersion=${{ steps.version.outputs.value }}
+
+      - run: dotnet run --project tests/package-consumer --configuration Release --framework net10.0 -p:DbSusVersion=${{ steps.version.outputs.value }}
+
+      - if: runner.os == 'Windows'
+        run: dotnet run --project tests/package-consumer --configuration Release --framework net481 -p:DbSusVersion=${{ steps.version.outputs.value }}
