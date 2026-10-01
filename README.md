@@ -147,7 +147,7 @@ Every record returned before that point came from the same file, so if the check
 
 ## .NET Framework
 
-The minimum is .NET Framework 4.7.2, which uses the packages' `net472` build. If an application still fails on the first read with a `FileLoadException` for `System.Memory` (for example an unusual build setup that resolves the `netstandard2.0` build instead), add this binding redirect to its `app.config`:
+The minimum is .NET Framework 4.7.2, which uses the packages' `net472` build. If an application still fails on the first read with a `FileLoadException` for `System.Memory` (for example an unusual build setup that resolves the `netstandard2.0` build instead), add a binding redirect to its `app.config`. `newVersion` must be the assembly version of the `System.Memory.dll` the application ships; for example 4.0.5.0, from the `System.Memory` 4.6.3 package:
 
 ```xml
 <dependentAssembly>
@@ -155,6 +155,8 @@ The minimum is .NET Framework 4.7.2, which uses the packages' `net472` build. If
   <bindingRedirect oldVersion="0.0.0.0-4.0.5.0" newVersion="4.0.5.0" />
 </dependentAssembly>
 ```
+
+The packages accept `System.Memory` 4.5.3 or later, `System.Text.Encoding.CodePages` 4.4.0 or later and `Microsoft.Bcl.AsyncInterfaces` 1.0.0 or later, so an application that already references one of them, at those versions or later, keeps its own version without a downgrade error (NU1605).
 
 ## Security note
 
