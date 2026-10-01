@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net472;net10.0</TargetFrameworks>
     <RootNamespace>DbSus</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>DbSus</PackageId>
@@ -12,6 +12,11 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="System.Memory" />
     <PackageReference Include="System.Text.Encoding.CodePages" />
+  </ItemGroup>
+
+  <!-- .NET Framework: Span<T> needs System.Memory; code pages are built in. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <PackageReference Include="System.Memory" />
   </ItemGroup>
 
   <ItemGroup>

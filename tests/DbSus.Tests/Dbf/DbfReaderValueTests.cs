@@ -248,7 +248,7 @@ public class DbfReaderValueTests
     public void GetString_EncodingOption_OverridesLanguageDriverId()
     {
         var dbf = new DbfBuilder { LanguageDriverId = 0x03 }.Field("TEXT", 'C', 1).Record(new byte[] { 0x87 }).Build();
-        var cp850 = CodePagesEncodingProvider.Instance.GetEncoding(850)!;
+        var cp850 = Cp850();
         using var reader = DbfReader.Open(new MemoryStream(dbf), new DbfReadOptions { Encoding = cp850 });
         Assert.True(reader.Read());
 
@@ -259,7 +259,7 @@ public class DbfReaderValueTests
     [Fact]
     public void GetString_FallbackEncoding_AppliesOnlyWithoutKnownLanguageDriverId()
     {
-        var cp850 = CodePagesEncodingProvider.Instance.GetEncoding(850)!;
+        var cp850 = Cp850();
         var withoutLdid = new DbfBuilder { LanguageDriverId = 0x00 }.Field("TEXT", 'C', 1).Record(new byte[] { 0x87 }).Build();
         var withLdid = new DbfBuilder { LanguageDriverId = 0x03 }.Field("TEXT", 'C', 1).Record(new byte[] { 0xE7 }).Build();
 
@@ -269,6 +269,12 @@ public class DbfReaderValueTests
         Assert.Equal(850, fallback.Encoding.CodePage);
         Assert.Equal(1252, declared.Encoding.CodePage);
     }
+
+#if NETFRAMEWORK
+    private static Encoding Cp850() => Encoding.GetEncoding(850);
+#else
+    private static Encoding Cp850() => CodePagesEncodingProvider.Instance.GetEncoding(850)!;
+#endif
 
     private static DbfReader SingleValue(char type, int length, string stored, DbfReadOptions? options = null, int decimals = 0)
     {

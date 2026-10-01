@@ -57,13 +57,18 @@ internal static class DbfEncodings
         return options.FallbackEncoding ?? TryGet(DefaultCodePage)!;
     }
 
-    // Code-page encodings come from the provider directly, without Encoding.RegisterProvider, so
-    // the library has no process-wide side effect.
+    // On .NET Framework every Windows code page is built in. Elsewhere, code-page encodings come
+    // from the provider directly, without Encoding.RegisterProvider, so the library has no
+    // process-wide side effect.
     private static Encoding? TryGet(int codePage)
     {
         try
         {
+#if NETFRAMEWORK
+            return Encoding.GetEncoding(codePage);
+#else
             return CodePagesEncodingProvider.Instance.GetEncoding(codePage) ?? Encoding.GetEncoding(codePage);
+#endif
         }
         catch (ArgumentException)
         {
