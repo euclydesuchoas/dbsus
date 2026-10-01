@@ -1,0 +1,2 @@
+<!-- Stops the repository's build settings (signing, analyzers) from applying: this project plays an outside consumer. -->
+<Project />
