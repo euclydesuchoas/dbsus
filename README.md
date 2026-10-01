@@ -53,6 +53,7 @@ using var reader = await client.OpenReaderAsync("/SIASUS/200801_/Dados/PAMG2407.
 - Downloads resume after a dropped connection, restart from zero if the file changed on the server, retry transient failures with backoff, and are verified (CRC-32) before being used or cached.
 - The client is thread-safe and meant to be shared (e.g. a singleton). It opens at most two connections by default (four at most), to be gentle with the server; the limit applies per instance.
 - The cache is optional. Entries are keyed by path, size and modification time, written atomically, shared safely between threads and processes, and never removed while a reader has them open. `PruneCacheAsync` and `MaxCacheSizeBytes` keep it tidy.
+- Each entry has a small `entry.lock` file used to coordinate threads and processes. Pruning keeps lock files and the folders that become empty (a lock file must not vanish while another process may be waiting on it); `ClearCacheAsync` removes entries not in use together with their lock files and empty folders, and is meant for when no other process is downloading into the same cache.
 
 ### Security note
 
