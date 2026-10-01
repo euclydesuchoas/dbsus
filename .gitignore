@@ -439,3 +439,6 @@ tests/data/local/
 
 # Exception: tiny establishment-level fixtures, see tests/data/fixtures/README.md
 !tests/data/fixtures/*.dbc
+
+# Local tooling notes, never committed
+.claude/
