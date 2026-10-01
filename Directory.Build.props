@@ -64,8 +64,9 @@
   <ItemGroup Label="Package files" Condition="'$(IsPackable)' != 'false'">
     <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
     <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="\" Visible="false" />
+    <!-- Only packages that contain third-party code (DbSus: the blast.c port) set IncludeThirdPartyNotices. -->
     <None Include="$(MSBuildThisFileDirectory)THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="\" Visible="false"
-          Condition="Exists('$(MSBuildThisFileDirectory)THIRD-PARTY-NOTICES.md')" />
+          Condition="'$(IncludeThirdPartyNotices)' == 'true'" />
   </ItemGroup>
 
 </Project>

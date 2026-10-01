@@ -5,6 +5,7 @@
     <RootNamespace>DbSus</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>DbSus</PackageId>
+    <IncludeThirdPartyNotices>true</IncludeThirdPartyNotices>
     <Description>Fully managed reader for the .dbc (compressed dBase) and .dbf files distributed by DATASUS: DBC decompression, streaming DBF reading and a DbDataReader. Independent project, not affiliated with the Brazilian Ministry of Health or DATASUS.</Description>
   </PropertyGroup>
 
