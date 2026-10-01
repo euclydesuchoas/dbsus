@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <RootNamespace>DbSus.Client</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId>DbSus.Client</PackageId>
+    <Description>Downloads DATASUS files from its public FTP server and opens them with DbSus: listing, split-table discovery, resumable downloads with retries, and an optional local cache. Independent project, not affiliated with the Brazilian Ministry of Health or DATASUS.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentFTP" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DbSus\DbSus.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Shared\PartNaming.cs" Link="Shared\PartNaming.cs" />
+    <Compile Include="..\DbSus\Guard.cs" Link="Shared\Guard.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="DbSus.Client.Tests" Key="$(DbSusPublicKey)" />
+  </ItemGroup>
+
+</Project>

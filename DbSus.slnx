@@ -3,6 +3,7 @@
     <Project Path="benchmarks/DbSus.Benchmarks/DbSus.Benchmarks.csproj" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/DbSus.Client/DbSus.Client.csproj" />
     <Project Path="src/DbSus/DbSus.csproj" />
   </Folder>
   <Folder Name="/tests/">

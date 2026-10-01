@@ -11,6 +11,11 @@
     <PackageVersion Include="System.Text.Encoding.CodePages" Version="10.0.12" />
   </ItemGroup>
 
+  <ItemGroup Label="Client">
+    <PackageVersion Include="FluentFTP" Version="55.0.0" />
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.12" />
+  </ItemGroup>
+
   <ItemGroup Label="Benchmarks">
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
   </ItemGroup>
