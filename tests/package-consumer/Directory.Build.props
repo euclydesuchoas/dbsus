@@ -1,2 +1,32 @@
-<!-- Stops the repository's build settings (signing, analyzers) from applying: this project plays an outside consumer. -->
-<Project />
+<!--
+  Stops the repository's build settings (signing, analyzers) from applying: this project plays an
+  outside consumer.
+-->
+<Project>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <DbSusVersion Condition="'$(DbSusVersion)' == ''">0.1.0-preview.1</DbSusVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DbSus" Version="[$(DbSusVersion)]" />
+    <PackageReference Include="DbSus.Client" Version="[$(DbSusVersion)]" />
+  </ItemGroup>
+
+  <!--
+    -p:PinOldestDependencies=true plays an application that already references the oldest versions
+    the packages accept (the minimums in src/Directory.Packages.props). If a minimum is raised, this
+    restore fails with a downgrade error (NU1605), as it would for such an application.
+  -->
+  <ItemGroup Condition="'$(PinOldestDependencies)' == 'true' and '$(TargetFramework)' != 'net10.0'">
+    <PackageReference Include="System.Memory" Version="4.5.3" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="4.4.0" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="1.0.0" />
+  </ItemGroup>
+
+</Project>

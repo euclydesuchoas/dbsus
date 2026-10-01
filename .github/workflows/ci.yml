@@ -38,8 +38,9 @@ jobs:
       # Tests that need the large local-only samples skip themselves when the files are absent.
       - run: dotnet test --solution DbSus.slnx --configuration Release --no-build
 
-  # Packs DbSus and DbSus.Client and runs an outside consumer against the packages, once per asset:
-  # net8.0 -> netstandard2.0, net10.0 -> net10.0 and, on Windows, net481 -> net472.
+  # Packs DbSus and DbSus.Client and runs an outside consumer against the packages, once per asset
+  # (net8.0 -> netstandard2.0, net10.0 -> net10.0 and, on Windows, net481 -> net472), then with the
+  # oldest accepted dependency versions pinned.
   packages:
     name: Package consumers (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -73,3 +74,10 @@ jobs:
 
       - if: runner.os == 'Windows'
         run: dotnet run --project tests/package-consumer --configuration Release --framework net481 -p:DbSusVersion=${{ steps.version.outputs.value }}
+
+      # An application that already references the oldest accepted dependency versions: raising a
+      # minimum in src/Directory.Packages.props makes this restore fail with NU1605.
+      - run: dotnet run --project tests/package-consumer --configuration Release --framework net8.0 -p:DbSusVersion=${{ steps.version.outputs.value }} -p:PinOldestDependencies=true
+
+      - if: runner.os == 'Windows'
+        run: dotnet run --project tests/package-consumer --configuration Release --framework net481 -p:DbSusVersion=${{ steps.version.outputs.value }} -p:PinOldestDependencies=true

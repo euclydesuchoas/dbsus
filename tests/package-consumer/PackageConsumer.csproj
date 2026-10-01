@@ -1,21 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!-- Smoke test of the packed NuGet packages, one target per asset:
-       net8.0 -> netstandard2.0, net10.0 -> net10.0, net481 -> net472. Not part of DbSus.slnx. -->
+       net8.0 -> netstandard2.0, net10.0 -> net10.0, net481 -> net472. Not part of DbSus.slnx.
+       Shared settings and package references are in Directory.Build.props. -->
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(TargetFrameworks);net481</TargetFrameworks>
-    <OutputType>Exe</OutputType>
-    <LangVersion>latest</LangVersion>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <IsPackable>false</IsPackable>
-    <DbSusVersion Condition="'$(DbSusVersion)' == ''">0.1.0-preview.1</DbSusVersion>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="DbSus" Version="[$(DbSusVersion)]" />
-    <PackageReference Include="DbSus.Client" Version="[$(DbSusVersion)]" />
-  </ItemGroup>
 
 </Project>
