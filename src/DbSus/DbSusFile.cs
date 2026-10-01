@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using DbSus.Dbc;
 using DbSus.Dbf;
 
@@ -11,8 +10,6 @@ namespace DbSus;
 /// </summary>
 public static class DbSusFile
 {
-    private static readonly Regex PartName = new(@"^(?<base>.*\d)(?<part>[A-Za-z])?$", RegexOptions.CultureInvariant);
-
     /// <summary>
     /// Opens a <c>.dbc</c> or <c>.dbf</c> file as a reader, choosing by the extension (ignoring
     /// case). Use <see cref="OpenDbcReader(string, DbfReadOptions?, DbcReadOptions?)"/> or
@@ -125,27 +122,34 @@ public static class DbSusFile
     public static DbfReader OpenDbcReader(IEnumerable<Stream> parts, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null)
     {
         var list = DbfReader.RequireParts(parts, nameof(parts));
-        var leaveOpen = dbcOptions?.LeaveOpen ?? false;
-        var inner = new DbcReadOptions { LeaveOpen = true, VerifyChecksum = dbcOptions?.VerifyChecksum ?? true };
-        var prepared = new List<DbfPart>();
-        try
+        var names = list.Select((_, i) => list.Count == 1 ? null : $"part {i + 1}").ToList();
+        return OpenDbcStreams(list, names, dbfOptions, dbcOptions);
+    }
+
+    /// <summary>
+    /// Opens the DBC streams of a split table as one reader, in the order given, with a name for each
+    /// part (typically its file name) used in error messages and passed to
+    /// <see cref="DbcReadOptions.ChecksumMismatch"/>.
+    /// </summary>
+    /// <param name="parts">
+    /// Readable streams positioned at the start of each DBC part; never seeked. Every header is read
+    /// before this method returns. If it throws, no stream is disposed.
+    /// </param>
+    /// <param name="partNames">One non-empty name per stream, in the same order.</param>
+    /// <param name="dbfOptions">DBF read options, or <see langword="null"/>; its <see cref="DbfReadOptions.LeaveOpen"/> does not apply.</param>
+    /// <param name="dbcOptions">DBC read options, or <see langword="null"/>; its <see cref="DbcReadOptions.LeaveOpen"/> applies to every stream.</param>
+    /// <returns>A reader positioned before the first record.</returns>
+    /// <exception cref="ArgumentException">The counts differ, or a name is null or empty.</exception>
+    public static DbfReader OpenDbcReader(IReadOnlyList<Stream> parts, IReadOnlyList<string> partNames, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null)
+    {
+        var list = DbfReader.RequireParts(parts, nameof(parts));
+        Guard.NotNull(partNames, nameof(partNames));
+        if (partNames.Count != list.Count || partNames.Any(string.IsNullOrEmpty))
         {
-            for (var i = 0; i < list.Count; i++)
-            {
-                // The decompressing stream never disposes the caller's stream itself, so a failure
-                // while opening leaves it untouched; the reader disposes it later unless LeaveOpen.
-                var dbf = DbcFile.OpenAsDbf(list[i], inner);
-                var name = list.Count == 1 ? null : $"part {i + 1}";
-                prepared.Add(new DbfPart(name, dbf, leaveOpen ? [dbf] : [dbf, list[i]], [dbf], drainAtEnd: true));
-            }
-        }
-        catch
-        {
-            DbfPart.DisposeCreated(prepared);
-            throw;
+            throw new ArgumentException("Give exactly one non-empty name per part.", nameof(partNames));
         }
 
-        return DbfReader.Create(prepared, dbfOptions);
+        return OpenDbcStreams(list, [.. partNames], dbfOptions, dbcOptions);
     }
 
     /// <summary>
@@ -182,76 +186,14 @@ public static class DbSusFile
         Guard.NotNull(path, nameof(path));
         var fullPath = Path.GetFullPath(path);
         var directory = Path.GetDirectoryName(fullPath) ?? throw new ArgumentException("Invalid path.", nameof(path));
-        var extension = Path.GetExtension(fullPath);
-        var match = PartName.Match(Path.GetFileNameWithoutExtension(fullPath));
-        if (!match.Success)
-        {
-            throw new ArgumentException(
-                $"'{Path.GetFileName(fullPath)}' does not follow the DATASUS naming (digits, optionally followed by a part letter).",
-                nameof(path));
-        }
-
-        var baseName = match.Groups["base"].Value;
-        var unsplit = new List<string>();
-        var lettered = new SortedDictionary<char, List<string>>();
-        foreach (var file in Directory.EnumerateFiles(directory))
-        {
-            var name = Path.GetFileName(file);
-            if (!name.EndsWith(extension, StringComparison.OrdinalIgnoreCase)
-                || !name.StartsWith(baseName, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            var rest = name.Substring(baseName.Length, name.Length - baseName.Length - extension.Length);
-            if (rest.Length == 0)
-            {
-                unsplit.Add(file);
-            }
-            else if (rest.Length == 1 && rest[0] is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z'))
-            {
-                var letter = char.ToLowerInvariant(rest[0]);
-                if (!lettered.TryGetValue(letter, out var files))
-                {
-                    lettered[letter] = files = [];
-                }
-
-                files.Add(file);
-            }
-        }
-
-        var ambiguous = unsplit.Count > 1 ? unsplit : lettered.Values.FirstOrDefault(files => files.Count > 1);
-        if (ambiguous is not null)
-        {
-            throw new IOException($"Ambiguous part names that differ only by case: {string.Join(", ", ambiguous.Select(Path.GetFileName))}.");
-        }
-
-        if (unsplit.Count == 1 && lettered.Count > 0)
-        {
-            throw new IOException(
-                $"Both '{Path.GetFileName(unsplit[0])}' and lettered parts ({string.Join(", ", lettered.Values.Select(files => Path.GetFileName(files[0])))}) exist; remove the files that do not belong to the same version.");
-        }
-
-        if (lettered.Count == 0)
-        {
-            return unsplit.Count == 1
-                ? [unsplit[0]]
-                : throw new FileNotFoundException($"No file or parts found for '{baseName}{extension}'.", fullPath);
-        }
-
-        var expected = 'a';
-        foreach (var letter in lettered.Keys)
-        {
-            if (letter != expected)
-            {
-                var missing = Path.Combine(directory, baseName + expected + extension);
-                throw new FileNotFoundException($"Part '{expected}' of '{baseName}' is missing: '{Path.GetFileName(missing)}' was not found.", missing);
-            }
-
-            expected++;
-        }
-
-        return [.. lettered.Values.Select(files => files[0])];
+        var (baseName, extension) = PartNaming.Parse(Path.GetFileName(fullPath), nameof(path));
+        var names = Directory.EnumerateFiles(directory).Select(file => Path.GetFileName(file)!);
+        var parts = PartNaming.Select(
+            names,
+            baseName,
+            extension,
+            (missing, message) => new FileNotFoundException(message, Path.Combine(directory, missing)));
+        return [.. parts.Select(name => Path.Combine(directory, name))];
     }
 
     private static DbfReader OpenPaths(List<string> paths, DbcReadOptions? dbcOptions, DbfReadOptions? dbfOptions, Func<string, bool> isDbc)
@@ -262,9 +204,32 @@ public static class DbSusFile
             foreach (var path in paths)
             {
                 Stream stream = isDbc(path)
-                    ? DbcFile.OpenAsDbf(path, dbcOptions)
+                    ? DbcFile.OpenAsDbf(path, dbcOptions, prepared.Count)
                     : new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.SequentialScan);
                 prepared.Add(new DbfPart(Path.GetFileName(path), stream, [stream], [stream], drainAtEnd: isDbc(path)));
+            }
+        }
+        catch
+        {
+            DbfPart.DisposeCreated(prepared);
+            throw;
+        }
+
+        return DbfReader.Create(prepared, dbfOptions);
+    }
+
+    private static DbfReader OpenDbcStreams(List<Stream> streams, List<string?> names, DbfReadOptions? dbfOptions, DbcReadOptions? dbcOptions)
+    {
+        var leaveOpen = dbcOptions?.LeaveOpen ?? false;
+        var prepared = new List<DbfPart>();
+        try
+        {
+            for (var i = 0; i < streams.Count; i++)
+            {
+                // The decompressing stream never disposes the caller's stream itself, so a failure
+                // while opening leaves it untouched; the reader disposes it later unless LeaveOpen.
+                var dbf = DbcFile.OpenAsDbfPart(streams[i], dbcOptions, i, names[i]);
+                prepared.Add(new DbfPart(names[i], dbf, leaveOpen ? [dbf] : [dbf, streams[i]], [dbf], drainAtEnd: true));
             }
         }
         catch
