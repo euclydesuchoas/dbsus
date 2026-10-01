@@ -1,11 +1,10 @@
 name: Network tests
 
-# Optional checks against the real DATASUS FTP server. Separate from CI on purpose: a network or
-# server problem never blocks a build. Runs on demand and once a week, with one connection.
+# Optional checks against the real DATASUS FTP server, run only by hand (Actions > Network tests >
+# Run workflow). Never a required check: a network or server problem must not block anything, and
+# the server may not be reachable from GitHub's runners at all. One connection, small files.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 9 * * 1" # Mondays 09:00 UTC
 
 permissions:
   contents: read
