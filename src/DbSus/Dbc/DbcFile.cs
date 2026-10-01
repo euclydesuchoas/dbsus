@@ -34,12 +34,17 @@ public static class DbcFile
     public static Stream OpenAsDbf(string path, DbcReadOptions? options = null)
     {
         Guard.NotNull(path, nameof(path));
-        options ??= new DbcReadOptions();
+        return OpenAsDbf(path, options, partIndex: 0);
+    }
 
+    /// <summary>Opens a DBC file as one part of a split table (index and file name go to errors).</summary>
+    internal static Stream OpenAsDbf(string path, DbcReadOptions? options, int partIndex)
+    {
+        options ??= new DbcReadOptions();
         var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, CopyBufferSize, FileOptions.SequentialScan);
         try
         {
-            return new DbcDbfStream(file, leaveOpen: false, options.VerifyChecksum);
+            return new DbcDbfStream(file, leaveOpen: false, options, partIndex, Path.GetFileName(path));
         }
         catch
         {
@@ -78,7 +83,19 @@ public static class DbcFile
         }
 
         options ??= new DbcReadOptions();
-        return new DbcDbfStream(dbc, options.LeaveOpen, options.VerifyChecksum);
+        return new DbcDbfStream(dbc, options.LeaveOpen, options, partIndex: 0, partName: null);
+    }
+
+    /// <summary>Opens a DBC stream as one part of a split table; the caller's stream is never disposed.</summary>
+    internal static Stream OpenAsDbfPart(Stream dbc, DbcReadOptions? options, int partIndex, string? partName)
+    {
+        Guard.NotNull(dbc, nameof(dbc));
+        if (!dbc.CanRead)
+        {
+            throw new ArgumentException("The DBC stream must be readable.", nameof(dbc));
+        }
+
+        return new DbcDbfStream(dbc, leaveOpen: true, options ?? new DbcReadOptions(), partIndex, partName);
     }
 
     /// <summary>
@@ -144,8 +161,7 @@ public static class DbcFile
             throw new ArgumentException("The DBF stream must be writable.", nameof(dbf));
         }
 
-        var verifyChecksum = options?.VerifyChecksum ?? true;
-        using var source = OpenAsDbf(dbc, new DbcReadOptions { LeaveOpen = true, VerifyChecksum = verifyChecksum });
+        using var source = OpenAsDbf(dbc, (options ?? new DbcReadOptions()).With(leaveOpen: true));
         source.CopyTo(dbf, CopyBufferSize);
     }
 

@@ -20,6 +20,9 @@ internal sealed class DbcDbfStream : Stream
     private readonly Stream _source;
     private readonly bool _leaveOpen;
     private readonly bool _verifyChecksum;
+    private readonly int _partIndex;
+    private readonly string? _partName;
+    private readonly Action<int, string?>? _checksumMismatch;
     private readonly byte[] _header;
     private readonly uint _expectedChecksum;
     private readonly BlastDecoder _decoder;
@@ -28,11 +31,14 @@ internal sealed class DbcDbfStream : Stream
     private bool _checksumVerified;
     private bool _disposed;
 
-    public DbcDbfStream(Stream source, bool leaveOpen, bool verifyChecksum)
+    public DbcDbfStream(Stream source, bool leaveOpen, DbcReadOptions options, int partIndex, string? partName)
     {
         _source = source;
         _leaveOpen = leaveOpen;
-        _verifyChecksum = verifyChecksum;
+        _verifyChecksum = options.VerifyChecksum;
+        _checksumMismatch = options.ChecksumMismatch;
+        _partIndex = partIndex;
+        _partName = partName;
 
         var prefix = new byte[HeaderLengthOffset + 2];
         ReadExactly(source, prefix, 0, prefix.Length, "DBF header");
@@ -146,10 +152,27 @@ internal sealed class DbcDbfStream : Stream
 
         _checksumVerified = true;
         var actual = _checksum.Value;
-        if (actual != _expectedChecksum)
+        if (actual == _expectedChecksum)
         {
-            throw new InvalidDataException(
-                $"DBC checksum mismatch: the file declares CRC-32 0x{_expectedChecksum:X8} but the decompressed DBF has 0x{actual:X8}.");
+            return;
+        }
+
+        NotifyMismatch();
+        throw new InvalidDataException(
+            $"DBC checksum mismatch: the file declares CRC-32 0x{_expectedChecksum:X8} but the decompressed DBF has 0x{actual:X8}.");
+    }
+
+    // By contract the checksum exception is the one that propagates, whatever the callback does.
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031", Justification = "A failing callback must not replace the checksum exception.")]
+    private void NotifyMismatch()
+    {
+        try
+        {
+            _checksumMismatch?.Invoke(_partIndex, _partName);
+        }
+        catch (Exception)
+        {
+            // Deliberately ignored; see DbcReadOptions.ChecksumMismatch.
         }
     }
 
