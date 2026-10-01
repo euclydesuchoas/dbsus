@@ -67,7 +67,8 @@ public static class DbSusFile
     /// <returns>
     /// A reader positioned before the first record. Disposing it closes the file. Unless checksum
     /// verification is disabled, the <see cref="DbfReader.Read"/> that reaches the end throws
-    /// <see cref="InvalidDataException"/> if the data does not match the DBC's CRC-32.
+    /// <see cref="InvalidDataException"/> if the data does not match the DBC's CRC-32. To tell a
+    /// checksum failure apart from other data errors, use <see cref="DbcReadOptions.ChecksumMismatch"/>.
     /// </returns>
     public static DbfReader OpenDbcReader(string path, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null) =>
         OpenDbcReader([path], dbfOptions, dbcOptions);
@@ -104,7 +105,8 @@ public static class DbSusFile
     /// <returns>
     /// A reader positioned before the first record. Unless checksum verification is disabled, the
     /// <see cref="DbfReader.Read"/> that reaches the end throws <see cref="InvalidDataException"/>
-    /// if the data does not match the DBC's CRC-32.
+    /// if the data does not match the DBC's CRC-32. To tell a checksum failure apart from other data
+    /// errors, use <see cref="DbcReadOptions.ChecksumMismatch"/>.
     /// </returns>
     public static DbfReader OpenDbcReader(Stream dbc, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null) =>
         OpenDbcReader([dbc], dbfOptions, dbcOptions);

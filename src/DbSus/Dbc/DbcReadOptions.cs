@@ -36,6 +36,12 @@ public sealed class DbcReadOptions
     /// exception is discarded and the checksum exception is still the one that propagates.
     /// Typical use: marking a cached copy of the file as invalid.
     /// </summary>
+    /// <remarks>
+    /// A checksum mismatch is reported as a plain <see cref="InvalidDataException"/>, the same type as
+    /// other data errors (truncation, invalid compressed data), because that type is sealed and has no
+    /// dedicated subclass. This callback is therefore the way to react specifically to a checksum
+    /// failure: it is invoked for that case only.
+    /// </remarks>
     public Action<int, string?>? ChecksumMismatch { get; set; }
 
     internal DbcReadOptions With(bool leaveOpen) => new()
