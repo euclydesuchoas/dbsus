@@ -27,6 +27,9 @@ internal sealed class ClientFixture : IDisposable
 
     public long? FreeSpace { get; set; }
 
+    /// <summary>Backoff delays the client asked for (they are not actually waited).</summary>
+    public System.Collections.Concurrent.ConcurrentQueue<TimeSpan> Delays { get; } = new();
+
     public static byte[] Dbf(params string[] codes)
     {
         var builder = new DbfBuilder().Field("CODE", 'C', 4);
@@ -47,13 +50,17 @@ internal sealed class ClientFixture : IDisposable
         var options = new DatasusClientOptions
         {
             CacheDirectory = cache ? CacheDirectory : null,
-            InitialRetryDelay = TimeSpan.Zero,
+            InitialRetryDelay = TimeSpan.FromSeconds(1),
         };
         configure?.Invoke(options);
         var client = new DatasusClient(
             options,
             Server.Factory(),
-            (_, token) => Task.CompletedTask,
+            (delay, token) =>
+            {
+                Delays.Enqueue(delay);
+                return Task.CompletedTask;
+            },
             _ => FreeSpace,
             () => Now,
             TempDirectory);
