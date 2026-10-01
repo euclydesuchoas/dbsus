@@ -15,7 +15,7 @@ Preview. Nothing is published on NuGet yet and the API may still change.
 | `DbSus` | Core: DBC decompression and DBF reading (streaming, typed getters, `DbDataReader`, tables split into parts). |
 | `DbSus.Client` | Direct access to the DATASUS FTP server: listing, split-table discovery, resumable downloads, optional cache. |
 
-Target frameworks: `netstandard2.0` and `net10.0`.
+Target frameworks: `net10.0`, `net472` and `netstandard2.0`. Supported runtimes: .NET 8 or later, .NET Framework **4.7.2** or later (it gets the `net472` build), and other `netstandard2.0` platforms.
 
 ## Usage
 
@@ -145,9 +145,9 @@ Every record returned before that point came from the same file, so if the check
 
 `DbfReader.Read` and the typed getters (`GetInt32`, `GetInt64`, `GetDecimal`, `GetDouble`, `GetDateTime`, `GetBoolean`, `IsDBNull`, `GetRawBytes`) do not allocate per record. `GetFieldValue<T>` does not allocate either on .NET 5 and later. **On .NET Framework, its nullable forms (e.g. `GetFieldValue<int?>`) allocate about 24 bytes per call** (measured on 4.8.1, x64; the non-nullable forms do not), so there prefer `IsDBNull` plus a typed getter in hot loops. `GetValue`, `GetValues` and `GetString` allocate by nature.
 
-## Known issue: .NET Framework
+## .NET Framework
 
-On .NET Framework, the `netstandard2.0` build references `System.Memory` 4.0.2.0 while the application receives 4.0.5.0, and the automatic binding redirect is not generated, which fails with `FileLoadException` on the first read. Until this is fixed in the package, add to the application's `app.config`:
+The minimum is .NET Framework 4.7.2, which uses the packages' `net472` build. If an application still fails on the first read with a `FileLoadException` for `System.Memory` (for example an unusual build setup that resolves the `netstandard2.0` build instead), add this binding redirect to its `app.config`:
 
 ```xml
 <dependentAssembly>
