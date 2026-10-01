@@ -72,7 +72,7 @@ try
         Check("FluentFTP", typeof(FluentFTP.AsyncFtpClient).Assembly.GetName().Name == "FluentFTP", "not loaded");
     }
 
-    Console.WriteLine($"OK {expectedAsset}: {records} records, {beds} beds");
+    Console.WriteLine($"OK {expectedAsset} on {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}: {records} records, {beds} beds");
     return 0;
 }
 catch (Exception exception)
