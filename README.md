@@ -39,6 +39,24 @@ bulk.WriteToServer(reader);   // throws if any part's checksum does not match
 transaction.Commit();         // reached only when every part was read and verified
 ```
 
+## Downloading from DATASUS (`DbSus.Client`)
+
+```csharp
+var client = new DatasusClient(new DatasusClientOptions { CacheDirectory = @"D:\datasus-cache" });
+
+// Every part of SIA-PA MG 2024-07 (the FTP listing says how many), downloaded once, then read as one table.
+using var reader = await client.OpenReaderAsync("/SIASUS/200801_/Dados/PAMG2407.dbc");
+```
+
+- Paths are relative to `/dissemin/publicos` (configurable). `ListAsync`, `GetInfoAsync`, `FindPartsAsync`, `ReadHeaderAsync` (schema and record count from the first few kilobytes) and `DownloadAsync` are also available.
+- Downloads resume after a dropped connection, restart from zero if the file changed on the server, retry transient failures with backoff, and are verified (CRC-32) before being used or cached.
+- The client is thread-safe and meant to be shared (e.g. a singleton). It opens at most two connections by default (four at most), to be gentle with the server; the limit applies per instance.
+- The cache is optional. Entries are keyed by path, size and modification time, written atomically, shared safely between threads and processes, and never removed while a reader has them open. `PruneCacheAsync` and `MaxCacheSizeBytes` keep it tidy.
+
+### Security note
+
+The DATASUS server only offers **plain FTP** (it refuses TLS), so traffic is unencrypted and could be observed or altered in transit. DbSus checks the size reported by the server and the **CRC-32** stored in each `.dbc`. A CRC-32 detects accidental corruption, **not deliberate tampering**: whoever alters a file can recompute it. The data is public, but if your use requires authenticity, compare against hashes obtained through a trusted channel.
+
 ## License
 
 [MIT](LICENSE).
