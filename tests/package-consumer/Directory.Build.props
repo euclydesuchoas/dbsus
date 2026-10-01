@@ -29,4 +29,13 @@
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="1.0.0" />
   </ItemGroup>
 
+  <!--
+    In this mode the references above are deliberate, so NU1510 (a reference to a package that is
+    part of the framework, e.g. System.Memory on net8.0, "will not be pruned") is expected noise.
+    Seen only on the Ubuntu runner; why Windows did not report it was not investigated.
+  -->
+  <PropertyGroup Condition="'$(PinOldestDependencies)' == 'true'">
+    <NoWarn>$(NoWarn);NU1510</NoWarn>
+  </PropertyGroup>
+
 </Project>
