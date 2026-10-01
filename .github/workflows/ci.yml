@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -89,3 +90,16 @@ jobs:
 
       - working-directory: tests/package-consumer/sdk8
         run: dotnet run --configuration Release -p:DbSusVersion=${{ steps.version.outputs.value }}
+
+      # Keeps the packages that passed every consumer above, the only ones meant for publishing.
+      # Only for main (push or manual run), never for pull requests; once, from Ubuntu, since the
+      # Windows checkout converts text files to CRLF and its packages would differ.
+      - if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && runner.os == 'Linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: packages-${{ github.sha }}
+          path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
+          retention-days: 7
+          if-no-files-found: error
