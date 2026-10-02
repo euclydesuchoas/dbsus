@@ -151,6 +151,18 @@ public sealed class ChecksumCallbackTests : IDisposable
     }
 
     [Fact]
+    public void DbcPart_StreamOnly_HasNoName()
+    {
+        var stream = new MemoryStream();
+
+        var part = new DbcPart(stream);
+
+        Assert.Null(part.Name);
+        Assert.Same(stream, part.Stream);
+        Assert.Equal("stream", Assert.Throws<ArgumentNullException>(() => new DbcPart(null!)).ParamName);
+    }
+
+    [Fact]
     public void ConvertToDbf_Streams_KeepsTheCallback()
     {
         var called = false;

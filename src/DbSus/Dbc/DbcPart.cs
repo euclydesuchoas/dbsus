@@ -6,6 +6,13 @@ namespace DbSus.Dbc;
 /// </summary>
 public sealed class DbcPart
 {
+    /// <summary>Creates a part without a name: messages call it <c>part N</c> (nothing for a table with a single part).</summary>
+    /// <param name="stream">A readable stream positioned at the start of the DBC data; never seeked.</param>
+    public DbcPart(Stream stream)
+        : this(null, stream)
+    {
+    }
+
     /// <summary>Creates a part.</summary>
     /// <param name="name">
     /// The part's name, or <see langword="null"/>: messages then say <c>part N</c> (nothing for a
