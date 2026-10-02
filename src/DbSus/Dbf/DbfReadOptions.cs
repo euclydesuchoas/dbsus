@@ -11,6 +11,15 @@ public sealed class DbfReadOptions
     /// Gets or sets the encoding of character fields. When set, it takes precedence over the
     /// language driver ID (LDID) stored in the header.
     /// </summary>
+    /// <remarks>
+    /// The encodings DbSus picks from the LDID need no setup. To pass a code-page encoding yourself
+    /// (for example code page 850): on .NET Framework, <c>Encoding.GetEncoding(850)</c> works as is;
+    /// on .NET (Core) and .NET 5 or later, code pages are not built in and
+    /// <c>Encoding.GetEncoding(850)</c> throws <see cref="NotSupportedException"/>, so take the
+    /// encoding from <c>CodePagesEncodingProvider.Instance.GetEncoding(850)</c> (no process-wide
+    /// registration needed), or call <c>Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)</c>
+    /// once at startup. DbSus itself never registers a provider.
+    /// </remarks>
     public Encoding? Encoding { get; set; }
 
     /// <summary>
@@ -20,7 +29,7 @@ public sealed class DbfReadOptions
     /// <remarks>
     /// Code page 1252 is the default because it is the only encoding confirmed so far in DATASUS
     /// files with accented text, including files whose LDID is 0. This remains to be validated
-    /// across more sources.
+    /// across more sources. See <see cref="Encoding"/> for how to obtain a code-page encoding.
     /// </remarks>
     public Encoding? FallbackEncoding { get; set; }
 

@@ -73,6 +73,19 @@ using var reader = DbSusFile.OpenReader("LTRR0610.dbc", options);
 
 A converted field reports its new type everywhere (`GetFieldType`, schema, `GetValue`). Values that do not parse or do not fit throw `FormatException`, naming the field and record but never the value.
 
+### Character encoding
+
+The code page of character fields comes from the header's language driver ID (LDID); when it is 0 or unknown, code page 1252 is used (change it with `FallbackEncoding`). To force an encoding, set `DbfReadOptions.Encoding`. Code-page encodings such as 850 are built into .NET Framework, but not into .NET (Core) and .NET 5 or later, where `Encoding.GetEncoding(850)` throws `NotSupportedException`. There, take the encoding from the provider, without registering anything process-wide:
+
+```csharp
+using System.Text;
+
+var options = new DbfReadOptions { Encoding = CodePagesEncodingProvider.Instance.GetEncoding(850) };
+// or, once at startup: Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+```
+
+DbSus itself never registers a provider.
+
 ### ADO.NET: `DataTable`, `SqlBulkCopy`, Dapper
 
 `DbfReader` is a `DbDataReader`:
