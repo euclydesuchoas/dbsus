@@ -73,6 +73,15 @@ using var reader = DbSusFile.OpenReader("LTRR0610.dbc", options);
 
 A converted field reports its new type everywhere (`GetFieldType`, schema, `GetValue`). Values that do not parse or do not fit throw `FormatException`, naming the field and record but never the value.
 
+Date layout of character fields, as found in the files examined so far:
+
+| Layout | Sources |
+|---|---|
+| `ddMMyyyy` | SIM, SINASC |
+| `yyyyMMdd` | SIH, SIA, CNES |
+
+SINAN stores dates in native `D` fields, which need no conversion. The layout cannot be inferred from field names, and a wrong one is not always caught: a `yyyyMMdd` value read as `ddMMyyyy` can still form a valid date, with the wrong year. Fields that hold only a year and month (`yyyyMM`, such as a processing month) have no date conversion; read them as `Int32`.
+
 ### Character encoding
 
 The code page of character fields comes from the header's language driver ID (LDID); when it is 0 or unknown, code page 1252 is used (change it with `FallbackEncoding`). To force an encoding, set `DbfReadOptions.Encoding`. Code-page encodings such as 850 are built into .NET Framework, but not into .NET (Core) and .NET 5 or later, where `Encoding.GetEncoding(850)` throws `NotSupportedException`. There, take the encoding from the provider, without registering anything process-wide:
@@ -95,6 +104,10 @@ using var reader = DbSusFile.OpenReader("LTRR0610.dbc");
 var table = new DataTable();
 table.Load(reader);
 ```
+
+### Reading only some fields
+
+`DataTable.Load`, `SqlBulkCopy` and `GetValues` read every field the reader exposes. When you need only a few, list them in `DbfReadOptions.Columns`: the reader then exposes just those, in that order. In a real-world test, reading 3 of a file's 113 fields this way took about a third of the time and allocated about 27 times less than reading all of them. With typed getters on ordinals looked up once, a projection changes little, since only the fields you ask for are parsed anyway.
 
 ### Loading into a database
 
