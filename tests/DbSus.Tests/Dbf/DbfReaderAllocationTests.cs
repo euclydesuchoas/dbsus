@@ -45,6 +45,38 @@ public class DbfReaderAllocationTests
         Assert.Equal(0, allocated);
     }
 
+    [Theory]
+    [InlineData(0x02)] // code page 850
+    [InlineData(0x03)] // code page 1252
+    [InlineData(0x57)] // ISO-8859-1
+    public void GetChars_SingleByteEncoding_DoesNotAllocatePerRecord(byte languageDriver)
+    {
+        var builder = new DbfBuilder { LanguageDriverId = languageDriver }.Field("NAME", 'C', 12);
+        for (var i = 0; i < 1000; i++)
+        {
+            builder.Record("0301010019  ");
+        }
+
+        using var reader = DbfReader.Open(new MemoryStream(builder.Build()));
+        var buffer = new char[16];
+        Assert.True(reader.Read());
+        _ = reader.GetChars(0, 0, buffer, 0, buffer.Length); // warm up
+        _ = reader.GetChars(0, 0, null, 0, 0);
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        long chars = 0;
+        while (reader.Read())
+        {
+            chars += reader.GetChars(0, 0, buffer, 0, buffer.Length);
+            chars += reader.GetChars(0, 4, buffer, 0, 2);
+            chars += reader.GetChars(0, 0, null, 0, 0);
+        }
+
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal(999 * (10 + 2 + 10), chars);
+        Assert.Equal(0, allocated);
+    }
+
     private static void ReadTyped(DbfReader reader)
     {
         _ = reader.GetInt64(0);

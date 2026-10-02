@@ -586,18 +586,64 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             : throw new InvalidCastException($"Field {Field(ordinal).Name} does not hold a single character.");
     }
 
-    /// <summary>Copies characters of a character field's string value.</summary>
+    /// <summary>
+    /// Copies characters of a character field's value (the text <see cref="GetString(int)"/> returns,
+    /// without trailing spaces) into <paramref name="buffer"/>, starting at character
+    /// <paramref name="dataOffset"/>.
+    /// </summary>
+    /// <returns>
+    /// The number of characters copied (0 when <paramref name="dataOffset"/> is at or past the end),
+    /// or, when <paramref name="buffer"/> is <see langword="null"/>, the length of the text.
+    /// </returns>
+    /// <remarks>
+    /// With a single-byte encoding (every code page DbSus selects from the LDID) the characters are
+    /// decoded straight into <paramref name="buffer"/>, without allocating; reuse one buffer across
+    /// records. With a multi-byte <see cref="DbfReadOptions.Encoding"/> it allocates like
+    /// <see cref="GetString(int)"/>.
+    /// </remarks>
+    /// <exception cref="InvalidCastException">The field is not a character field, or the value is null.</exception>
     public override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
     {
-        var value = GetString(ordinal);
-        if (buffer is null)
+        var field = Field(ordinal);
+        RequireKind(field, DbfValueKind.String);
+        var record = CurrentRecord();
+        var end = field.Offset + field.Length;
+        while (end > field.Offset && record[end - 1] == Space)
         {
-            return value.Length;
+            end--;
         }
 
-        var count = (int)Math.Max(0, Math.Min(length, value.Length - dataOffset));
-        value.CopyTo((int)dataOffset, buffer, bufferOffset, count);
-        return count;
+        var byteCount = end - field.Offset;
+        if (byteCount == 0 && _blankStringsAsNull)
+        {
+            throw NullValue(field);
+        }
+
+        if (!Encoding.IsSingleByte)
+        {
+            var value = Encoding.GetString(record, field.Offset, byteCount);
+            if (buffer is null)
+            {
+                return value.Length;
+            }
+
+            var copied = (int)Math.Max(0, Math.Min(length, value.Length - dataOffset));
+            if (copied > 0)
+            {
+                value.CopyTo((int)dataOffset, buffer, bufferOffset, copied);
+            }
+
+            return copied;
+        }
+
+        // One byte is one character, so offsets and counts in characters are offsets and counts in bytes.
+        if (buffer is null)
+        {
+            return byteCount;
+        }
+
+        var count = (int)Math.Max(0, Math.Min(length, byteCount - dataOffset));
+        return count == 0 ? 0 : Encoding.GetChars(record, field.Offset + (int)dataOffset, count, buffer, bufferOffset);
     }
 
     /// <summary>Copies the raw stored bytes of any field (see <see cref="GetRawBytes(int)"/>).</summary>
