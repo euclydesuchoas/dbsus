@@ -227,16 +227,17 @@ What the client does, from its code:
 - **Time.** Each connection attempt waits up to `ConnectTimeout` (30 seconds by default) per address, and a failed step is retried `MaxRetries` times (4 by default), the connection that failed being discarded, so a server that never answers can take minutes before the exception.
 - **Settings.** The data connection mode and the address family cannot be changed through `DatasusClientOptions`; `Host`, `Port`, `ConnectTimeout` and `ReadTimeout` can.
 
-Worst case with the default options, for a listing or a download whose data connection fails (5 attempts, with waits of 7.5 to 15 seconds in all between them; the data connection goes to a single address, once per attempt):
+Worst case, calculated from the default options, for a listing or a download whose data connection fails: 5 attempts, with waits of 7.5 to 15 seconds in all between them; the data connection goes to a single address, once per attempt.
 
 | The data connection... | Per attempt | Until the exception |
 |---|---|---|
 | never answers | `ConnectTimeout`: 30 s | 2 min 37.5 s to 2 min 45 s |
-| opens, but no data arrives | `ReadTimeout` reading (60 s), then `ReadTimeout` waiting for the server's final reply (60 s): 120 s | 10 min 7.5 s to 10 min 15 s |
+| opens, but no listing data arrives | `ReadTimeout` reading (60 s), then `ReadTimeout` waiting for the server's final reply (60 s): 120 s | 10 min 7.5 s to 10 min 15 s |
+| opens, but no download data arrives | `ReadTimeout` (60 s); the client then closes the connection, so there is no wait for a final reply | 5 min 7.5 s to 5 min 15 s |
 
-`ReadTimeout` limits each wait for data, not a whole transfer: a download that keeps receiving data slowly is never cut by it.
+The same formulas were checked against a local test server with small timeouts (`ConnectTimeout` 200 ms, `ReadTimeout` 300 ms, `InitialRetryDelay` 100 ms), on .NET 10 and .NET Framework 4.8. `ReadTimeout` limits each wait for data, not a whole transfer: a download that keeps receiving data slowly is never cut by it. On every runtime, .NET Framework included, these waits end at their timeouts, and cancelling the token ends them at once (the connection is closed and not reused). In a web request or any call with a deadline, lower `MaxRetries`, `ConnectTimeout` and `ReadTimeout`, and pass a cancellation token that carries the deadline.
 
-On .NET Framework, the FTP library does not apply `ReadTimeout` to its asynchronous reads (it relies on a cancellation token that `NetworkStream.ReadAsync` does not observe there once a read has started), so the last case can block until the server closes the connection; the cancellation token does not interrupt it either. In a web request or any call with a deadline, lower `MaxRetries`, `ConnectTimeout` and `ReadTimeout`, and pass a cancellation token that carries the deadline.
+**A known limit of listings.** A listing counts only when the server confirms its end (a `226` reply after the data); one without that confirmation is a transient failure and is not cached. But if the client's read of the listing fails while the server still answers `226`, the client cannot tell, and a partial listing can pass. For split tables, `FindPartsAsync` reduces the risk: it asks the server directly (`SIZE` and `MDTM`, over the control connection) for the part after the last one listed, continuing until a part is missing, and for the file and its parts when the listing shows none of them. It does not cover what `ListAsync` returns, which is the listing as received (and reused for `ListingCacheDuration`), nor a part missing from the middle of a partial listing, which is reported as a missing part (`FileNotFoundException`) rather than looked up.
 
 To see each failed attempt as it happens, set `OnRetry` and log its `Operation`, `RemotePath` and `Exception.Message`. Receiving the server's greeting (`220`) on port 21 shows that the control connection can be opened; it does not show that the passive data ports can be reached.
 
