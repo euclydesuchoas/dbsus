@@ -15,8 +15,17 @@
     <PackageVersion Include="System.Text.Encoding.CodePages" Version="10.0.12" />
   </ItemGroup>
 
+  <!--
+    FluentFTP: a minimum, without an upper bound (NuGet's guidance for third-party dependencies with
+    no known incompatibility). The weekly "FluentFTP latest" workflow sets an exact version from
+    the command line (-p:FluentFtpVersion=[x.y.z]) to test the newest release.
+  -->
+  <PropertyGroup>
+    <FluentFtpVersion Condition="'$(FluentFtpVersion)' == ''">55.0.0</FluentFtpVersion>
+  </PropertyGroup>
+
   <ItemGroup Label="Client">
-    <PackageVersion Include="FluentFTP" Version="55.0.0" />
+    <PackageVersion Include="FluentFTP" Version="$(FluentFtpVersion)" />
     <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.12" />
   </ItemGroup>
 
