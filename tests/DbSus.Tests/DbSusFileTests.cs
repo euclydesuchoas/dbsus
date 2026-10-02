@@ -52,6 +52,60 @@ public sealed class DbSusFileTests : IDisposable
     }
 
     [Fact]
+    public void OpenReader_DbcEndsInsideItsHeader_NamesTheFile()
+    {
+        var path = Write("short.dbc", SyntheticDbc.BuildDbc(Dbf).AsSpan(0, 20).ToArray());
+
+        var exception = Assert.Throws<InvalidDataException>(() => DbSusFile.OpenReader(path));
+
+        Assert.StartsWith("short.dbc: ", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DbcFileOpenAsDbf_DbcEndsInsideItsHeader_NamesTheFile()
+    {
+        var path = Write("short.dbc", SyntheticDbc.BuildDbc(Dbf).AsSpan(0, 20).ToArray());
+
+        var exception = Assert.Throws<InvalidDataException>(() => DbcFile.OpenAsDbf(path));
+
+        Assert.StartsWith("short.dbc: ", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_CompressedDataEndsEarly_NamesTheFile()
+    {
+        var dbc = SyntheticDbc.BuildDbc(Dbf);
+        var path = Write("cut.dbc", dbc.AsSpan(0, dbc.Length - 4).ToArray());
+
+        var exception = Assert.Throws<InvalidDataException>(() => ReadAll(DbSusFile.OpenReader(path)));
+
+        Assert.StartsWith("cut.dbc: ", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_InvalidCompressedData_NamesTheFile()
+    {
+        var dbc = SyntheticDbc.BuildDbc(Dbf);
+        var bodyStart = dbc[8] | (dbc[9] << 8);
+        dbc[bodyStart + 4] = 7; // literal coding flag must be 0 or 1
+        var path = Write("corrupt.dbc", dbc);
+
+        var exception = Assert.Throws<InvalidDataException>(() => ReadAll(DbSusFile.OpenReader(path)));
+
+        Assert.StartsWith("corrupt.dbc: ", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Read_ChecksumMismatch_NamesTheFileOnce()
+    {
+        var path = Write("crc.dbc", SyntheticDbc.BuildDbc(Dbf, checksum: 0));
+
+        var exception = Assert.Throws<InvalidDataException>(() => ReadAll(DbSusFile.OpenReader(path)));
+
+        Assert.StartsWith("crc.dbc: DBC checksum mismatch", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void OpenDbcReader_Path_IgnoresExtension()
     {
         var path = Write("table.bin", SyntheticDbc.BuildDbc(Dbf));
@@ -142,6 +196,16 @@ public sealed class DbSusFileTests : IDisposable
         Assert.True(reader.Read());
 
         reader.Dispose();
+    }
+
+    private static void ReadAll(DbfReader reader)
+    {
+        using (reader)
+        {
+            while (reader.Read())
+            {
+            }
+        }
     }
 
     private static List<string> ReadCodes(DbfReader reader)

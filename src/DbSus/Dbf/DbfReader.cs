@@ -986,10 +986,10 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
                 {
                 }
             }
-            catch (InvalidDataException exception) when (part.Name is not null && exception.GetType() == typeof(InvalidDataException))
+            catch (InvalidDataException exception) when (part.Name is not null
+                                                         && !exception.Message.StartsWith(part.Prefix, StringComparison.Ordinal))
             {
-                // Plain errors get the part name; specific ones (such as a DBC checksum error,
-                // which already names its part) keep their type.
+                // Errors that do not name the part yet get its name (DBC errors already do).
                 throw new InvalidDataException(part.Prefix + exception.Message, exception);
             }
         }

@@ -22,6 +22,7 @@ internal sealed class DbcDbfStream : Stream
     private readonly bool _verifyChecksum;
     private readonly int _partIndex;
     private readonly string? _partName;
+    private readonly string _prefix;
     private readonly Action<int, string?>? _checksumMismatch;
     private readonly byte[] _header;
     private readonly uint _expectedChecksum;
@@ -39,19 +40,20 @@ internal sealed class DbcDbfStream : Stream
         _checksumMismatch = options.ChecksumMismatch;
         _partIndex = partIndex;
         _partName = partName;
+        _prefix = partName is null ? string.Empty : partName + ": ";
 
-        var prefix = new byte[HeaderLengthOffset + 2];
-        ReadExactly(source, prefix, 0, prefix.Length, "DBF header");
-        var headerLength = prefix[HeaderLengthOffset] | (prefix[HeaderLengthOffset + 1] << 8);
+        var start = new byte[HeaderLengthOffset + 2];
+        ReadExactly(source, start, 0, start.Length, "DBF header");
+        var headerLength = start[HeaderLengthOffset] | (start[HeaderLengthOffset + 1] << 8);
         if (headerLength < MinimumHeaderLength)
         {
             throw new InvalidDataException(
-                $"Invalid DBC: the DBF header length is {headerLength}, below the minimum of {MinimumHeaderLength}.");
+                $"{_prefix}Invalid DBC: the DBF header length is {headerLength}, below the minimum of {MinimumHeaderLength}.");
         }
 
         _header = new byte[headerLength];
-        Buffer.BlockCopy(prefix, 0, _header, 0, prefix.Length);
-        ReadExactly(source, _header, prefix.Length, headerLength - prefix.Length, "DBF header");
+        Buffer.BlockCopy(start, 0, _header, 0, start.Length);
+        ReadExactly(source, _header, start.Length, headerLength - start.Length, "DBF header");
 
         var checksum = new byte[4];
         ReadExactly(source, checksum, 0, checksum.Length, "CRC-32");
@@ -132,7 +134,17 @@ internal sealed class DbcDbfStream : Stream
             return count;
         }
 
-        var read = _decoder.Read(destination);
+        int read;
+        try
+        {
+            read = _decoder.Read(destination);
+        }
+        catch (InvalidDataException exception) when (_prefix.Length > 0)
+        {
+            // The decoder does not know which file it reads; messages name it.
+            throw new InvalidDataException(_prefix + exception.Message, exception);
+        }
+
         if (read > 0)
         {
             _checksum.Append(destination.Slice(0, read));
@@ -159,7 +171,7 @@ internal sealed class DbcDbfStream : Stream
 
         NotifyMismatch();
         throw new InvalidDataException(
-            $"DBC checksum mismatch: the file declares CRC-32 0x{_expectedChecksum:X8} but the decompressed DBF has 0x{actual:X8}.");
+            $"{_prefix}DBC checksum mismatch: the file declares CRC-32 0x{_expectedChecksum:X8} but the decompressed DBF has 0x{actual:X8}.");
     }
 
     // By contract the checksum exception is the one that propagates, whatever the callback does.
@@ -176,14 +188,14 @@ internal sealed class DbcDbfStream : Stream
         }
     }
 
-    private static void ReadExactly(Stream source, byte[] buffer, int offset, int count, string part)
+    private void ReadExactly(Stream source, byte[] buffer, int offset, int count, string part)
     {
         while (count > 0)
         {
             var read = source.Read(buffer, offset, count);
             if (read <= 0)
             {
-                throw new InvalidDataException($"Unexpected end of DBC data while reading the {part}.");
+                throw new InvalidDataException($"{_prefix}Unexpected end of DBC data while reading the {part}.");
             }
 
             offset += read;
