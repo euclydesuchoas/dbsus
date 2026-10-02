@@ -231,6 +231,7 @@ public sealed class DatasusClientTests : IDisposable
 
         Assert.Equal([1, 2], reports.Select(report => report.Attempt));
         Assert.All(reports, report => Assert.Contains(Dados + "/RDMG2407.dbc", report.Operation, StringComparison.Ordinal));
+        Assert.All(reports, report => Assert.Equal(Dados + "/RDMG2407.dbc", report.RemotePath));
     }
 
     [Fact]

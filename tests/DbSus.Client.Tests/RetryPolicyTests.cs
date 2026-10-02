@@ -82,6 +82,7 @@ public class RetryPolicyTests
         Assert.Equal([1, 2], reports.Select(report => report.Attempt));
         Assert.Equal([null, "421"], reports.Select(report => report.FtpReplyCode));
         Assert.All(reports, report => Assert.Equal("Downloading x", report.Operation));
+        Assert.All(reports, report => Assert.Equal("/x", report.RemotePath));
         Assert.All(reports, report => Assert.IsType<TransientTransportException>(report.Exception));
         Assert.Equal(waits, reports.Select(report => report.Delay));
     }
