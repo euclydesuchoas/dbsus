@@ -24,10 +24,23 @@ public sealed class DatasusClientOptions
     /// default) for no cache: downloads then go to temporary files.
     /// </summary>
     /// <remarks>
-    /// Layout: <c>&lt;cache&gt;/&lt;remote path&gt;/&lt;file&gt;/&lt;size&gt;-&lt;MDTM&gt;/</c> with the file,
+    /// <para>
+    /// Without a cache, each download goes to its own folder under the system temporary directory:
+    /// <c>Path.GetTempPath()/DbSus/downloads/&lt;random id&gt;/</c> (on Windows usually
+    /// <c>%TEMP%\DbSus\downloads</c>; on Linux and macOS <c>$TMPDIR</c> or <c>/tmp</c>). That
+    /// location cannot be changed; to keep downloaded microdata in a folder you control, set a
+    /// cache directory. Files opened by <see cref="DatasusClient.OpenReaderAsync"/> are deleted when
+    /// the reader is disposed; a file returned by <see cref="DatasusClient.DownloadAsync"/> is the
+    /// caller's to delete. Folders left behind for more than 24 hours, whose files are not open, are
+    /// removed by the first download without a cache of a later client and by
+    /// <see cref="DatasusClient.PruneCacheAsync"/>.
+    /// </para>
+    /// <para>
+    /// Cache layout: <c>&lt;cache&gt;/&lt;remote path&gt;/&lt;file&gt;/&lt;size&gt;-&lt;MDTM&gt;/</c> with the file,
     /// <c>entry.meta</c> (plain text) and <c>entry.lock</c> (an empty file used as a lock between
     /// threads and processes). Lock files and empty folders stay after pruning and are removed by
     /// <see cref="DatasusClient.ClearCacheAsync"/>.
+    /// </para>
     /// </remarks>
     public string? CacheDirectory { get; set; }
 

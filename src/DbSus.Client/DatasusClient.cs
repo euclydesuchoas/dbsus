@@ -150,7 +150,8 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     /// <summary>
     /// Downloads a file and returns its local path: an entry of the cache when
     /// <see cref="DatasusClientOptions.CacheDirectory"/> is set (reused while the server's size and
-    /// time are unchanged), otherwise a temporary file that the caller should delete.
+    /// time are unchanged), otherwise a file under the system temporary directory that the caller
+    /// should delete (see <see cref="DatasusClientOptions.CacheDirectory"/> for the location).
     /// </summary>
     /// <remarks>
     /// Interrupted transfers resume where they stopped, unless the file changed on the server in the
@@ -172,7 +173,8 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     /// <summary>
     /// Downloads every part of a table (see <see cref="FindPartsAsync"/>), one after the other, and
     /// opens them as one <see cref="DbfReader"/>. Disposing the reader releases the local files
-    /// (temporary files, when there is no cache, are deleted).
+    /// (without a cache, the files under the system temporary directory are deleted; see
+    /// <see cref="DatasusClientOptions.CacheDirectory"/>).
     /// </summary>
     /// <param name="path">Path of any part or of the unsplit name.</param>
     /// <param name="dbfOptions">DBF read options, or <see langword="null"/>.</param>
