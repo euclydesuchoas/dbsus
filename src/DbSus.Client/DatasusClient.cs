@@ -98,10 +98,11 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Lists the parts of a split table from the server's directory listing, which is the source of
-    /// truth for how many parts exist (unlike a local folder, it shows when the last part is
-    /// missing). Same rules as <see cref="DbSusFile.FindParts(string)"/>; the result carries each
-    /// part's exact size and time.
+    /// Lists the parts of a split table from the server's directory listing (unlike a local folder,
+    /// it shows when the last part is missing), then asks the server directly for the part after
+    /// the last one listed, and for the file itself when the listing shows nothing, so that a stale
+    /// listing cannot hide a part. Same rules as <see cref="DbSusFile.FindParts(string)"/>; the
+    /// result carries each part's exact size and time.
     /// </summary>
     /// <param name="path">Path of any part or of the unsplit name, e.g. <c>/SIASUS/200801_/Dados/PAMG2407.dbc</c>.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
@@ -119,17 +120,66 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
         var parent = remote.Parent(Root);
         var listing = await ListInternalAsync(parent, cancellationToken).ConfigureAwait(false);
         var prefix = parent.Relative == "/" ? "/" : parent.Relative + "/";
-        var names = PartNaming.Select(
-            listing.Where(entry => !entry.IsDirectory).Select(entry => entry.Name),
-            baseName,
-            extension,
-            (missing, message) => new FileNotFoundException(message, prefix + missing));
+        var unsplitName = baseName + extension;
+        string? missingName = null;
+        List<string> names;
+        try
+        {
+            names = PartNaming.Select(
+                listing.Where(entry => !entry.IsDirectory).Select(entry => entry.Name),
+                baseName,
+                extension,
+                (missing, message) =>
+                {
+                    missingName = missing;
+                    return new FileNotFoundException(message, prefix + missing);
+                });
+        }
+        catch (FileNotFoundException) when (missingName == unsplitName)
+        {
+            // The listing shows neither the file nor any part: ask for them before giving up.
+            names = [];
+        }
+
+        var found = new Dictionary<string, RemoteFileInfo>(StringComparer.OrdinalIgnoreCase);
+        var listed = names.Count;
+        if (names.Count == 0 && await TryGetRemoteInfoAsync(remote.Sibling(Root, unsplitName), cancellationToken).ConfigureAwait(false) is { } unsplit)
+        {
+            names.Add(unsplitName);
+            found[unsplitName] = unsplit;
+        }
+        else if (names.Count == 0 || !string.Equals(names[0], unsplitName, StringComparison.OrdinalIgnoreCase))
+        {
+            // A lettered table: the parts after the last one listed, if the listing missed them.
+            var last = names.Count == 0 ? 'a' - 1 : names[names.Count - 1][baseName.Length];
+            for (var letter = (char)(last + 1); letter is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z'); letter++)
+            {
+                var name = baseName + letter + extension;
+                if (await TryGetRemoteInfoAsync(remote.Sibling(Root, name), cancellationToken).ConfigureAwait(false) is not { } info)
+                {
+                    break;
+                }
+
+                names.Add(name);
+                found[name] = info;
+            }
+        }
+
+        if (names.Count == 0)
+        {
+            throw new FileNotFoundException($"No file or parts found for '{unsplitName}'.", prefix + unsplitName);
+        }
+
+        if (names.Count > listed)
+        {
+            _listings.TryRemove(parent.Full, out _);
+        }
 
         var parts = new List<DatasusFileInfo>();
         foreach (var name in names)
         {
             var part = remote.Sibling(Root, name);
-            var info = await GetRemoteInfoAsync(part, cancellationToken).ConfigureAwait(false);
+            var info = found.TryGetValue(name, out var known) ? known : await GetRemoteInfoAsync(part, cancellationToken).ConfigureAwait(false);
             parts.Add(new DatasusFileInfo(part.Relative, name, info.Size, info.LastModifiedUtc, isDirectory: false));
         }
 
@@ -403,6 +453,19 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
             cancellationToken).ConfigureAwait(false);
         _listings[directory.Full] = (now, entries);
         return entries;
+    }
+
+    // The size and time of a file, or null when the server says it does not exist (550).
+    private async Task<RemoteFileInfo?> TryGetRemoteInfoAsync(RemotePath remote, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await GetRemoteInfoAsync(remote, cancellationToken).ConfigureAwait(false);
+        }
+        catch (FileNotFoundException)
+        {
+            return null;
+        }
     }
 
     private Task<RemoteFileInfo> GetRemoteInfoAsync(RemotePath remote, CancellationToken cancellationToken) =>

@@ -181,7 +181,7 @@ var entries = await client.ListAsync("/SIHSUS/200801_/Dados", token);
 // Exact size and modification time (UTC) of one file.
 var info = await client.GetInfoAsync("/SIHSUS/200801_/Dados/RDRR2206.dbc", token);
 
-// The parts of a split table, from the server's listing (which shows a missing last part).
+// The parts of a split table, from the server's listing, checked by asking for the part after the last one.
 var parts = await client.FindPartsAsync("/SIASUS/200801_/Dados/PAMG2407.dbc", token);
 
 // Schema and record count from the first few kilobytes, without downloading the file.
