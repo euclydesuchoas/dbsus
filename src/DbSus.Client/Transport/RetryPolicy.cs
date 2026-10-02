@@ -43,7 +43,7 @@ internal sealed class RetryPolicy(
                 }
 
                 var wait = Backoff(attempt);
-                Notify(new DatasusRetryInfo(operation, attempts, wait, exception));
+                Notify(new DatasusRetryInfo(operation, attempts, wait, exception, exception.ReplyCode));
                 await delay(wait, cancellationToken).ConfigureAwait(false);
             }
             catch (DatasusTransferException exception)

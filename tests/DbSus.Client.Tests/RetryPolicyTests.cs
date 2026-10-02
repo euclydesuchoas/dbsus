@@ -72,9 +72,15 @@ public class RetryPolicyTests
         var policy = new RetryPolicy(4, TimeSpan.FromSeconds(1), (delay, _) => { waits.Add(delay); return Task.CompletedTask; }, reports.Add);
         var calls = 0;
 
-        await policy.RunAsync("Downloading x", "/x", _ => ++calls < 3 ? throw new TransientTransportException("drop") : Task.FromResult(1), CancellationToken.None);
+        await policy.RunAsync("Downloading x", "/x", _ => ++calls switch
+        {
+            1 => throw new TransientTransportException("drop"),
+            2 => throw new TransientTransportException("421 Too many connections", "421"),
+            _ => Task.FromResult(1),
+        }, CancellationToken.None);
 
         Assert.Equal([1, 2], reports.Select(report => report.Attempt));
+        Assert.Equal([null, "421"], reports.Select(report => report.FtpReplyCode));
         Assert.All(reports, report => Assert.Equal("Downloading x", report.Operation));
         Assert.All(reports, report => Assert.IsType<TransientTransportException>(report.Exception));
         Assert.Equal(waits, reports.Select(report => report.Delay));
