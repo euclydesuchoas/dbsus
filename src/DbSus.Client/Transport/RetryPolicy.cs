@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace DbSus.Client.Transport;
 
 /// <summary>
@@ -5,14 +7,18 @@ namespace DbSus.Client.Transport;
 /// half and all of its nominal delay (jitter). Missing files and permanent errors are never
 /// retried; cancellation stops at once.
 /// </summary>
-internal sealed class RetryPolicy(int maxRetries, TimeSpan initialDelay, Func<TimeSpan, CancellationToken, Task> delay)
+internal sealed class RetryPolicy(
+    int maxRetries,
+    TimeSpan initialDelay,
+    Func<TimeSpan, CancellationToken, Task> delay,
+    Action<DatasusRetryInfo>? onRetry = null)
 {
     private static readonly TimeSpan MaxDelay = TimeSpan.FromSeconds(30);
     private readonly Random _random = new();
 
     public int MaxRetries => maxRetries;
 
-    public async Task<T> RunAsync<T>(string operation, Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken)
+    public async Task<T> RunAsync<T>(string operation, string? remotePath, Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken)
     {
         for (var attempt = 0; ; attempt++)
         {
@@ -23,14 +29,28 @@ internal sealed class RetryPolicy(int maxRetries, TimeSpan initialDelay, Func<Ti
             }
             catch (TransientTransportException exception)
             {
+                var attempts = attempt + 1;
                 if (attempt >= maxRetries)
                 {
-                    var attempts = attempt + 1;
-                    throw new IOException(
-                        $"{operation} failed after {attempts} {(attempts == 1 ? "attempt" : "attempts")}: {exception.Message}", exception);
+                    throw new DatasusRetriesExhaustedException(
+                        $"{operation} failed after {attempts} {(attempts == 1 ? "attempt" : "attempts")}: {exception.Message}",
+                        exception.ReplyCode,
+                        exception)
+                    {
+                        RemotePath = remotePath,
+                        Attempts = attempts,
+                    };
                 }
 
-                await delay(Backoff(attempt), cancellationToken).ConfigureAwait(false);
+                var wait = Backoff(attempt);
+                Notify(new DatasusRetryInfo(operation, attempts, wait, exception));
+                await delay(wait, cancellationToken).ConfigureAwait(false);
+            }
+            catch (DatasusTransferException exception)
+            {
+                exception.RemotePath ??= remotePath;
+                exception.Attempts = attempt + 1;
+                throw;
             }
         }
     }
@@ -45,5 +65,24 @@ internal sealed class RetryPolicy(int maxRetries, TimeSpan initialDelay, Func<Ti
 
         var ticks = initialDelay.Ticks * Math.Pow(2, Math.Min(attempt, 20)) * jitter;
         return TimeSpan.FromTicks((long)Math.Min(MaxDelay.Ticks, ticks));
+    }
+
+    // A failing callback must not change how the operation ends; see DatasusClientOptions.OnRetry.
+    [SuppressMessage("Design", "CA1031", Justification = "Exceptions from the caller's OnRetry callback are deliberately ignored.")]
+    private void Notify(DatasusRetryInfo info)
+    {
+        if (onRetry is null)
+        {
+            return;
+        }
+
+        try
+        {
+            onRetry(info);
+        }
+        catch (Exception)
+        {
+            // Ignored by contract.
+        }
     }
 }

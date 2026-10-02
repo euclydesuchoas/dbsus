@@ -103,7 +103,8 @@ internal sealed class FtpConnection(AsyncFtpClient client) : IDatasusConnection
             throw Classify(exception.CompletionCode, exception.Message, exception);
         }
         catch (Exception exception) when (exception is FtpException or IOException or SocketException or TimeoutException
-                                          && exception is not FileNotFoundException and not TransientTransportException)
+                                          && exception is not FileNotFoundException and not TransientTransportException
+                                          and not DatasusTransferException)
         {
             throw new TransientTransportException($"FTP transport failure: {exception.Message}", exception);
         }
@@ -118,9 +119,9 @@ internal sealed class FtpConnection(AsyncFtpClient client) : IDatasusConnection
 
         if (code is { Length: 3 } && code[0] == '4')
         {
-            return inner is null ? new TransientTransportException(message) : new TransientTransportException(message, inner);
+            return new TransientTransportException(message, code, inner);
         }
 
-        return inner is null ? new IOException(message) : new IOException(message, inner);
+        return new DatasusRequestRefusedException(message, code, inner);
     }
 }

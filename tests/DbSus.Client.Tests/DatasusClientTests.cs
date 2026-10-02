@@ -194,14 +194,43 @@ public sealed class DatasusClientTests : IDisposable
     }
 
     [Fact]
-    public async Task DownloadAsync_RetriesExhausted_ThrowsIOException()
+    public async Task DownloadAsync_RetriesExhausted_ThrowsRetriesExhaustedWithDetails()
     {
         _fixture.Server.Add(Dados + "/RDMG2407.dbc", ClientFixture.Dbc("A1"));
-        _fixture.Server.FailNextConnects(10, () => new TransientTransportException("421 Too many connections"));
+        _fixture.Server.FailNextConnects(10, () => new TransientTransportException("421 Too many connections", "421"));
 
-        var exception = await Assert.ThrowsAsync<IOException>(() => _fixture.Client(configure: o => o.MaxRetries = 2).DownloadAsync(Dados + "/RDMG2407.dbc", Ct));
+        var exception = await Assert.ThrowsAsync<DatasusRetriesExhaustedException>(() => _fixture.Client(configure: o => o.MaxRetries = 2).DownloadAsync(Dados + "/RDMG2407.dbc", Ct));
 
         Assert.Contains("failed after 3 attempts", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(3, exception.Attempts);
+        Assert.Equal("421", exception.FtpReplyCode);
+        Assert.Equal(Dados + "/RDMG2407.dbc", exception.RemotePath);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_ServerRefuses_ThrowsRequestRefusedWithoutRetrying()
+    {
+        _fixture.Server.Add(Dados + "/RDMG2407.dbc", ClientFixture.Dbc("A1"));
+        _fixture.Server.FailNextConnects(10, () => new DatasusRequestRefusedException("530 Not logged in", "530", null));
+
+        var exception = await Assert.ThrowsAsync<DatasusRequestRefusedException>(() => _fixture.Client().DownloadAsync(Dados + "/RDMG2407.dbc", Ct));
+
+        Assert.Equal(1, exception.Attempts);
+        Assert.Equal("530", exception.FtpReplyCode);
+        Assert.Equal(Dados + "/RDMG2407.dbc", exception.RemotePath);
+    }
+
+    [Fact]
+    public async Task OnRetry_ReceivesEveryRetryOfTheClient()
+    {
+        _fixture.Server.Add(Dados + "/RDMG2407.dbc", ClientFixture.Dbc("A1"));
+        _fixture.Server.FailNextConnects(2, () => new TransientTransportException("421 Too many connections", "421"));
+        var reports = new List<DatasusRetryInfo>();
+
+        await _fixture.Client(configure: o => o.OnRetry = reports.Add).DownloadAsync(Dados + "/RDMG2407.dbc", Ct);
+
+        Assert.Equal([1, 2], reports.Select(report => report.Attempt));
+        Assert.All(reports, report => Assert.Contains(Dados + "/RDMG2407.dbc", report.Operation, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -252,9 +281,12 @@ public sealed class DatasusClientTests : IDisposable
         _fixture.Server.Add(Dados + "/RDMG2407.dbc", ClientFixture.Dbc("A1"));
         _fixture.FreeSpace = 1024;
 
-        var exception = await Assert.ThrowsAsync<IOException>(() => _fixture.Client().DownloadAsync(Dados + "/RDMG2407.dbc", Ct));
+        var exception = await Assert.ThrowsAsync<InsufficientDiskSpaceException>(() => _fixture.Client().DownloadAsync(Dados + "/RDMG2407.dbc", Ct));
 
         Assert.Contains("Not enough disk space", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(1024, exception.AvailableBytes);
+        Assert.True(exception.RequiredBytes > exception.AvailableBytes);
+        Assert.False(string.IsNullOrEmpty(exception.Directory));
         Assert.Equal(0, _fixture.Server.Transfers);
     }
 

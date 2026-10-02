@@ -63,4 +63,13 @@ internal sealed class TransientTransportException : IOException
         : base(message, innerException)
     {
     }
+
+    public TransientTransportException(string message, string? replyCode, Exception? innerException = null)
+        : base(message, innerException)
+    {
+        ReplyCode = replyCode;
+    }
+
+    /// <summary>Gets the FTP reply code (4xx), or null for a dropped connection or a timeout.</summary>
+    public string? ReplyCode { get; }
 }

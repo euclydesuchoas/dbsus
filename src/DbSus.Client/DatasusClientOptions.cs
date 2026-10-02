@@ -76,6 +76,20 @@ public sealed class DatasusClientOptions
     /// </remarks>
     public TimeSpan InitialRetryDelay { get; set; } = TimeSpan.FromSeconds(1);
 
+    /// <summary>
+    /// Gets or sets a callback invoked before each retry, with the operation, the number of the
+    /// attempt that failed, the wait before the next one and the failure. The default is
+    /// <see langword="null"/>.
+    /// </summary>
+    /// <remarks>
+    /// Only transient failures are retried; a missing file (FTP 550) is a
+    /// <see cref="FileNotFoundException"/> and is never retried. The callback runs on the thread of
+    /// the operation, before it waits; if it throws, its exception is ignored and the operation goes
+    /// on. When the retries are exhausted, the operation throws
+    /// <see cref="DatasusRetriesExhaustedException"/>.
+    /// </remarks>
+    public Action<DatasusRetryInfo>? OnRetry { get; set; }
+
     /// <summary>Gets or sets how long a directory listing is reused. The default is 10 minutes.</summary>
     public TimeSpan ListingCacheDuration { get; set; } = TimeSpan.FromMinutes(10);
 

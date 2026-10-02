@@ -1,0 +1,86 @@
+using System.Diagnostics.CodeAnalysis;
+
+namespace DbSus.Client;
+
+/// <summary>
+/// A transfer with the DATASUS server failed. The subclasses tell why: retries were exhausted
+/// (<see cref="DatasusRetriesExhaustedException"/>) or the server refused the request
+/// (<see cref="DatasusRequestRefusedException"/>). A missing file is a
+/// <see cref="FileNotFoundException"/> instead (FTP 550), never one of these.
+/// </summary>
+[SuppressMessage("Design", "CA1032", Justification = "Created only by the client with the transfer details; constructors without them would make no sense.")]
+public class DatasusTransferException : IOException
+{
+    internal DatasusTransferException(string message, string? ftpReplyCode, Exception? innerException)
+        : base(message, innerException)
+    {
+        FtpReplyCode = ftpReplyCode;
+    }
+
+    /// <summary>
+    /// Gets the path of the file or directory involved, relative to the root, or
+    /// <see langword="null"/> when the failure did not concern one.
+    /// </summary>
+    public string? RemotePath { get; internal set; }
+
+    /// <summary>
+    /// Gets the FTP reply code of the last failure (e.g. <c>421</c> or <c>530</c>), or
+    /// <see langword="null"/> when there was none (dropped connection, timeout).
+    /// </summary>
+    public string? FtpReplyCode { get; }
+
+    /// <summary>Gets the number of attempts made, the first one included.</summary>
+    public int Attempts { get; internal set; }
+}
+
+/// <summary>
+/// Transient failures (dropped connections, timeouts, FTP 4xx replies, truncated transfers)
+/// persisted after <see cref="DatasusClientOptions.MaxRetries"/> retries. The last failure is the
+/// <see cref="Exception.InnerException"/>.
+/// </summary>
+[SuppressMessage("Design", "CA1032", Justification = "Created only by the client with the transfer details.")]
+public sealed class DatasusRetriesExhaustedException : DatasusTransferException
+{
+    internal DatasusRetriesExhaustedException(string message, string? ftpReplyCode, Exception? innerException)
+        : base(message, ftpReplyCode, innerException)
+    {
+    }
+}
+
+/// <summary>
+/// The server refused the request with a permanent FTP reply other than 550 (for example
+/// <c>530</c>, not logged in). It is not retried.
+/// </summary>
+[SuppressMessage("Design", "CA1032", Justification = "Created only by the client with the transfer details.")]
+public sealed class DatasusRequestRefusedException : DatasusTransferException
+{
+    internal DatasusRequestRefusedException(string message, string? ftpReplyCode, Exception? innerException)
+        : base(message, ftpReplyCode, innerException)
+    {
+    }
+}
+
+/// <summary>
+/// There is not enough free space to download a file. Checked before the transfer starts, against
+/// the file's size plus a safety margin.
+/// </summary>
+[SuppressMessage("Design", "CA1032", Justification = "Created only by the client with the space figures.")]
+public sealed class InsufficientDiskSpaceException : IOException
+{
+    internal InsufficientDiskSpaceException(string message, string directory, long requiredBytes, long availableBytes)
+        : base(message)
+    {
+        Directory = directory;
+        RequiredBytes = requiredBytes;
+        AvailableBytes = availableBytes;
+    }
+
+    /// <summary>Gets the local directory the file was to be written to.</summary>
+    public string Directory { get; }
+
+    /// <summary>Gets the free space needed: the bytes still to download plus the safety margin.</summary>
+    public long RequiredBytes { get; }
+
+    /// <summary>Gets the free space available when the check was made.</summary>
+    public long AvailableBytes { get; }
+}

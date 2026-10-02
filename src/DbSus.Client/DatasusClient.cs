@@ -61,7 +61,7 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
         _utcNow = utcNow ?? (() => DateTime.UtcNow);
         _freeSpace = freeSpace ?? FreeSpace;
         _pool = new ConnectionPool(connections ?? new FtpConnectionFactory(_options), _options.MaxConnections);
-        _retry = new RetryPolicy(_options.MaxRetries, _options.InitialRetryDelay, delay ?? ((wait, token) => Task.Delay(wait, token)));
+        _retry = new RetryPolicy(_options.MaxRetries, _options.InitialRetryDelay, delay ?? ((wait, token) => Task.Delay(wait, token)), _options.OnRetry);
         _cache = _options.CacheDirectory is null ? null : new CacheStore(_options.CacheDirectory, _options.MaxCacheSizeBytes, _utcNow);
         _temp = new TempStore(tempRoot ?? TempStore.DefaultRoot, _utcNow);
     }
@@ -149,7 +149,7 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     {
         Guard.NotDisposed(_disposed, this);
         var remote = RemotePath.Parse(path, Root);
-        var bytes = await _retry.RunAsync($"Reading the header of {remote.Relative}", async token =>
+        var bytes = await _retry.RunAsync($"Reading the header of {remote.Relative}", remote.Relative, async token =>
         {
             // The lease is not kept: aborting a transfer may leave the connection unusable.
             using var lease = await _pool.AcquireAsync(token).ConfigureAwait(false);
@@ -177,9 +177,11 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     /// <param name="path">Path of the file, relative to the root.</param>
     /// <param name="cancellationToken">Cancels the download.</param>
     /// <returns>The full local path of the downloaded file.</returns>
-    /// <exception cref="FileNotFoundException">The file does not exist.</exception>
+    /// <exception cref="FileNotFoundException">The file does not exist (FTP 550; never retried).</exception>
     /// <exception cref="InvalidDataException">The file failed its CRC-32 check twice.</exception>
-    /// <exception cref="IOException">Retries were exhausted, or there is not enough disk space.</exception>
+    /// <exception cref="DatasusRetriesExhaustedException">Transient failures persisted after every retry.</exception>
+    /// <exception cref="DatasusRequestRefusedException">The server refused the request permanently.</exception>
+    /// <exception cref="InsufficientDiskSpaceException">There is not enough free disk space for the file.</exception>
     public async Task<string> DownloadAsync(string path, CancellationToken cancellationToken = default)
     {
         Guard.NotDisposed(_disposed, this);
@@ -316,6 +318,7 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
         ListingCacheDuration = source.ListingCacheDuration,
         VerifyOnDownload = source.VerifyOnDownload,
         LockTimeout = source.LockTimeout,
+        OnRetry = source.OnRetry,
     };
 
     private static long? FreeSpace(string directory)
@@ -395,6 +398,7 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
 
         var entries = await WithConnectionAsync(
             $"Listing {directory.Relative}",
+            directory.Relative,
             (connection, token) => connection.ListAsync(directory.Full, token),
             cancellationToken).ConfigureAwait(false);
         _listings[directory.Full] = (now, entries);
@@ -404,13 +408,14 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     private Task<RemoteFileInfo> GetRemoteInfoAsync(RemotePath remote, CancellationToken cancellationToken) =>
         WithConnectionAsync(
             $"Reading the size and date of {remote.Relative}",
+            remote.Relative,
             (connection, token) => connection.GetInfoAsync(remote.Full, token),
             cancellationToken);
 
     // One retried operation on one pooled connection, kept for reuse unless something went wrong
     // (a missing file is a normal answer and does not taint the connection).
-    private Task<T> WithConnectionAsync<T>(string operation, Func<IDatasusConnection, CancellationToken, Task<T>> action, CancellationToken cancellationToken) =>
-        _retry.RunAsync(operation, async token =>
+    private Task<T> WithConnectionAsync<T>(string operation, string remotePath, Func<IDatasusConnection, CancellationToken, Task<T>> action, CancellationToken cancellationToken) =>
+        _retry.RunAsync(operation, remotePath, async token =>
         {
             using var lease = await _pool.AcquireAsync(token).ConfigureAwait(false);
             try
@@ -536,7 +541,7 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     {
         var existing = File.Exists(partialPath) ? new FileInfo(partialPath).Length : 0;
         EnsureDiskSpace(Path.GetDirectoryName(partialPath)!, remote, Math.Max(0, info.Size - existing));
-        return _retry.RunAsync($"Downloading {remote.Relative}", async token =>
+        return _retry.RunAsync($"Downloading {remote.Relative}", remote.Relative, async token =>
         {
             var offset = File.Exists(partialPath) ? new FileInfo(partialPath).Length : 0;
             if (offset > info.Size)
@@ -592,8 +597,11 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     {
         if (_freeSpace(directory) is { } free && free < needed + DiskSpaceMargin)
         {
-            throw new IOException(
-                $"Not enough disk space in '{directory}' to download {remote.Relative}: {needed:N0} bytes needed plus a {DiskSpaceMargin:N0}-byte margin, {free:N0} available.");
+            throw new InsufficientDiskSpaceException(
+                $"Not enough disk space in '{directory}' to download {remote.Relative}: {needed:N0} bytes needed plus a {DiskSpaceMargin:N0}-byte margin, {free:N0} available.",
+                directory,
+                needed + DiskSpaceMargin,
+                free);
         }
     }
 
