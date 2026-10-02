@@ -5,6 +5,12 @@ namespace DbSus.Dbc;
 /// </summary>
 /// <remarks>
 /// <para>
+/// Layout of a DBC: the DBF header verbatim (its length is the UInt16 at offset 8, little-endian),
+/// then the CRC-32 (zlib/IEEE) of the whole uncompressed DBF as a little-endian UInt32, then a
+/// PKWare DCL implode stream holding the rest of the DBF. The DBF returned is the header followed by
+/// the decompressed data, byte for byte as stored, including an optional 0x1A end-of-file marker.
+/// </para>
+/// <para>
 /// Opening reads the DBF header and the stored checksum right away, so an invalid file fails at
 /// open. With a network or pipe stream, <c>OpenAsDbf</c> therefore blocks until those bytes arrive.
 /// </para>
