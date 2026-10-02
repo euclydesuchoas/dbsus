@@ -222,9 +222,9 @@ FTP uses two connections: the control connection, to port 21 by default, and a d
 
 What the client does, from its code:
 
-- **Passive mode only.** It uses `EPSV` when the server lists it in its `FEAT` reply, and `PASV` otherwise. It switches from `EPSV` to `PASV` only when the server answers `EPSV` with an error reply (4xx or 5xx); a data connection that times out or is refused after `EPSV` is not retried with `PASV`. With `EPSV` the data connection goes to the same address as the control connection; with `PASV`, to the address the server announces.
+- **Passive mode only.** It uses `EPSV` when the server lists it in its `FEAT` reply, and `PASV` otherwise. It switches from `EPSV` to `PASV` only when the server answers `EPSV` with an error reply (4xx or 5xx) and the control connection uses IPv4; a data connection that times out or is refused after `EPSV` is not retried with `PASV`. With `EPSV` the data connection goes to the same address as the control connection; with `PASV`, to the address the server announces (or to the control connection's host, when the announced address is a private one).
 - **IPv4 and IPv6.** The host name's addresses are tried in the order the system's DNS returns them.
-- **Time.** Each connection attempt waits up to `ConnectTimeout` (30 seconds by default) per address, and a failed step is retried `MaxRetries` times (4 by default) with a new connection each time, so a server that never answers can take minutes before the exception.
+- **Time.** Each connection attempt waits up to `ConnectTimeout` (30 seconds by default) per address, and a failed step is retried `MaxRetries` times (4 by default), the connection that failed being discarded, so a server that never answers can take minutes before the exception.
 - **Settings.** The data connection mode and the address family cannot be changed through `DatasusClientOptions`; `Host`, `Port`, `ConnectTimeout` and `ReadTimeout` can.
 
 To see each failed attempt as it happens, set `OnRetry` and log its `Operation`, `RemotePath` and `Exception.Message`. Receiving the server's greeting (`220`) on port 21 shows that the control connection can be opened; it does not show that the passive data ports can be reached.
