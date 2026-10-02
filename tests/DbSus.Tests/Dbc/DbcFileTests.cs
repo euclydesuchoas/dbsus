@@ -143,9 +143,33 @@ public sealed class DbcFileTests : IDisposable
     {
         var source = new TrickleStream(SyntheticDbc.BuildDbc(SyntheticDbc.BuildDbf(withEndOfFileMarker: true)));
 
-        DbcFile.OpenAsDbf(source, new DbcReadOptions { LeaveOpen = leaveOpen }).Dispose();
+        DbcFile.OpenAsDbf(source, leaveOpen: leaveOpen).Dispose();
 
         Assert.Equal(!leaveOpen, source.IsDisposed);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OpenAsDbf_InvalidData_DisposesSourceUnlessLeaveOpen(bool leaveOpen)
+    {
+        var source = new TrickleStream(SyntheticDbc.BuildDbc(SyntheticDbc.BuildDbf(withEndOfFileMarker: true)).Take(5).ToArray());
+
+        Assert.Throws<InvalidDataException>(() => DbcFile.OpenAsDbf(source, leaveOpen: leaveOpen));
+
+        Assert.Equal(!leaveOpen, source.IsDisposed);
+    }
+
+    [Fact]
+    public void ConvertToDbf_InvalidData_LeavesTheStreamsOpen()
+    {
+        var source = new TrickleStream(SyntheticDbc.BuildDbc(SyntheticDbc.BuildDbf(withEndOfFileMarker: true)).Take(5).ToArray());
+        var destination = new MemoryStream();
+
+        Assert.Throws<InvalidDataException>(() => DbcFile.ConvertToDbf(source, destination));
+
+        Assert.False(source.IsDisposed);
+        Assert.True(destination.CanWrite);
     }
 
     [Fact]

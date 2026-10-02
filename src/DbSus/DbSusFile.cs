@@ -80,14 +80,12 @@ public static class DbSusFile
     /// Opens a DBC stream as a reader over the DBF it contains.
     /// </summary>
     /// <param name="dbc">A readable stream positioned at the start of the DBC data; never seeked.</param>
-    /// <param name="dbfOptions">
-    /// DBF read options, or <see langword="null"/> for the defaults. Its
-    /// <see cref="DbfReadOptions.LeaveOpen"/> does not apply here.
-    /// </param>
-    /// <param name="dbcOptions">
-    /// DBC read options, or <see langword="null"/> for the defaults. Its
-    /// <see cref="DbcReadOptions.LeaveOpen"/> controls whether disposing the reader also disposes
-    /// <paramref name="dbc"/>. If this method throws, <paramref name="dbc"/> is not disposed.
+    /// <param name="dbfOptions">DBF read options, or <see langword="null"/> for the defaults.</param>
+    /// <param name="dbcOptions">DBC read options, or <see langword="null"/> for the defaults.</param>
+    /// <param name="leaveOpen">
+    /// <see langword="false"/> (the default) to hand <paramref name="dbc"/> over: it is disposed with
+    /// the reader, and also if this method throws. <see langword="true"/> to keep it yours: it is
+    /// never disposed.
     /// </param>
     /// <returns>
     /// A reader positioned before the first record. Unless checksum verification is disabled, the
@@ -95,10 +93,10 @@ public static class DbSusFile
     /// if the data does not match the DBC's CRC-32. To tell a checksum failure apart from other data
     /// errors, use <see cref="DbcReadOptions.ChecksumMismatch"/>.
     /// </returns>
-    public static DbfReader OpenDbcReader(Stream dbc, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null)
+    public static DbfReader OpenDbcReader(Stream dbc, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null, bool leaveOpen = false)
     {
         Guard.NotNull(dbc, nameof(dbc));
-        return OpenDbcReader([dbc], dbfOptions, dbcOptions);
+        return OpenDbcReader([dbc], dbfOptions, dbcOptions, leaveOpen);
     }
 
     /// <summary>
@@ -106,16 +104,25 @@ public static class DbSusFile
     /// </summary>
     /// <param name="parts">
     /// Readable streams positioned at the start of each DBC part; never seeked. Every header is read
-    /// before this method returns, so every stream must be open at once. If it throws, no stream is disposed.
+    /// before this method returns, so every stream must be open at once.
     /// </param>
-    /// <param name="dbfOptions">DBF read options, or <see langword="null"/>; its <see cref="DbfReadOptions.LeaveOpen"/> does not apply.</param>
-    /// <param name="dbcOptions">DBC read options, or <see langword="null"/>; its <see cref="DbcReadOptions.LeaveOpen"/> applies to every stream.</param>
+    /// <param name="dbfOptions">DBF read options, or <see langword="null"/>; they apply to every part.</param>
+    /// <param name="dbcOptions">DBC read options, or <see langword="null"/>; they apply to every part.</param>
+    /// <param name="leaveOpen">
+    /// <see langword="false"/> (the default) to hand the streams over: each is disposed once its part
+    /// has been read or the reader is disposed, and all of them if this method throws.
+    /// <see langword="true"/> to keep them yours: they are never disposed.
+    /// </param>
     /// <returns>A reader positioned before the first record.</returns>
-    public static DbfReader OpenDbcReader(IEnumerable<Stream> parts, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null)
+    public static DbfReader OpenDbcReader(IEnumerable<Stream> parts, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null, bool leaveOpen = false)
     {
-        var list = DbfReader.RequireParts(parts, nameof(parts));
-        var names = list.Select((_, i) => list.Count == 1 ? null : $"part {i + 1}").ToList();
-        return OpenDbcStreams(list, names, dbfOptions, dbcOptions);
+        Guard.NotNull(parts, nameof(parts));
+        var given = parts.ToList();
+        return OpenDbcStreams(given, leaveOpen, () =>
+        {
+            var list = DbfReader.RequireParts(given, nameof(parts));
+            return (list, list.Select((_, i) => list.Count == 1 ? null : $"part {i + 1}").ToList());
+        }, dbfOptions, dbcOptions);
     }
 
     /// <summary>
@@ -125,23 +132,33 @@ public static class DbSusFile
     /// </summary>
     /// <param name="parts">
     /// Readable streams positioned at the start of each DBC part; never seeked. Every header is read
-    /// before this method returns. If it throws, no stream is disposed.
+    /// before this method returns.
     /// </param>
     /// <param name="partNames">One non-empty name per stream, in the same order.</param>
-    /// <param name="dbfOptions">DBF read options, or <see langword="null"/>; its <see cref="DbfReadOptions.LeaveOpen"/> does not apply.</param>
-    /// <param name="dbcOptions">DBC read options, or <see langword="null"/>; its <see cref="DbcReadOptions.LeaveOpen"/> applies to every stream.</param>
+    /// <param name="dbfOptions">DBF read options, or <see langword="null"/>; they apply to every part.</param>
+    /// <param name="dbcOptions">DBC read options, or <see langword="null"/>; they apply to every part.</param>
+    /// <param name="leaveOpen">
+    /// <see langword="false"/> (the default) to hand the streams over: each is disposed once its part
+    /// has been read or the reader is disposed, and all of them if this method throws.
+    /// <see langword="true"/> to keep them yours: they are never disposed.
+    /// </param>
     /// <returns>A reader positioned before the first record.</returns>
     /// <exception cref="ArgumentException">The counts differ, or a name is null or empty.</exception>
-    public static DbfReader OpenDbcReader(IReadOnlyList<Stream> parts, IReadOnlyList<string> partNames, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null)
+    public static DbfReader OpenDbcReader(IReadOnlyList<Stream> parts, IReadOnlyList<string> partNames, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null, bool leaveOpen = false)
     {
-        var list = DbfReader.RequireParts(parts, nameof(parts));
-        Guard.NotNull(partNames, nameof(partNames));
-        if (partNames.Count != list.Count || partNames.Any(string.IsNullOrEmpty))
+        Guard.NotNull(parts, nameof(parts));
+        var given = parts.ToList();
+        return OpenDbcStreams(given, leaveOpen, () =>
         {
-            throw new ArgumentException("Give exactly one non-empty name per part.", nameof(partNames));
-        }
+            var list = DbfReader.RequireParts(given, nameof(parts));
+            Guard.NotNull(partNames, nameof(partNames));
+            if (partNames.Count != list.Count || partNames.Any(string.IsNullOrEmpty))
+            {
+                throw new ArgumentException("Give exactly one non-empty name per part.", nameof(partNames));
+            }
 
-        return OpenDbcStreams(list, [.. partNames], dbfOptions, dbcOptions);
+            return (list, partNames.Select(name => (string?)name).ToList());
+        }, dbfOptions, dbcOptions);
     }
 
     /// <summary>
@@ -231,26 +248,38 @@ public static class DbSusFile
         return DbfReader.Create(prepared, dbfOptions);
     }
 
-    private static DbfReader OpenDbcStreams(List<Stream> streams, List<string?> names, DbfReadOptions? dbfOptions, DbcReadOptions? dbcOptions)
+    // Validates (inside the try, so a caller's streams handed over with leaveOpen: false are disposed
+    // even when the arguments are rejected), wraps each stream in a decompressing part and opens.
+    private static DbfReader OpenDbcStreams(
+        List<Stream> given,
+        bool leaveOpen,
+        Func<(List<Stream> Streams, List<string?> Names)> validate,
+        DbfReadOptions? dbfOptions,
+        DbcReadOptions? dbcOptions)
     {
-        var leaveOpen = dbcOptions?.LeaveOpen ?? false;
         var prepared = new List<DbfPart>();
         try
         {
+            var (streams, names) = validate();
             for (var i = 0; i < streams.Count; i++)
             {
-                // The decompressing stream never disposes the caller's stream itself, so a failure
-                // while opening leaves it untouched; the reader disposes it later unless LeaveOpen.
+                // The decompressing stream never disposes the caller's stream itself; the part
+                // disposes it once read, unless leaveOpen.
                 var dbf = DbcFile.OpenAsDbfPart(streams[i], dbcOptions, i, names[i]);
                 prepared.Add(new DbfPart(names[i], dbf, leaveOpen ? [dbf] : [dbf, streams[i]], [dbf], drainAtEnd: true));
             }
+
+            return DbfReader.Create(prepared, dbfOptions);
         }
         catch
         {
             DbfPart.DisposeCreated(prepared);
+            if (!leaveOpen)
+            {
+                DbfReader.DisposeStreams(given);
+            }
+
             throw;
         }
-
-        return DbfReader.Create(prepared, dbfOptions);
     }
 }

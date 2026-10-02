@@ -34,14 +34,6 @@ public sealed class DbfReadOptions
     public Encoding? FallbackEncoding { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether disposing the reader leaves the stream passed to
-    /// <see cref="DbfReader.Open(Stream, DbfReadOptions?)"/> open. The default is
-    /// <see langword="false"/>. Readers opened by path own their files, and readers opened from a
-    /// DBC through <c>DbSus.DbSusFile</c> follow <c>DbcReadOptions.LeaveOpen</c> instead.
-    /// </summary>
-    public bool LeaveOpen { get; set; }
-
-    /// <summary>
     /// Gets or sets the names of the fields to expose, in the order given (a projection). Ordinals
     /// refer to this list. When <see langword="null"/>, all fields are exposed in file order. An
     /// empty list is rejected when the reader opens (<see cref="ArgumentException"/>).

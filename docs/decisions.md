@@ -81,7 +81,8 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 
 - `DbcFile.OpenAsDbf(path | Stream)` returns a read-only, forward-only stream that decompresses on demand. The DBF header and checksum are read at open, so an invalid file fails immediately; the input is read strictly sequentially (network streams work).
 - `DbcFile.ConvertToDbf(paths | streams)`: the path overload writes to a temporary file and moves it into place only after success, checksum included; the stream overload writes as it goes.
-- Options are an object (`DbcReadOptions`), not boolean parameters. `VerifyChecksum` is on by default.
+- Options are an object (`DbcReadOptions`, `DbfReadOptions`), not boolean parameters, so new options do not change signatures. `VerifyChecksum` is on by default.
+- The one boolean parameter is `leaveOpen`, on every method that takes a stream: who owns a stream is decided per call, not per options object. With `leaveOpen: false` (the default) the stream belongs to DbSus from the call on: it is disposed with the returned reader or stream, and also if the call throws, so `Open(File.OpenRead(path))` never leaks. With `leaveOpen: true` it is never disposed. Methods that take paths open and close their own files; `DbcFile.ConvertToDbf(Stream, Stream)` never disposes either stream.
 - Checksum failures are `InvalidDataException` (a sealed type, so there is no subclass); `DbcReadOptions.ChecksumMismatch` is the hook for reacting to them specifically.
 - The decoder is pull-based and can suspend mid-copy, so callers can read in blocks of any size.
 

@@ -62,9 +62,11 @@ public static class DbcFile
     /// seeked, so network and pipe streams work. This method blocks until the DBF header and the
     /// checksum have been read from it.
     /// </param>
-    /// <param name="options">
-    /// Read options, or <see langword="null"/> for the defaults. <see cref="DbcReadOptions.LeaveOpen"/>
-    /// controls whether disposing the returned stream also disposes <paramref name="dbc"/>.
+    /// <param name="options">Read options, or <see langword="null"/> for the defaults.</param>
+    /// <param name="leaveOpen">
+    /// <see langword="false"/> (the default) to hand <paramref name="dbc"/> over: it is disposed with
+    /// the returned stream, and also if this method throws. <see langword="true"/> to keep it yours:
+    /// it is never disposed.
     /// </param>
     /// <returns>
     /// A forward-only stream (<see cref="Stream.CanSeek"/> is <see langword="false"/>) that yields the
@@ -74,16 +76,24 @@ public static class DbcFile
     /// The data is not a valid DBC. Errors in the compressed data surface while reading; see
     /// <see cref="DbcReadOptions.VerifyChecksum"/> for when a checksum mismatch is reported.
     /// </exception>
-    public static Stream OpenAsDbf(Stream dbc, DbcReadOptions? options = null)
+    /// <exception cref="ArgumentException">The stream is not readable.</exception>
+    public static Stream OpenAsDbf(Stream dbc, DbcReadOptions? options = null, bool leaveOpen = false)
     {
         Guard.NotNull(dbc, nameof(dbc));
-        if (!dbc.CanRead)
+        try
         {
-            throw new ArgumentException("The DBC stream must be readable.", nameof(dbc));
-        }
+            if (!dbc.CanRead)
+            {
+                throw new ArgumentException("The DBC stream must be readable.", nameof(dbc));
+            }
 
-        options ??= new DbcReadOptions();
-        return new DbcDbfStream(dbc, options.LeaveOpen, options, partIndex: 0, partName: null);
+            return new DbcDbfStream(dbc, leaveOpen, options ?? new DbcReadOptions(), partIndex: 0, partName: null);
+        }
+        catch when (!leaveOpen)
+        {
+            dbc.Dispose();
+            throw;
+        }
     }
 
     /// <summary>Opens a DBC stream as one part of a split table; the caller's stream is never disposed.</summary>
@@ -142,13 +152,11 @@ public static class DbcFile
     /// </summary>
     /// <param name="dbc">A readable stream positioned at the start of the DBC data; never seeked.</param>
     /// <param name="dbf">A writable stream that receives the DBF bytes.</param>
-    /// <param name="options">
-    /// Read options, or <see langword="null"/> for the defaults. Neither stream is disposed, so
-    /// <see cref="DbcReadOptions.LeaveOpen"/> does not apply.
-    /// </param>
+    /// <param name="options">Read options, or <see langword="null"/> for the defaults.</param>
     /// <remarks>
-    /// Bytes are written to <paramref name="dbf"/> as they are decompressed. If the conversion
-    /// fails, what was already written stays in <paramref name="dbf"/>; use
+    /// Neither stream is disposed, whether the conversion succeeds or fails. Bytes are written to
+    /// <paramref name="dbf"/> as they are decompressed. If the conversion fails, what was already
+    /// written stays in <paramref name="dbf"/>; use
     /// <see cref="ConvertToDbf(string, string, DbcReadOptions?)"/> for an all-or-nothing file.
     /// </remarks>
     /// <exception cref="InvalidDataException">The DBC is invalid, corrupt or truncated.</exception>
@@ -161,7 +169,7 @@ public static class DbcFile
             throw new ArgumentException("The DBF stream must be writable.", nameof(dbf));
         }
 
-        using var source = OpenAsDbf(dbc, (options ?? new DbcReadOptions()).With(leaveOpen: true));
+        using var source = OpenAsDbf(dbc, options, leaveOpen: true);
         source.CopyTo(dbf, CopyBufferSize);
     }
 

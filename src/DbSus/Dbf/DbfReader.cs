@@ -196,23 +196,19 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// A readable stream positioned at the start of the DBF data. It is read sequentially and never
     /// seeked. The header is read before this method returns, so it blocks until the header arrives.
     /// </param>
-    /// <param name="options">
-    /// Read options, or <see langword="null"/> for the defaults. <see cref="DbfReadOptions.LeaveOpen"/>
-    /// controls whether disposing the reader also disposes <paramref name="dbf"/>. If this method
-    /// throws, <paramref name="dbf"/> is not disposed.
+    /// <param name="options">Read options, or <see langword="null"/> for the defaults.</param>
+    /// <param name="leaveOpen">
+    /// <see langword="false"/> (the default) to hand <paramref name="dbf"/> over: it is disposed with
+    /// the reader, and also if this method throws. <see langword="true"/> to keep it yours: it is
+    /// never disposed.
     /// </param>
     /// <returns>A reader positioned before the first record.</returns>
     /// <exception cref="InvalidDataException">The header is invalid.</exception>
-    /// <exception cref="ArgumentException">A projected column does not exist or is repeated.</exception>
-    public static DbfReader Open(Stream dbf, DbfReadOptions? options = null)
+    /// <exception cref="ArgumentException">The stream is not readable, or a projected column does not exist or is repeated.</exception>
+    public static DbfReader Open(Stream dbf, DbfReadOptions? options = null, bool leaveOpen = false)
     {
         Guard.NotNull(dbf, nameof(dbf));
-        if (!dbf.CanRead)
-        {
-            throw new ArgumentException("The DBF stream must be readable.", nameof(dbf));
-        }
-
-        return Open([dbf], options);
+        return Open([dbf], options, leaveOpen);
     }
 
     /// <summary>
@@ -220,32 +216,43 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// </summary>
     /// <param name="parts">
     /// Readable streams positioned at the start of each part; never seeked. Every header is read
-    /// before this method returns. If it throws, no stream is disposed.
+    /// before this method returns.
     /// </param>
-    /// <param name="options">
-    /// Read options, or <see langword="null"/> for the defaults. They apply to every part;
-    /// <see cref="DbfReadOptions.LeaveOpen"/> applies to every stream.
+    /// <param name="options">Read options, or <see langword="null"/> for the defaults. They apply to every part.</param>
+    /// <param name="leaveOpen">
+    /// <see langword="false"/> (the default) to hand the streams over: they are disposed with the
+    /// reader (each one as soon as its part has been read), and also if this method throws.
+    /// <see langword="true"/> to keep them yours: they are never disposed.
     /// </param>
     /// <returns>A reader positioned before the first record.</returns>
     /// <exception cref="InvalidDataException">A header is invalid, or the parts do not share the same schema.</exception>
     /// <exception cref="ArgumentException">No stream is given, a stream is not readable, or a projected column does not exist or is repeated.</exception>
-    public static DbfReader Open(IEnumerable<Stream> parts, DbfReadOptions? options = null)
+    public static DbfReader Open(IEnumerable<Stream> parts, DbfReadOptions? options = null, bool leaveOpen = false)
     {
-        var list = RequireParts(parts, nameof(parts));
-        var leaveOpen = options?.LeaveOpen ?? false;
-        var wrapped = new List<DbfPart>();
-        for (var i = 0; i < list.Count; i++)
+        Guard.NotNull(parts, nameof(parts));
+        var given = parts.ToList();
+        try
         {
-            if (!list[i].CanRead)
+            var list = RequireParts(given, nameof(parts));
+            var wrapped = new List<DbfPart>();
+            for (var i = 0; i < list.Count; i++)
             {
-                throw new ArgumentException("Every DBF stream must be readable.", nameof(parts));
+                if (!list[i].CanRead)
+                {
+                    throw new ArgumentException("Every DBF stream must be readable.", nameof(parts));
+                }
+
+                var name = list.Count == 1 ? null : $"part {i + 1}";
+                wrapped.Add(new DbfPart(name, list[i], leaveOpen ? [] : [list[i]], [], drainAtEnd: false));
             }
 
-            var name = list.Count == 1 ? null : $"part {i + 1}";
-            wrapped.Add(new DbfPart(name, list[i], leaveOpen ? [] : [list[i]], [], drainAtEnd: false));
+            return Create(wrapped, options);
         }
-
-        return Create(wrapped, options);
+        catch when (!leaveOpen)
+        {
+            DisposeStreams(given);
+            throw;
+        }
     }
 
     /// <summary>
@@ -261,6 +268,15 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
         {
             DbfPart.DisposeCreated(parts);
             throw;
+        }
+    }
+
+    /// <summary>Disposes the streams a caller handed over (leaveOpen: false) when opening fails.</summary>
+    internal static void DisposeStreams(IEnumerable<Stream?> streams)
+    {
+        foreach (var stream in streams)
+        {
+            stream?.Dispose();
         }
     }
 

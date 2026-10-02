@@ -193,6 +193,19 @@ Exceptions:
 | `TimeoutException` | Another thread or process held the same cache entry for longer than `LockTimeout` (10 minutes by default). |
 | `OperationCanceledException` | The cancellation token was canceled. |
 
+### Who closes what
+
+Methods that take a stream have a `leaveOpen` parameter (default `false`):
+
+| You pass | `leaveOpen: false` (default) | `leaveOpen: true` |
+|---|---|---|
+| A path (`DbSusFile.OpenReader`, `DbfReader.Open(string)`, `DbcFile.OpenAsDbf(string)`, ...) | DbSus opens and closes the file; `leaveOpen` does not apply | — |
+| A stream (`DbfReader.Open(Stream)`, `DbcFile.OpenAsDbf(Stream)`, `DbSusFile.OpenDbcReader(Stream)`) | Disposed with the returned reader or stream, **and also if the call throws** | Never disposed: it stays yours |
+| Several streams (the parts of a table) | Each is disposed once its part has been read or the reader is disposed; **all of them if the call throws** | Never disposed |
+| Two streams to `DbcFile.ConvertToDbf(Stream, Stream)` | Never disposed (there is no `leaveOpen`) | — |
+
+So `using var reader = DbfReader.Open(File.OpenRead(path));` does not leak the file even when the header is invalid.
+
 ## Integrity is confirmed only at the end
 
 Every `.dbc` file stores a CRC-32 of the whole DBF it contains. That checksum can only be compared once the last byte has been decompressed, so DbSus reports a mismatch **at the end of the data**, not at the start:

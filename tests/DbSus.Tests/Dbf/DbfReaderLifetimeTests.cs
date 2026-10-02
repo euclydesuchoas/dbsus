@@ -27,19 +27,21 @@ public sealed class DbfReaderLifetimeTests : IDisposable
     {
         var source = new TrickleStream(Table);
 
-        DbfReader.Open(source, new DbfReadOptions { LeaveOpen = leaveOpen }).Dispose();
+        DbfReader.Open(source, leaveOpen: leaveOpen).Dispose();
 
         Assert.Equal(!leaveOpen, source.IsDisposed);
     }
 
-    [Fact]
-    public void Open_InvalidHeader_DoesNotDisposeCallerStream()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Open_InvalidHeader_DisposesStreamUnlessLeaveOpen(bool leaveOpen)
     {
         var source = new TrickleStream(Table.Take(10).ToArray());
 
-        Assert.Throws<InvalidDataException>(() => DbfReader.Open(source));
+        Assert.Throws<InvalidDataException>(() => DbfReader.Open(source, leaveOpen: leaveOpen));
 
-        Assert.False(source.IsDisposed);
+        Assert.Equal(!leaveOpen, source.IsDisposed);
     }
 
     [Fact]

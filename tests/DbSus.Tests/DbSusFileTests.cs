@@ -154,7 +154,7 @@ public sealed class DbSusFileTests : IDisposable
     {
         var source = new TrickleStream(SyntheticDbc.BuildDbc(Dbf));
 
-        using (var reader = DbSusFile.OpenDbcReader(source, dbcOptions: new DbcReadOptions { LeaveOpen = leaveOpen }))
+        using (var reader = DbSusFile.OpenDbcReader(source, leaveOpen: leaveOpen))
         {
             Assert.Equal(["ABC", "DEF"], ReadCodes(reader));
         }
@@ -162,27 +162,19 @@ public sealed class DbSusFileTests : IDisposable
         Assert.Equal(!leaveOpen, source.IsDisposed);
     }
 
-    [Fact]
-    public void OpenDbcReader_Stream_DbfLeaveOpenDoesNotApply()
-    {
-        var source = new TrickleStream(SyntheticDbc.BuildDbc(Dbf));
-
-        DbSusFile.OpenDbcReader(source, new DbfReadOptions { LeaveOpen = true }).Dispose();
-
-        Assert.True(source.IsDisposed);
-    }
-
-    [Fact]
-    public void OpenDbcReader_InvalidData_DoesNotDisposeCallerStream()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OpenDbcReader_InvalidData_DisposesCallerStreamUnlessLeaveOpen(bool leaveOpen)
     {
         var dbc = SyntheticDbc.BuildDbc(Dbf);
         dbc[10] = 1; // record length shorter than the fields
         dbc[11] = 0;
         var source = new TrickleStream(dbc);
 
-        Assert.Throws<InvalidDataException>(() => DbSusFile.OpenDbcReader(source));
+        Assert.Throws<InvalidDataException>(() => DbSusFile.OpenDbcReader(source, leaveOpen: leaveOpen));
 
-        Assert.False(source.IsDisposed);
+        Assert.Equal(!leaveOpen, source.IsDisposed);
     }
 
     [Fact]

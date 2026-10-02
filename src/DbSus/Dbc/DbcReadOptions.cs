@@ -6,15 +6,6 @@ namespace DbSus.Dbc;
 public sealed class DbcReadOptions
 {
     /// <summary>
-    /// Gets or sets a value indicating whether the stream returned by
-    /// <see cref="DbcFile.OpenAsDbf(Stream, DbcReadOptions?)"/> leaves the DBC stream open when it is
-    /// disposed. The default is <see langword="false"/>. Methods that take file paths own the files
-    /// they open, and <see cref="DbcFile.ConvertToDbf(Stream, Stream, DbcReadOptions?)"/> never
-    /// disposes the streams it is given, so neither uses this option.
-    /// </summary>
-    public bool LeaveOpen { get; set; }
-
-    /// <summary>
     /// Gets or sets a value indicating whether the CRC-32 stored in the DBC is checked against the
     /// decompressed DBF. The default is <see langword="true"/>.
     /// </summary>
@@ -41,11 +32,4 @@ public sealed class DbcReadOptions
     /// failure: it is invoked for that case only.
     /// </remarks>
     public Action<DbcChecksumMismatch>? ChecksumMismatch { get; set; }
-
-    internal DbcReadOptions With(bool leaveOpen) => new()
-    {
-        LeaveOpen = leaveOpen,
-        VerifyChecksum = VerifyChecksum,
-        ChecksumMismatch = ChecksumMismatch,
-    };
 }
