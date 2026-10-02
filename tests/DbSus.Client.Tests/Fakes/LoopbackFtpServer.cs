@@ -203,8 +203,7 @@ internal sealed class LoopbackFtpServer : IDisposable
 
                     if (command == "RETR" && data is not null && Files.TryGetValue(argument, out var file))
                     {
-                        await writer.WriteLineAsync("150 Opening BINARY mode data connection.").ConfigureAwait(false);
-                        var completed = await SendFileAsync(data, file, restart).ConfigureAwait(false);
+                        var completed = await SendFileAsync(data, writer, file, restart).ConfigureAwait(false);
                         restart = 0;
                         data.Stop();
                         data = null;
@@ -286,11 +285,16 @@ internal sealed class LoopbackFtpServer : IDisposable
     }
 
     // Sends the file from the offset; false when it stalled, holding the data connection until the
-    // client closes it (or the server stops).
+    // client closes it (or the server stops). The data connection is accepted before the 150 reply,
+    // as servers do in passive mode (the client connects before sending RETR): a client that
+    // closes it right after the reply must find it already accepted, or Windows drops it from the
+    // backlog and the server would never notice.
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1835", Justification = "Shared with net481, which has no Memory-based overload.")]
-    private async Task<bool> SendFileAsync(TcpListener data, byte[] file, long offset)
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031", Justification = "Any failure of the probe means the client closed or reset the connection.")]
+    private async Task<bool> SendFileAsync(TcpListener data, StreamWriter control, byte[] file, long offset)
     {
         using var connection = await data.AcceptTcpClientAsync().ConfigureAwait(false);
+        await control.WriteLineAsync("150 Opening BINARY mode data connection.").ConfigureAwait(false);
         var end = StallTransferAfter is { } stall ? Math.Min(file.Length, offset + stall) : file.Length;
         var stream = connection.GetStream();
         stream.Write(file, (int)offset, (int)(end - offset));
@@ -307,12 +311,12 @@ internal sealed class LoopbackFtpServer : IDisposable
                 ClosedByClient(ref _dataClosedByClient);
             }
         }
-        catch (IOException)
-        {
-            ClosedByClient(ref _dataClosedByClient);
-        }
         catch (OperationCanceledException)
         {
+        }
+        catch (Exception)
+        {
+            ClosedByClient(ref _dataClosedByClient);
         }
 
         return false;
