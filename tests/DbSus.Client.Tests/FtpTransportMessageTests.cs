@@ -68,15 +68,38 @@ public sealed class FtpTransportMessageTests : IDisposable
     }
 
     [Fact]
+    // Failed once, in a full run, without a message to go on; on failure it now says what the
+    // port announced as closed was doing.
     public async Task ReadingDataConnectionFails_SaysOpeningForReading()
     {
         using var client = Client();
 
-        var exception = await Assert.ThrowsAsync<DatasusRetriesExhaustedException>(() => client.DownloadAsync("/X/A.dbc", Ct));
+        try
+        {
+            var exception = await Assert.ThrowsAsync<DatasusRetriesExhaustedException>(() => client.DownloadAsync("/X/A.dbc", Ct));
 
-        Assert.StartsWith("Downloading /X/A.dbc failed after 1 attempt: ", exception.Message, StringComparison.Ordinal);
-        Assert.Contains($"while opening /dissemin/publicos/X/A.dbc for reading on 127.0.0.1:{_server.Port}: ", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("a possible cause is a passive data connection being blocked", exception.Message, StringComparison.Ordinal);
+            Assert.StartsWith("Downloading /X/A.dbc failed after 1 attempt: ", exception.Message, StringComparison.Ordinal);
+            Assert.Contains($"while opening /dissemin/publicos/X/A.dbc for reading on 127.0.0.1:{_server.Port}: ", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("a possible cause is a passive data connection being blocked", exception.Message, StringComparison.Ordinal);
+        }
+        catch (Xunit.Sdk.XunitException failure)
+        {
+            throw new Xunit.Sdk.XunitException($"{failure.Message}{Environment.NewLine}{await DescribeClosedPortAsync(_server.PassivePort)}", failure);
+        }
+    }
+
+    // What a new connection to the port announced as closed does now: refused, timed out or connected.
+    private static async Task<string> DescribeClosedPortAsync(int port)
+    {
+        var at = DateTime.UtcNow;
+        using var probe = new System.Net.Sockets.TcpClient();
+        var connect = probe.ConnectAsync(System.Net.IPAddress.Loopback, port);
+        var outcome = await Task.WhenAny(connect, Task.Delay(TimeSpan.FromSeconds(2), CancellationToken.None)) != connect
+            ? "timed out after 2 s"
+            : connect.IsFaulted
+                ? $"was refused ({(connect.Exception?.InnerException as System.Net.Sockets.SocketException)?.SocketErrorCode})"
+                : "connected: something is listening on it";
+        return $"Diagnostics at {at:yyyy-MM-dd HH:mm:ss.fff} UTC: the passive port announced as closed was {port}; a new connection to it {outcome}.";
     }
 
     [Fact]
