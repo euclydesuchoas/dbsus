@@ -5,7 +5,7 @@ namespace DbSus.Dbf;
 /// <summary>
 /// Maps the header's language driver ID (LDID) to a code page. Code pages come from Microsoft's
 /// Visual FoxPro code page table; 0x57, 0x58 and 0x59 (dBASE "ANSI" drivers) from GDAL's LDID
-/// table, with 0x58 also confirmed by the MiraMon documentation. See docs/decisions.md.
+/// table, with 0x58 also confirmed by the MiraMon documentation.
 /// </summary>
 internal static class DbfEncodings
 {

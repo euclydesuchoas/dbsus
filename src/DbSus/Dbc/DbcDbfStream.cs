@@ -7,9 +7,9 @@ namespace DbSus.Dbc;
 /// demand. The DBC stream is read sequentially and never seeked.
 /// </summary>
 /// <remarks>
-/// DBC layout (see docs/decisions.md): the DBF header verbatim (its length is the UInt16 at offset
-/// 8), then the CRC-32 of the whole DBF as a little-endian UInt32, then a PKWare DCL implode stream
-/// holding the rest of the DBF. Output bytes are passed through exactly as stored, including the
+/// DBC layout: the DBF header verbatim (its length is the UInt16 at offset 8), then the CRC-32 of
+/// the whole DBF as a little-endian UInt32, then a PKWare DCL implode stream holding the rest of
+/// the DBF. Output bytes are passed through exactly as stored, including the
 /// optional 0x1A end-of-file marker.
 /// </remarks>
 internal sealed class DbcDbfStream : Stream
