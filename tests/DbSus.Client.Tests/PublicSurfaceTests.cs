@@ -18,4 +18,12 @@ public class PublicSurfaceTests
         Assert.True(typeof(DatasusRetriesExhaustedException).IsSubclassOf(type));
         Assert.True(typeof(DatasusRequestRefusedException).IsSubclassOf(type));
     }
+
+    [Fact]
+    public void DatasusClientOptions_ConstructorIsDocumented()
+    {
+        var documentation = File.ReadAllText(Path.ChangeExtension(typeof(DatasusClientOptions).Assembly.Location, ".xml"));
+
+        Assert.Contains("<member name=\"M:DbSus.Client.DatasusClientOptions.#ctor\">", documentation, StringComparison.Ordinal);
+    }
 }

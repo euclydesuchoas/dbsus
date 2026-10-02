@@ -6,6 +6,11 @@ namespace DbSus.Client;
 /// </summary>
 public sealed class DatasusClientOptions
 {
+    /// <summary>Creates options with the default values given on each property.</summary>
+    public DatasusClientOptions()
+    {
+    }
+
     /// <summary>Gets or sets the FTP host. The default is <c>ftp.datasus.gov.br</c>.</summary>
     public string Host { get; set; } = "ftp.datasus.gov.br";
 

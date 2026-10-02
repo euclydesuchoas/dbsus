@@ -5,6 +5,11 @@ namespace DbSus.Dbc;
 /// </summary>
 public sealed class DbcReadOptions
 {
+    /// <summary>Creates options with the default values given on each property.</summary>
+    public DbcReadOptions()
+    {
+    }
+
     /// <summary>
     /// Gets or sets a value indicating whether the CRC-32 stored in the DBC is checked against the
     /// decompressed DBF. The default is <see langword="true"/>.

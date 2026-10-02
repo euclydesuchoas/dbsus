@@ -57,4 +57,14 @@ public class PublicSurfaceTests
         Assert.Equal("DateTime (ddMMyyyy)", DbfFieldConversion.Date("ddMMyyyy").ToString());
         Assert.Equal("Int32", DbfFieldConversion.Int32().ToString());
     }
+
+    [Theory]
+    [InlineData(typeof(DbfReadOptions))]
+    [InlineData(typeof(DbSus.Dbc.DbcReadOptions))]
+    public void OptionsConstructors_AreDocumented(Type type)
+    {
+        Assert.Contains($"<member name=\"M:{type.FullName}.#ctor\">", DocumentationOf(type), StringComparison.Ordinal);
+    }
+
+    private static string DocumentationOf(Type type) => File.ReadAllText(Path.ChangeExtension(type.Assembly.Location, ".xml"));
 }

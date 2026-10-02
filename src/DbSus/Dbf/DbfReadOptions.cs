@@ -7,6 +7,11 @@ namespace DbSus.Dbf;
 /// </summary>
 public sealed class DbfReadOptions
 {
+    /// <summary>Creates options with the default values given on each property.</summary>
+    public DbfReadOptions()
+    {
+    }
+
     /// <summary>
     /// Gets or sets the encoding of character fields. When set, it takes precedence over the
     /// language driver ID (LDID) stored in the header.
