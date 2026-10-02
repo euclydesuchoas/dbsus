@@ -1,0 +1,52 @@
+name: FluentFTP latest
+
+# Runs the client's tests against the newest stable FluentFTP, every Monday and by hand (Actions >
+# FluentFTP latest > Run workflow), to find out early whether a new release still works with the
+# client, which relies on FluentFTP's protected virtual connection hooks. Informational only: it
+# changes no file in the repository (the version is a command-line property), opens no pull
+# request, and is a workflow of its own, so a failure here blocks nothing.
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  latest:
+    name: Client tests on the newest FluentFTP (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # PowerShell is on both runners, so this step does not depend on other tools.
+      - id: version
+        shell: pwsh
+        run: |
+          $versions = (Invoke-RestMethod https://api.nuget.org/v3-flatcontainer/fluentftp/index.json).versions
+          $latest = @($versions | Where-Object { $_ -notmatch '-' })[-1]
+          "Newest stable FluentFTP: $latest"
+          "value=$latest" >> $env:GITHUB_OUTPUT
+
+      # The exact version, in brackets; a range with a comma cannot be passed with -p.
+      - shell: bash
+        env:
+          FLUENTFTP_VERSION: ${{ steps.version.outputs.value }}
+        run: dotnet build tests/DbSus.Client.Tests --configuration Release "-p:FluentFtpVersion=[$FLUENTFTP_VERSION]"
+
+      - run: dotnet test --project tests/DbSus.Client.Tests --configuration Release --no-build
