@@ -216,6 +216,19 @@ Exceptions:
 | `TimeoutException` | Another thread or process held the same cache entry for longer than `LockTimeout` (10 minutes by default). |
 | `OperationCanceledException` | The cancellation token was canceled. |
 
+#### When the connection fails
+
+FTP uses two connections: the control connection, to port 21 by default, and a data connection for each listing and each download, to a port the server chooses (passive mode). A failure message names the step (`connecting to`, `listing`, `reading the size and date of`, `opening ... for reading`) with the host and port. The underlying FTP library reports a failed connection attempt the same way for both connections (for example `Timed out trying to connect to IP #1`, the number being the position of the address tried), so the message says what is known: whether the control connection was reopened during the step and, for listings and downloads, that a blocked passive data connection is a possible cause.
+
+What the client does, from its code:
+
+- **Passive mode only.** It uses `EPSV` when the server lists it in its `FEAT` reply, and `PASV` otherwise. It switches from `EPSV` to `PASV` only when the server answers `EPSV` with an error reply (4xx or 5xx); a data connection that times out or is refused after `EPSV` is not retried with `PASV`. With `EPSV` the data connection goes to the same address as the control connection; with `PASV`, to the address the server announces.
+- **IPv4 and IPv6.** The host name's addresses are tried in the order the system's DNS returns them.
+- **Time.** Each connection attempt waits up to `ConnectTimeout` (30 seconds by default) per address, and a failed step is retried `MaxRetries` times (4 by default) with a new connection each time, so a server that never answers can take minutes before the exception.
+- **Settings.** The data connection mode and the address family cannot be changed through `DatasusClientOptions`; `Host`, `Port`, `ConnectTimeout` and `ReadTimeout` can.
+
+To see each failed attempt as it happens, set `OnRetry` and log its `Operation`, `RemotePath` and `Exception.Message`. Receiving the server's greeting (`220`) on port 21 shows that the control connection can be opened; it does not show that the passive data ports can be reached.
+
 ### Who closes what
 
 Methods that take a stream have a `leaveOpen` parameter (default `false`):
