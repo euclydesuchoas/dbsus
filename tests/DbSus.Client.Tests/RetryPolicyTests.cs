@@ -34,6 +34,17 @@ public class RetryPolicyTests
     }
 
     [Fact]
+    public async Task RunAsync_NoRetries_ReportsASingleAttempt()
+    {
+        var policy = new RetryPolicy(0, TimeSpan.Zero, (_, _) => Task.CompletedTask);
+
+        var exception = await Assert.ThrowsAsync<IOException>(() =>
+            policy.RunAsync<int>("Downloading x", _ => throw new TransientTransportException("drop"), CancellationToken.None));
+
+        Assert.StartsWith("Downloading x failed after 1 attempt:", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RunAsync_MissingFile_IsNotRetried()
     {
         var policy = new RetryPolicy(4, TimeSpan.Zero, (_, _) => Task.CompletedTask);

@@ -24,7 +24,9 @@ internal sealed class RetryPolicy(int maxRetries, TimeSpan initialDelay, Func<Ti
             {
                 if (attempt >= maxRetries)
                 {
-                    throw new IOException($"{operation} failed after {attempt + 1} attempts: {exception.Message}", exception);
+                    var attempts = attempt + 1;
+                    throw new IOException(
+                        $"{operation} failed after {attempts} {(attempts == 1 ? "attempt" : "attempts")}: {exception.Message}", exception);
                 }
 
                 await delay(Backoff(attempt), cancellationToken).ConfigureAwait(false);
