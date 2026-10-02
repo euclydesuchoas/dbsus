@@ -77,12 +77,16 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 
 ## API and behaviour
 
+### Naming
+
+- Parameter names follow one rule: an options parameter is `options` when the method takes one kind (`DbfReader`, `DbcFile`) and `dbfOptions` / `dbcOptions` when it takes both (`DbSusFile`, `DatasusClient`); a stream is named after its format (`dbf`, `dbc`); paths are `path` / `paths`, or `dbcPath` / `dbfPath` when a method takes two; the parts of a split table are `parts`. Renaming a parameter breaks callers that pass it by name, so the names are settled before the first release.
+
 ### DBC
 
 - `DbcFile.OpenAsDbf(path | Stream)` returns a read-only, forward-only stream that decompresses on demand. The DBF header and checksum are read at open, so an invalid file fails immediately; the input is read strictly sequentially (network streams work).
 - `DbcFile.ConvertToDbf(paths | streams)`: the path overload writes to a temporary file and moves it into place only after success, checksum included; the stream overload writes as it goes.
 - Options are an object (`DbcReadOptions`, `DbfReadOptions`), not boolean parameters, so new options do not change signatures. `VerifyChecksum` is on by default.
-- The one boolean parameter is `leaveOpen`, on every method that takes a stream: who owns a stream is decided per call, not per options object. With `leaveOpen: false` (the default) the stream belongs to DbSus from the call on: it is disposed with the returned reader or stream, and also if the call throws, so `Open(File.OpenRead(path))` never leaks. With `leaveOpen: true` it is never disposed. Methods that take paths open and close their own files; `DbcFile.ConvertToDbf(Stream, Stream)` never disposes either stream.
+- The one boolean parameter is `leaveOpen`, the last parameter of every method that takes a stream: who owns a stream is decided per call, not per options object. With `leaveOpen: false` (the default) the stream belongs to DbSus from the call on: it is disposed with the returned reader or stream, and also if the call throws, so `Open(File.OpenRead(path))` never leaks. With `leaveOpen: true` it is never disposed. Methods that take paths open and close their own files; `DbcFile.ConvertToDbf(Stream, Stream)` never disposes either stream.
 - Checksum failures are `InvalidDataException` (a sealed type, so there is no subclass); `DbcReadOptions.ChecksumMismatch` is the hook for reacting to them specifically. The callback receives a `DbcChecksumMismatch` (part index and name, stored and computed CRC-32), a class so it can grow without breaking callers.
 - The decoder is pull-based and can suspend mid-copy, so callers can read in blocks of any size.
 
@@ -117,8 +121,9 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 - **Paths** are strings relative to a configurable root (`/dissemin/publicos`). URLs, `..`, `.`, empty segments, `\`, control characters and names invalid on Windows or Linux are rejected. A structured catalogue (source, modality, year, month, state) is a later phase.
 - **FTP:** FluentFTP behind an internal interface; explicit `EncryptionMode = None`, raw `SIZE`/`MDTM`, `LIST` forced.
 - **Concurrency:** the client is thread-safe; a pool lends at most `MaxConnections` connections (default 2, maximum 4).
-- **Retries:** transient failures only (socket errors, timeouts, FTP 4xx, truncated transfers), exponential backoff with jitter capped at 30 s; `550` is `FileNotFoundException`. `OnRetry` reports each retry (operation, attempt, wait, failure); its exceptions are ignored.
-- **Failures** have their own types, all deriving from `IOException`: `DatasusRetriesExhaustedException` and `DatasusRequestRefusedException` (with `Attempts`, `FtpReplyCode` and `RemotePath`) and `InsufficientDiskSpaceException`. A permanent FTP reply is never retried.
+- **Retries:** transient failures only (socket errors, timeouts, FTP 4xx, truncated transfers), exponential backoff with jitter capped at 30 s; `550` is `FileNotFoundException`. `OnRetry` reports each retry (a description of the operation for people to read, the remote path, the attempt, the wait, the failure); its exceptions are ignored.
+- **Failures** have their own types, all deriving from `IOException`: `DatasusRetriesExhaustedException` and `DatasusRequestRefusedException`, whose abstract base `DatasusTransferException` carries `Attempts`, `FtpReplyCode` and `RemotePath` (always set, `/` for the root), and `InsufficientDiskSpaceException`. A permanent FTP reply is never retried.
+- **Transport messages** name the step (connecting, listing, reading the size and date, opening for reading) with the host and port. FluentFTP reports a failed TCP connect the same way for the control and the data connection, so the message does not say which one failed: it says whether FluentFTP reopened the control connection during the step and, when the step opens a passive data connection, gives a blocked passive connection as a possible cause only.
 - **Cache:** `<cache>/<remote path>/<file>/<size>-<MDTM>/`, one folder per server version, so a new version never overwrites a file a reader has open. Interrupted downloads resume with `REST` only when size and time are unchanged. With `VerifyOnDownload` (default) the file is fully decompressed and its CRC checked before entering the cache. Per-entry lock files (`FileShare.None`; `flock` on Linux/macOS) coordinate processes. Old partial files are removed only when older than 24 hours and unlocked; with a size limit, least recently used entries are evicted, never one in use.
 - **Without a cache:** downloads go to a temporary folder and are deleted when the reader is done.
 
