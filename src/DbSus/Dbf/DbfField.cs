@@ -11,7 +11,7 @@ public sealed class DbfField
         TypeCode = typeCode;
         Length = length;
         DecimalCount = decimalCount;
-        Index = index;
+        FileIndex = index;
         Offset = offset;
         Conversion = conversion;
         Kind = conversion?.Kind ?? KindOf(typeCode, length, decimalCount);
@@ -33,8 +33,16 @@ public sealed class DbfField
     /// <summary>Gets the number of decimal places declared for numeric fields.</summary>
     public int DecimalCount { get; }
 
-    /// <summary>Gets the zero-based position of the field in the file, before any projection.</summary>
-    public int Index { get; }
+    /// <summary>
+    /// Gets the zero-based position of the field in the file, as declared in the header.
+    /// </summary>
+    /// <remarks>
+    /// This is not the reader's ordinal. The ordinal (<c>GetOrdinal</c>, the index into
+    /// <c>DbfReader.Fields</c> and the argument of the getters) is the position among the fields the
+    /// reader exposes, which differs from <see cref="FileIndex"/> when
+    /// <see cref="DbfReadOptions.Columns"/> projects or reorders fields.
+    /// </remarks>
+    public int FileIndex { get; }
 
     /// <summary>
     /// Gets the .NET type of the field's values: <see cref="string"/> for <c>C</c>;
@@ -66,7 +74,7 @@ public sealed class DbfField
     internal DbfDateLayout DateLayout => Conversion?.DateLayout ?? DbfDateLayout.YearMonthDay;
 
     internal DbfField WithConversion(DbfFieldConversion conversion) =>
-        new(Name, TypeCode, Length, DecimalCount, Index, Offset, conversion);
+        new(Name, TypeCode, Length, DecimalCount, FileIndex, Offset, conversion);
 
     /// <inheritdoc/>
     public override string ToString() =>

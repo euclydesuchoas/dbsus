@@ -26,8 +26,8 @@ public class DbfReaderHeaderTests
         Assert.Equal(0, reader.Header.UnusedRecordBytes);
         Assert.Collection(
             reader.Header.Fields,
-            field => Assert.Equal(("UF_ZI", 'C', 6, 0, 0), (field.Name, field.TypeCode, field.Length, field.DecimalCount, field.Index)),
-            field => Assert.Equal(("VAL_TOT", 'N', 14, 2, 1), (field.Name, field.TypeCode, field.Length, field.DecimalCount, field.Index)));
+            field => Assert.Equal(("UF_ZI", 'C', 6, 0, 0), (field.Name, field.TypeCode, field.Length, field.DecimalCount, field.FileIndex)),
+            field => Assert.Equal(("VAL_TOT", 'N', 14, 2, 1), (field.Name, field.TypeCode, field.Length, field.DecimalCount, field.FileIndex)));
     }
 
     [Fact]

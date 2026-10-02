@@ -170,6 +170,17 @@ public class DbfReaderAccessTests
     }
 
     [Fact]
+    public void Columns_OrdinalIsThePositionInTheProjectionAndFileIndexThePositionInTheFile()
+    {
+        using var reader = Open(new DbfReadOptions { Columns = ["when", "CODE"] });
+
+        Assert.Equal(0, reader.GetOrdinal("WHEN"));
+        Assert.Equal(3, reader.Fields[0].FileIndex);
+        Assert.Equal(1, reader.GetOrdinal("CODE"));
+        Assert.Equal(0, reader.Fields[1].FileIndex);
+    }
+
+    [Fact]
     public void Columns_UnknownName_ThrowsArgumentException()
     {
         Assert.Throws<ArgumentException>(() => Open(new DbfReadOptions { Columns = ["CODE", "NOPE"] }));
