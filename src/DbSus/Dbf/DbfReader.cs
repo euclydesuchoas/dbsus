@@ -208,6 +208,16 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     public static DbfReader Open(Stream dbf, DbfReadOptions? options = null, bool leaveOpen = false)
     {
         Guard.NotNull(dbf, nameof(dbf));
+        if (!dbf.CanRead)
+        {
+            if (!leaveOpen)
+            {
+                dbf.Dispose();
+            }
+
+            throw new ArgumentException("The DBF stream must be readable.", nameof(dbf));
+        }
+
         return Open([dbf], options, leaveOpen);
     }
 

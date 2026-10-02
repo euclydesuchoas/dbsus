@@ -35,6 +35,21 @@ public sealed class DbfReaderLifetimeTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void Open_UnreadableStream_NamesTheDbfParameterAndDisposesUnlessLeaveOpen(bool leaveOpen)
+    {
+        var path = Path.Combine(_directory, "write-only.dbf");
+        var source = new FileStream(path, FileMode.Create, FileAccess.Write);
+
+        var exception = Assert.Throws<ArgumentException>(() => DbfReader.Open(source, leaveOpen: leaveOpen));
+
+        Assert.Equal("dbf", exception.ParamName);
+        Assert.Equal(!leaveOpen, !source.CanWrite);
+        source.Dispose();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void Open_InvalidHeader_DisposesStreamUnlessLeaveOpen(bool leaveOpen)
     {
         var source = new TrickleStream(Table.Take(10).ToArray());
