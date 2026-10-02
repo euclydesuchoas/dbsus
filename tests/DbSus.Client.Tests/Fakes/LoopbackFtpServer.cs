@@ -19,6 +19,9 @@ internal enum ListingEnd
 
     /// <summary>Resets the data connection, then replies 426.</summary>
     ResetThenAbort,
+
+    /// <summary>Opens the data connection and sends nothing, keeping both connections open and silent.</summary>
+    Stall,
 }
 
 /// <summary>
@@ -75,6 +78,12 @@ internal sealed class LoopbackFtpServer : IDisposable
     /// open and silent, as a server that hangs in the middle of a transfer.
     /// </summary>
     public long? StallTransferAfter { get; set; }
+
+    /// <summary>
+    /// Gets or sets the address PASV announces, as four comma-separated numbers; the data listener
+    /// is on the loopback interface whatever the address.
+    /// </summary>
+    public string PassiveAddress { get; set; } = "127,0,0,1";
 
     /// <summary>Gets or sets a command the server stops answering (it keeps the connection open).</summary>
     public string? SilentOn { get; set; }
@@ -164,7 +173,7 @@ internal sealed class LoopbackFtpServer : IDisposable
                         var port = ((IPEndPoint)data.LocalEndpoint).Port;
                         await writer.WriteLineAsync(command == "EPSV"
                             ? $"229 Entering Extended Passive Mode (|||{port}|)"
-                            : $"227 Entering Passive Mode (127,0,0,1,{port >> 8},{port & 0xFF})").ConfigureAwait(false);
+                            : $"227 Entering Passive Mode ({PassiveAddress},{port >> 8},{port & 0xFF})").ConfigureAwait(false);
                         continue;
                     }
 
@@ -233,6 +242,19 @@ internal sealed class LoopbackFtpServer : IDisposable
     private async Task SendListingAsync(TcpListener data, StreamWriter control)
     {
         using var connection = await data.AcceptTcpClientAsync().ConfigureAwait(false);
+        if (ListingEnd == ListingEnd.Stall)
+        {
+            try
+            {
+                await Task.Delay(Timeout.Infinite, _stop.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            return;
+        }
+
         var bytes = Encoding.ASCII.GetBytes(string.Concat(Listing!.Select(line => line + "\r\n")));
         connection.GetStream().Write(bytes, 0, bytes.Length);
         if (ListingEnd is ListingEnd.ResetWithoutReply or ListingEnd.ResetThenAbort)
