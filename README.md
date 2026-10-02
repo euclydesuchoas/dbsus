@@ -238,7 +238,7 @@ Measured with BenchmarkDotNet (`benchmarks/DbSus.Benchmarks`, Release, .NET 10, 
 
 The small allocations of the first four rows are fixed buffers, not per-record costs. Decompression dominates; when files come from the DATASUS server, the network is usually slower still.
 
-In a real-world test, a complete SIA-PA month split into two parts, about 8 million records, was read in about 11 seconds, with about 0 bytes allocated per record, a memory peak of 34 MiB and no garbage collection.
+In a real-world test on the same machine (Windows 11, .NET SDK 10.0.401), a complete SIA-PA month split into two parts, about 8 million records, was read in about 11 seconds, with about 0 bytes allocated per record and no garbage collection. The memory peak was 34 MiB: the peak working set (`PeakWorkingSet64`) of the whole process, the .NET runtime included.
 
 ## .NET Framework
 
