@@ -1,8 +1,9 @@
 namespace DbSus.Client.Transport;
 
 /// <summary>
-/// Retries transient failures with exponential backoff and jitter, capped at 30 seconds. Missing
-/// files and permanent errors are never retried; cancellation stops at once.
+/// Retries transient failures with exponential backoff, capped at 30 seconds; each wait is between
+/// half and all of its nominal delay (jitter). Missing files and permanent errors are never
+/// retried; cancellation stops at once.
 /// </summary>
 internal sealed class RetryPolicy(int maxRetries, TimeSpan initialDelay, Func<TimeSpan, CancellationToken, Task> delay)
 {

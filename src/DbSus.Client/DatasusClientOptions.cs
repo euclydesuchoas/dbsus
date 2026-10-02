@@ -66,9 +66,14 @@ public sealed class DatasusClientOptions
     public int MaxRetries { get; set; } = 4;
 
     /// <summary>
-    /// Gets or sets the delay before the first retry; each further retry doubles it, with random
-    /// jitter, up to 30 seconds. The default is 1 second.
+    /// Gets or sets the nominal delay before the first retry; each further retry doubles it, up to
+    /// 30 seconds. The default is 1 second.
     /// </summary>
+    /// <remarks>
+    /// Each wait is a random fraction, between half and all, of its nominal delay, so the jitter
+    /// only shortens waits. For example, with 200 ms and two retries the nominal waits are 200 and
+    /// 400 ms, and the actual total is between 300 and 600 ms.
+    /// </remarks>
     public TimeSpan InitialRetryDelay { get; set; } = TimeSpan.FromSeconds(1);
 
     /// <summary>Gets or sets how long a directory listing is reused. The default is 10 minutes.</summary>
