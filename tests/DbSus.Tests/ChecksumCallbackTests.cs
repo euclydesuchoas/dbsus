@@ -100,11 +100,11 @@ public sealed class ChecksumCallbackTests : IDisposable
     }
 
     [Fact]
-    public void OpenDbcReader_NamedStreams_UseTheNamesInCallbackAndMessages()
+    public void OpenDbcReader_NamedParts_UseTheNamesInCallbackAndMessages()
     {
         var calls = new List<(int, string?)>();
-        var parts = new Stream[] { new MemoryStream(SyntheticDbc.BuildDbc(Dbf, checksum: 0)), new MemoryStream(SyntheticDbc.BuildDbc(Dbf)) };
-        using var reader = DbSusFile.OpenDbcReader(parts, ["PAMG2407a.dbc", "PAMG2407b.dbc"], dbcOptions: new DbcReadOptions { ChecksumMismatch = mismatch => calls.Add((mismatch.PartIndex, mismatch.PartName)) });
+        DbcPart[] parts = [new("PAMG2407a.dbc", new MemoryStream(SyntheticDbc.BuildDbc(Dbf, checksum: 0))), new("PAMG2407b.dbc", new MemoryStream(SyntheticDbc.BuildDbc(Dbf)))];
+        using var reader = DbSusFile.OpenDbcReader(parts, dbcOptions: new DbcReadOptions { ChecksumMismatch = mismatch => calls.Add((mismatch.PartIndex, mismatch.PartName)) });
 
         var exception = Assert.Throws<InvalidDataException>(() => Drain(reader));
 
@@ -113,33 +113,41 @@ public sealed class ChecksumCallbackTests : IDisposable
     }
 
     [Fact]
-    public void OpenDbcReader_UnnamedStreams_UsePartNumbers()
+    public void OpenDbcReader_UnnamedParts_UsePartNumbers()
     {
         var calls = new List<(int, string?)>();
-        var parts = new Stream[] { new MemoryStream(SyntheticDbc.BuildDbc(Dbf)), new MemoryStream(SyntheticDbc.BuildDbc(Dbf, checksum: 0)) };
+        DbcPart[] parts = [new(null, new MemoryStream(SyntheticDbc.BuildDbc(Dbf))), new(null, new MemoryStream(SyntheticDbc.BuildDbc(Dbf, checksum: 0)))];
         using var reader = DbSusFile.OpenDbcReader(parts, dbcOptions: new DbcReadOptions { ChecksumMismatch = mismatch => calls.Add((mismatch.PartIndex, mismatch.PartName)) });
 
-        Assert.Throws<InvalidDataException>(() => Drain(reader));
+        var exception = Assert.Throws<InvalidDataException>(() => Drain(reader));
 
         Assert.Equal([(1, "part 2")], calls);
-    }
-
-    [Theory]
-    [InlineData(1)]
-    [InlineData(3)]
-    public void OpenDbcReader_NamedStreams_WrongNameCount_ThrowsArgumentException(int names)
-    {
-        var parts = new Stream[] { new MemoryStream(SyntheticDbc.BuildDbc(Dbf)), new MemoryStream(SyntheticDbc.BuildDbc(Dbf)) };
-
-        Assert.Throws<ArgumentException>(() => DbSusFile.OpenDbcReader(parts, Enumerable.Repeat("x.dbc", names).ToList()));
+        Assert.StartsWith("part 2: ", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void OpenDbcReader_NamedStreams_EmptyName_ThrowsArgumentException()
+    public void OpenDbcReader_SingleUnnamedPart_HasNoName()
     {
-        var parts = new Stream[] { new MemoryStream(SyntheticDbc.BuildDbc(Dbf)) };
+        string? received = "unset";
+        using var reader = DbSusFile.OpenDbcReader([new DbcPart(null, new MemoryStream(SyntheticDbc.BuildDbc(Dbf, checksum: 0)))], dbcOptions: new DbcReadOptions { ChecksumMismatch = mismatch => received = mismatch.PartName });
 
-        Assert.Throws<ArgumentException>(() => DbSusFile.OpenDbcReader(parts, [string.Empty]));
+        Assert.Throws<InvalidDataException>(() => Drain(reader));
+
+        Assert.Null(received);
+    }
+
+    [Fact]
+    public void DbcPart_EmptyName_ThrowsArgumentException()
+    {
+        var exception = Assert.Throws<ArgumentException>(() => new DbcPart(string.Empty, new MemoryStream()));
+
+        Assert.Equal("name", exception.ParamName);
+    }
+
+    [Fact]
+    public void DbcPart_NullStream_ThrowsArgumentNullException()
+    {
+        Assert.Equal("stream", Assert.Throws<ArgumentNullException>(() => new DbcPart("a.dbc", null!)).ParamName);
     }
 
     [Fact]

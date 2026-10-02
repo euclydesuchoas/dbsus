@@ -147,12 +147,29 @@ public sealed class DbfReaderPartsTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void OpenDbcReader_NamedStreams_WrongNameCountDisposesEveryStreamUnlessLeaveOpen(bool leaveOpen)
+    public void OpenDbcReader_Parts_NullPartDisposesTheOtherStreamsUnlessLeaveOpen(bool leaveOpen)
     {
         var first = new TrickleStream(SyntheticDbc.BuildDbc(Part("A1")));
         var second = new TrickleStream(SyntheticDbc.BuildDbc(Part("B1")));
 
-        Assert.Throws<ArgumentException>(() => DbSusFile.OpenDbcReader([first, second], ["a.dbc"], leaveOpen: leaveOpen));
+        Assert.Throws<ArgumentException>(() => DbSusFile.OpenDbcReader([new DbcPart("a.dbc", first), null!, new DbcPart("c.dbc", second)], leaveOpen: leaveOpen));
+
+        Assert.Equal(!leaveOpen, first.IsDisposed);
+        Assert.Equal(!leaveOpen, second.IsDisposed);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OpenDbcReader_Parts_DisposeEveryStreamUnlessLeaveOpen(bool leaveOpen)
+    {
+        var first = new TrickleStream(SyntheticDbc.BuildDbc(Part("A1")));
+        var second = new TrickleStream(SyntheticDbc.BuildDbc(Part("B1")));
+
+        using (var reader = DbSusFile.OpenDbcReader([new DbcPart("a.dbc", first), new DbcPart("b.dbc", second)], leaveOpen: leaveOpen))
+        {
+            Assert.True(reader.Read());
+        }
 
         Assert.Equal(!leaveOpen, first.IsDisposed);
         Assert.Equal(!leaveOpen, second.IsDisposed);

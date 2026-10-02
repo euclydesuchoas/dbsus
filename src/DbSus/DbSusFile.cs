@@ -100,11 +100,13 @@ public static class DbSusFile
     }
 
     /// <summary>
-    /// Opens the DBC streams of a split table as one reader, in the order given.
+    /// Opens the DBC parts of a split table as one reader, in the order given. Each part is a stream
+    /// with an optional name, used in error messages and passed to
+    /// <see cref="DbcReadOptions.ChecksumMismatch"/>.
     /// </summary>
     /// <param name="parts">
-    /// Readable streams positioned at the start of each DBC part; never seeked. Every header is read
-    /// before this method returns, so every stream must be open at once.
+    /// The parts, in reading order. Every header is read before this method returns, so every
+    /// stream must be open at once. A part without a name is called <c>part N</c> in messages.
     /// </param>
     /// <param name="dbfOptions">DBF read options, or <see langword="null"/>; they apply to every part.</param>
     /// <param name="dbcOptions">DBC read options, or <see langword="null"/>; they apply to every part.</param>
@@ -114,7 +116,24 @@ public static class DbSusFile
     /// <see langword="true"/> to keep them yours: they are never disposed.
     /// </param>
     /// <returns>A reader positioned before the first record.</returns>
-    public static DbfReader OpenDbcReader(IEnumerable<Stream> parts, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null, bool leaveOpen = false)
+    /// <exception cref="ArgumentException">No part is given, a part is null, or a stream is not readable.</exception>
+    /// <exception cref="InvalidDataException">A header is invalid, or the parts do not share the same schema.</exception>
+    public static DbfReader OpenDbcReader(IEnumerable<DbcPart> parts, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null, bool leaveOpen = false)
+    {
+        Guard.NotNull(parts, nameof(parts));
+        var given = parts.ToList();
+        var streams = given.Where(part => part is not null).Select(part => part.Stream).ToList();
+        return OpenDbcStreams(streams, leaveOpen, () =>
+        {
+            var list = DbfReader.RequireParts(given, nameof(parts));
+            return (
+                list.Select(part => part.Stream).ToList(),
+                list.Select((part, i) => part.Name ?? (list.Count == 1 ? null : $"part {i + 1}")).ToList());
+        }, dbfOptions, dbcOptions);
+    }
+
+    /// <summary>Opens unnamed DBC streams of a split table (<c>part N</c> in messages); used by tests.</summary>
+    internal static DbfReader OpenDbcReader(IEnumerable<Stream> parts, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null, bool leaveOpen = false)
     {
         Guard.NotNull(parts, nameof(parts));
         var given = parts.ToList();
@@ -122,42 +141,6 @@ public static class DbSusFile
         {
             var list = DbfReader.RequireParts(given, nameof(parts));
             return (list, list.Select((_, i) => list.Count == 1 ? null : $"part {i + 1}").ToList());
-        }, dbfOptions, dbcOptions);
-    }
-
-    /// <summary>
-    /// Opens the DBC streams of a split table as one reader, in the order given, with a name for each
-    /// part (typically its file name) used in error messages and passed to
-    /// <see cref="DbcReadOptions.ChecksumMismatch"/>.
-    /// </summary>
-    /// <param name="parts">
-    /// Readable streams positioned at the start of each DBC part; never seeked. Every header is read
-    /// before this method returns.
-    /// </param>
-    /// <param name="partNames">One non-empty name per stream, in the same order.</param>
-    /// <param name="dbfOptions">DBF read options, or <see langword="null"/>; they apply to every part.</param>
-    /// <param name="dbcOptions">DBC read options, or <see langword="null"/>; they apply to every part.</param>
-    /// <param name="leaveOpen">
-    /// <see langword="false"/> (the default) to hand the streams over: each is disposed once its part
-    /// has been read or the reader is disposed, and all of them if this method throws.
-    /// <see langword="true"/> to keep them yours: they are never disposed.
-    /// </param>
-    /// <returns>A reader positioned before the first record.</returns>
-    /// <exception cref="ArgumentException">The counts differ, or a name is null or empty.</exception>
-    public static DbfReader OpenDbcReader(IReadOnlyList<Stream> parts, IReadOnlyList<string> partNames, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null, bool leaveOpen = false)
-    {
-        Guard.NotNull(parts, nameof(parts));
-        var given = parts.ToList();
-        return OpenDbcStreams(given, leaveOpen, () =>
-        {
-            var list = DbfReader.RequireParts(given, nameof(parts));
-            Guard.NotNull(partNames, nameof(partNames));
-            if (partNames.Count != list.Count || partNames.Any(string.IsNullOrEmpty))
-            {
-                throw new ArgumentException("Give exactly one non-empty name per part.", nameof(partNames));
-            }
-
-            return (list, partNames.Select(name => (string?)name).ToList());
         }, dbfOptions, dbcOptions);
     }
 

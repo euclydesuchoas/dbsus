@@ -246,7 +246,7 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
                     callerCallback?.Invoke(mismatch);
                 },
             };
-            return DbSusFile.OpenDbcReader(streams, [.. parts.Select(part => part.Name)], dbfOptions, options);
+            return DbSusFile.OpenDbcReader([.. streams.Select((stream, i) => new DbcPart(parts[i].Name, stream))], dbfOptions, options);
         }
         catch
         {
