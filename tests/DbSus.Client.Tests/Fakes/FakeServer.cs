@@ -111,6 +111,8 @@ internal sealed class FakeServer
     {
         private bool _disposed;
 
+        public bool IsBroken => false;
+
         public Task<IReadOnlyList<RemoteEntry>> ListAsync(string directory, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref server._listCalls);

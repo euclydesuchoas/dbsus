@@ -28,44 +28,26 @@ public sealed class ListingCompletionTests : IDisposable
         Assert.Equal(["PAMG2407a.dbc", "PAMG2407b.dbc"], entries.Select(entry => entry.Name));
     }
 
-    [Fact]
-    public Task DataConnectionClosedWithoutFinalReply_FailsAndIsNotCached()
-    {
-        SkipWhereReadsIgnoreTheTimeout();
-        return AssertNotUsed(ListingEnd.CloseWithoutReply);
-    }
+    [Fact(Timeout = 30_000)]
+    public Task DataConnectionClosedWithoutFinalReply_FailsAndIsNotCached() => AssertNotUsed(ListingEnd.CloseWithoutReply, TestContext.Current.CancellationToken);
+
+    [Fact(Timeout = 30_000)]
+    public Task DataConnectionResetWithoutFinalReply_FailsAndIsNotCached() => AssertNotUsed(ListingEnd.ResetWithoutReply, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task DataConnectionResetWithoutFinalReply_FailsAndIsNotCached()
-    {
-        SkipWhereReadsIgnoreTheTimeout();
-        return AssertNotUsed(ListingEnd.ResetWithoutReply);
-    }
+    public Task DataConnectionResetThenAborted_FailsAndIsNotCached() => AssertNotUsed(ListingEnd.ResetThenAbort, Ct);
 
-    [Fact]
-    public Task DataConnectionResetThenAborted_FailsAndIsNotCached() => AssertNotUsed(ListingEnd.ResetThenAbort);
-
-    private async Task AssertNotUsed(ListingEnd end)
+    private async Task AssertNotUsed(ListingEnd end, CancellationToken ct)
     {
         _server.ListingEnd = end;
         using var client = Client();
 
-        await Assert.ThrowsAsync<DatasusRetriesExhaustedException>(() => client.ListAsync("/X", Ct));
+        await Assert.ThrowsAsync<DatasusRetriesExhaustedException>(() => client.ListAsync("/X", ct));
         _server.ListingEnd = ListingEnd.Complete;
-        var entries = await client.ListAsync("/X", Ct);
+        var entries = await client.ListAsync("/X", ct);
 
         Assert.Equal(2, entries.Count);
         Assert.Equal(2, _server.Commands.Count(command => command == "LIST"));
-    }
-
-    // FluentFTP 55 enforces ReadTimeout on asynchronous reads with a cancellation token, which
-    // NetworkStream.ReadAsync on .NET Framework does not observe once the read has started: there,
-    // waiting for a final reply that never comes blocks.
-    private static void SkipWhereReadsIgnoreTheTimeout()
-    {
-#if NETFRAMEWORK
-        Assert.Skip("On .NET Framework, FluentFTP's asynchronous reads ignore ReadTimeout, so a missing final reply blocks.");
-#endif
     }
 
     private DatasusClient Client() => new(new DatasusClientOptions

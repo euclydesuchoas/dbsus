@@ -39,7 +39,7 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
 
     private void Return(IDatasusConnection connection, bool healthy)
     {
-        if (healthy && !_disposed)
+        if (healthy && !connection.IsBroken && !_disposed)
         {
             _idle.Add(connection);
         }

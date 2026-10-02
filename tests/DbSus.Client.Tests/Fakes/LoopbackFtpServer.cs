@@ -22,14 +22,17 @@ internal enum ListingEnd
 }
 
 /// <summary>
-/// A minimal FTP server on the loopback interface, enough for FluentFTP to log in, so the real
-/// transport can be tested without any network. Without a <see cref="Listing"/>, its passive
-/// replies point at a closed port, so every data connection fails.
+/// A minimal FTP server on the loopback interface, enough for FluentFTP to log in, list and
+/// download, so the real transport can be tested without any network. Without a
+/// <see cref="Listing"/> or <see cref="Files"/>, its passive replies point at a closed port, so
+/// every data connection fails.
 /// </summary>
 internal sealed class LoopbackFtpServer : IDisposable
 {
     private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
     private readonly CancellationTokenSource _stop = new();
+    private readonly ConcurrentBag<TcpClient> _connections = [];
+    private int _controlConnections;
 
     public LoopbackFtpServer()
     {
@@ -52,20 +55,37 @@ internal sealed class LoopbackFtpServer : IDisposable
     /// </summary>
     public bool DropControlConnectionAfterLogin { get; set; }
 
-    /// <summary>Gets the port that the passive replies point at when there is no listing; nothing listens on it.</summary>
+    /// <summary>Gets the port that the passive replies point at when there is no data to serve; nothing listens on it.</summary>
     public int PassivePort { get; } = ClosedPort();
 
     /// <summary>
     /// Gets or sets the lines LIST sends (DOS format), over a real passive data connection; when
-    /// <see langword="null"/>, the data connection cannot be opened.
+    /// <see langword="null"/>, LIST gets no data connection.
     /// </summary>
     public IReadOnlyList<string>? Listing { get; set; }
 
     /// <summary>Gets or sets how a listing ends.</summary>
     public ListingEnd ListingEnd { get; set; }
 
+    /// <summary>Gets the files served by SIZE, MDTM and RETR, by full path on the server.</summary>
+    public ConcurrentDictionary<string, byte[]> Files { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets or sets a number of bytes after which RETR stops sending, keeping both connections
+    /// open and silent, as a server that hangs in the middle of a transfer.
+    /// </summary>
+    public long? StallTransferAfter { get; set; }
+
+    /// <summary>Gets or sets a command the server stops answering (it keeps the connection open).</summary>
+    public string? SilentOn { get; set; }
+
+    /// <summary>Gets the number of control connections accepted.</summary>
+    public int ControlConnections => Volatile.Read(ref _controlConnections);
+
     /// <summary>Gets the commands received, in order, without arguments.</summary>
     public ConcurrentQueue<string> Commands { get; } = new();
+
+    private bool ServesData => Listing is not null || !Files.IsEmpty;
 
     public static int ClosedPort()
     {
@@ -83,6 +103,11 @@ internal sealed class LoopbackFtpServer : IDisposable
     {
         _stop.Cancel();
         _listener.Stop();
+        foreach (var connection in _connections)
+        {
+            connection.Dispose();
+        }
+
         _stop.Dispose();
     }
 
@@ -93,6 +118,8 @@ internal sealed class LoopbackFtpServer : IDisposable
             while (!_stop.IsCancellationRequested)
             {
                 var client = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
+                _connections.Add(client);
+                Interlocked.Increment(ref _controlConnections);
                 _ = ServeAsync(client);
             }
         }
@@ -102,6 +129,9 @@ internal sealed class LoopbackFtpServer : IDisposable
         catch (SocketException)
         {
         }
+        catch (InvalidOperationException)
+        {
+        }
     }
 
     private async Task ServeAsync(TcpClient client)
@@ -109,6 +139,7 @@ internal sealed class LoopbackFtpServer : IDisposable
         using (client)
         {
             TcpListener? data = null;
+            long restart = 0;
             try
             {
                 var stream = client.GetStream();
@@ -118,8 +149,14 @@ internal sealed class LoopbackFtpServer : IDisposable
                 while (await reader.ReadLineAsync().ConfigureAwait(false) is { } line)
                 {
                     var command = line.Split(' ')[0].ToUpperInvariant();
+                    var argument = line.Length > command.Length ? line.Substring(command.Length + 1) : string.Empty;
                     Commands.Enqueue(command);
-                    if (Listing is not null && (command == "PASV" || (command == "EPSV" && !RefuseEpsv)))
+                    if (command == SilentOn)
+                    {
+                        continue;
+                    }
+
+                    if (ServesData && (command == "PASV" || (command == "EPSV" && !RefuseEpsv)))
                     {
                         data?.Stop();
                         data = new TcpListener(IPAddress.Loopback, 0);
@@ -131,7 +168,7 @@ internal sealed class LoopbackFtpServer : IDisposable
                         continue;
                     }
 
-                    if (command == "LIST" && data is not null)
+                    if (command == "LIST" && Listing is not null && data is not null)
                     {
                         await writer.WriteLineAsync("150 Opening ASCII mode data connection.").ConfigureAwait(false);
                         await SendListingAsync(data, writer).ConfigureAwait(false);
@@ -140,7 +177,30 @@ internal sealed class LoopbackFtpServer : IDisposable
                         continue;
                     }
 
-                    await writer.WriteLineAsync(Reply(command)).ConfigureAwait(false);
+                    if (command == "REST")
+                    {
+                        restart = long.Parse(argument, System.Globalization.CultureInfo.InvariantCulture);
+                        await writer.WriteLineAsync($"350 Restarting at {restart}.").ConfigureAwait(false);
+                        continue;
+                    }
+
+                    if (command == "RETR" && data is not null && Files.TryGetValue(argument, out var file))
+                    {
+                        await writer.WriteLineAsync("150 Opening BINARY mode data connection.").ConfigureAwait(false);
+                        var completed = await SendFileAsync(data, file, restart).ConfigureAwait(false);
+                        restart = 0;
+                        data.Stop();
+                        data = null;
+                        if (!completed)
+                        {
+                            return;
+                        }
+
+                        await writer.WriteLineAsync("226 Transfer complete.").ConfigureAwait(false);
+                        continue;
+                    }
+
+                    await writer.WriteLineAsync(Reply(command, argument)).ConfigureAwait(false);
                     if (command == "QUIT")
                     {
                         return;
@@ -158,6 +218,9 @@ internal sealed class LoopbackFtpServer : IDisposable
             {
             }
             catch (ObjectDisposedException)
+            {
+            }
+            catch (InvalidOperationException)
             {
             }
             finally
@@ -189,17 +252,40 @@ internal sealed class LoopbackFtpServer : IDisposable
         }
     }
 
-    private string Reply(string command) => command switch
+    // Sends the file from the offset; false when it stalled, holding the connection until the server stops.
+    private async Task<bool> SendFileAsync(TcpListener data, byte[] file, long offset)
+    {
+        using var connection = await data.AcceptTcpClientAsync().ConfigureAwait(false);
+        var end = StallTransferAfter is { } stall ? Math.Min(file.Length, offset + stall) : file.Length;
+        connection.GetStream().Write(file, (int)offset, (int)(end - offset));
+        if (StallTransferAfter is null)
+        {
+            return true;
+        }
+
+        try
+        {
+            await Task.Delay(Timeout.Infinite, _stop.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        return false;
+    }
+
+    private string Reply(string command, string argument) => command switch
     {
         "USER" => "331 Password required.",
         "PASS" => "230 Logged in.",
-        "FEAT" => AdvertiseEpsv ? "211-Features:\r\n EPSV\r\n SIZE\r\n MDTM\r\n211 End" : "211-Features:\r\n SIZE\r\n MDTM\r\n211 End",
+        "FEAT" => AdvertiseEpsv ? "211-Features:\r\n EPSV\r\n SIZE\r\n MDTM\r\n REST STREAM\r\n211 End" : "211-Features:\r\n SIZE\r\n MDTM\r\n REST STREAM\r\n211 End",
         "SYST" => "215 Windows_NT",
         "PWD" => "257 \"/\" is the current directory.",
         "TYPE" => "200 Type set.",
         "OPTS" or "NOOP" => "200 OK.",
-        "SIZE" => "213 10",
-        "MDTM" => "213 20250808120000",
+        "SIZE" when Files.IsEmpty => "213 10",
+        "SIZE" => Files.TryGetValue(argument, out var file) ? $"213 {file.Length}" : "550 The system cannot find the file specified.",
+        "MDTM" => Files.IsEmpty || Files.ContainsKey(argument) ? "213 20250808120000" : "550 The system cannot find the file specified.",
         "EPSV" => RefuseEpsv ? "500 EPSV not understood." : $"229 Entering Extended Passive Mode (|||{PassivePort}|)",
         "PASV" => $"227 Entering Passive Mode (127,0,0,1,{PassivePort >> 8},{PassivePort & 0xFF})",
         "QUIT" => "221 Bye.",

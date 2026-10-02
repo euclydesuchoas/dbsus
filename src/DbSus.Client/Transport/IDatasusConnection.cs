@@ -18,6 +18,12 @@ internal interface IDatasusConnectionFactory
 /// </summary>
 internal interface IDatasusConnection : IDisposable
 {
+    /// <summary>
+    /// Gets a value indicating whether the connection was closed by force (a cancellation or an
+    /// expired read); such a connection is never reused.
+    /// </summary>
+    bool IsBroken { get; }
+
     Task<IReadOnlyList<RemoteEntry>> ListAsync(string directory, CancellationToken cancellationToken);
 
     Task<RemoteFileInfo> GetInfoAsync(string path, CancellationToken cancellationToken);

@@ -25,20 +25,15 @@ internal sealed class FtpConnectionFactory(DatasusClientOptions options) : IData
             DataConnectionReadTimeout = Milliseconds(options.ReadTimeout),
             SocketKeepAlive = true,
         };
-        var client = new AsyncFtpClient(options.Host, "anonymous", "anonymous@", options.Port, config);
+        var connection = new FtpConnection(FtpSession.Create(options.Host, options.Port, config), options.Host, options.Port, options.ReadTimeout);
         try
         {
-            await FtpConnection.Translate(FtpStep.Connecting(options.Host, options.Port), null, async () =>
-            {
-                await client.Connect(cancellationToken).ConfigureAwait(false);
-                await FtpConnection.Expect(client.Execute("TYPE I", cancellationToken), "TYPE I").ConfigureAwait(false);
-                return true;
-            }).ConfigureAwait(false);
-            return new FtpConnection(client, options.Host, options.Port);
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            return connection;
         }
         catch
         {
-            client.Dispose();
+            connection.Dispose();
             throw;
         }
     }
@@ -74,20 +69,32 @@ internal sealed class FtpStep
     public static FtpStep OpeningForReading(string path, string host, int port) => new($"opening {path} for reading on {host}:{port}", port, opensDataConnection: true);
 }
 
-internal sealed class FtpConnection(AsyncFtpClient client, string host, int port) : IDatasusConnection
+internal sealed class FtpConnection(FtpSession session, string host, int port, TimeSpan readTimeout) : IDatasusConnection
 {
+    private volatile bool _broken;
+
+    public bool IsBroken => _broken;
+
+    public Task OpenAsync(CancellationToken cancellationToken) =>
+        Guard(FtpStep.Connecting(host, port), null, async () =>
+        {
+            await session.ConnectAsync(cancellationToken).ConfigureAwait(false);
+            await Expect(session.ExecuteAsync("TYPE I", cancellationToken), "TYPE I").ConfigureAwait(false);
+            return true;
+        }, cancellationToken);
+
     public Task<IReadOnlyList<RemoteEntry>> ListAsync(string directory, CancellationToken cancellationToken)
     {
         var step = FtpStep.Listing(directory, host, port);
-        return Translate<IReadOnlyList<RemoteEntry>>(step, ConnectCount, async () =>
+        return Guard<IReadOnlyList<RemoteEntry>>(step, ConnectCount, async () =>
         {
             // ForceList: the server has no MLSD; its LIST output (DOS format) is parsed by FluentFTP.
-            var items = await client.GetListing(directory, FtpListOption.ForceList, cancellationToken).ConfigureAwait(false);
+            var items = await session.GetListingAsync(directory, FtpListOption.ForceList, cancellationToken).ConfigureAwait(false);
 
             // FluentFTP 55 returns what it has read, as a success, when the data connection fails
             // while the control connection stays open, and when the final reply does not arrive in
             // time. Only a completion reply (2xx) to LIST confirms that the listing is whole.
-            var last = client.LastReply;
+            var last = session.LastReply;
             if (last.Type != FtpResponseType.PositiveCompletion || !last.Command.StartsWith("LIST", StringComparison.Ordinal))
             {
                 throw new TransientTransportException(
@@ -100,30 +107,35 @@ internal sealed class FtpConnection(AsyncFtpClient client, string host, int port
                     .Where(item => item.Type is FtpObjectType.File or FtpObjectType.Directory)
                     .Select(item => new RemoteEntry(item.Name, item.Type == FtpObjectType.File ? item.Size : 0, item.Type == FtpObjectType.Directory)),
             ];
-        });
+        }, cancellationToken);
     }
 
     public Task<RemoteFileInfo> GetInfoAsync(string path, CancellationToken cancellationToken) =>
-        Translate(FtpStep.ReadingInfo(path, host, port), ConnectCount, async () =>
+        Guard(FtpStep.ReadingInfo(path, host, port), ConnectCount, async () =>
         {
             // Raw SIZE and MDTM: MDTM is UTC by definition (RFC 3659), so it is parsed here rather
             // than through FluentFTP's time-zone conversion.
-            var size = await Expect(client.Execute("SIZE " + path, cancellationToken), path).ConfigureAwait(false);
-            var modified = await Expect(client.Execute("MDTM " + path, cancellationToken), path).ConfigureAwait(false);
+            var size = await Expect(session.ExecuteAsync("SIZE " + path, cancellationToken), path).ConfigureAwait(false);
+            var modified = await Expect(session.ExecuteAsync("MDTM " + path, cancellationToken), path).ConfigureAwait(false);
             return new RemoteFileInfo(
                 long.Parse(size.Message.Trim(), NumberStyles.None, CultureInfo.InvariantCulture),
                 DateTime.SpecifyKind(
                     DateTime.ParseExact(modified.Message.Trim().Substring(0, 14), "yyyyMMddHHmmss", CultureInfo.InvariantCulture),
                     DateTimeKind.Utc));
-        });
+        }, cancellationToken);
 
-    public Task<Stream> OpenReadAsync(string path, long offset, CancellationToken cancellationToken) =>
-        Translate(
+    // The client limits each read of the transfer itself (see ReadLimitStream).
+    public async Task<Stream> OpenReadAsync(string path, long offset, CancellationToken cancellationToken)
+    {
+        var stream = await Guard(
             FtpStep.OpeningForReading(path, host, port),
             ConnectCount,
-            () => client.OpenRead(path, FtpDataType.Binary, offset, checkIfFileExists: false, cancellationToken));
+            () => session.OpenReadAsync(path, offset, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
+        return new ReadLimitStream(stream, readTimeout, Abort);
+    }
 
-    public void Dispose() => client.Dispose();
+    public void Dispose() => session.Dispose();
 
     internal static async Task<FtpReply> Expect(Task<FtpReply> command, string subject)
     {
@@ -193,7 +205,31 @@ internal sealed class FtpConnection(AsyncFtpClient client, string host, int port
         _ => false,
     };
 
-    private int ConnectCount() => client.Status.ConnectCount;
+    private int ConnectCount() => session.ConnectCount;
+
+    // Closes the connection by force; it is never reused.
+    private void Abort()
+    {
+        _broken = true;
+        session.Abort();
+    }
+
+    // Runs a step so that the cancellation token ends it on every runtime: cancelling closes the
+    // connection, which ends any pending read even where the library does not observe the token.
+    private async Task<T> Guard<T>(FtpStep step, Func<int>? connectCount, Func<Task<T>> operation, CancellationToken cancellationToken)
+    {
+        using (cancellationToken.Register(Abort))
+        {
+            try
+            {
+                return await Translate(step, connectCount, operation).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (cancellationToken.IsCancellationRequested && exception is not OperationCanceledException)
+            {
+                throw new OperationCanceledException($"Canceled while {step.Description}; the connection was closed.", exception, cancellationToken);
+            }
+        }
+    }
 
     private static Exception Classify(string? code, string message, Exception? inner)
     {
