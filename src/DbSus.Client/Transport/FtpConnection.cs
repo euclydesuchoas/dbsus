@@ -76,11 +76,24 @@ internal sealed class FtpStep
 
 internal sealed class FtpConnection(AsyncFtpClient client, string host, int port) : IDatasusConnection
 {
-    public Task<IReadOnlyList<RemoteEntry>> ListAsync(string directory, CancellationToken cancellationToken) =>
-        Translate<IReadOnlyList<RemoteEntry>>(FtpStep.Listing(directory, host, port), ConnectCount, async () =>
+    public Task<IReadOnlyList<RemoteEntry>> ListAsync(string directory, CancellationToken cancellationToken)
+    {
+        var step = FtpStep.Listing(directory, host, port);
+        return Translate<IReadOnlyList<RemoteEntry>>(step, ConnectCount, async () =>
         {
             // ForceList: the server has no MLSD; its LIST output (DOS format) is parsed by FluentFTP.
             var items = await client.GetListing(directory, FtpListOption.ForceList, cancellationToken).ConfigureAwait(false);
+
+            // FluentFTP 55 returns what it has read, as a success, when the data connection fails
+            // while the control connection stays open, and when the final reply does not arrive in
+            // time. Only a completion reply (2xx) to LIST confirms that the listing is whole.
+            var last = client.LastReply;
+            if (last.Type != FtpResponseType.PositiveCompletion || !last.Command.StartsWith("LIST", StringComparison.Ordinal))
+            {
+                throw new TransientTransportException(
+                    $"FTP transport failure while {step.Description}: the server did not confirm the end of the listing (last reply: '{last.Code} {last.Message}'), so it is not used.");
+            }
+
             return
             [
                 .. items
@@ -88,6 +101,7 @@ internal sealed class FtpConnection(AsyncFtpClient client, string host, int port
                     .Select(item => new RemoteEntry(item.Name, item.Type == FtpObjectType.File ? item.Size : 0, item.Type == FtpObjectType.Directory)),
             ];
         });
+    }
 
     public Task<RemoteFileInfo> GetInfoAsync(string path, CancellationToken cancellationToken) =>
         Translate(FtpStep.ReadingInfo(path, host, port), ConnectCount, async () =>
