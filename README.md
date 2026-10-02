@@ -224,6 +224,49 @@ Every record returned before that point came from the same file, so if the check
 
 `DbfReader.Read` and the typed getters (`GetInt32`, `GetInt64`, `GetDecimal`, `GetDouble`, `GetDateTime`, `GetBoolean`, `IsDBNull`, `GetRawBytes`) do not allocate per record, nor does `GetChars` into a reused buffer when the encoding is single-byte (every code page chosen from the LDID). `GetFieldValue<T>` does not allocate either on .NET 5 and later. **On .NET Framework, its nullable forms (e.g. `GetFieldValue<int?>`) allocate about 24 bytes per call** (measured on 4.8.1, x64; the non-nullable forms do not), so there prefer `IsDBNull` plus a typed getter in hot loops. `GetValue`, `GetValues` and `GetString` allocate by nature.
 
+### Reading without allocation
+
+`GetValues` boxes every value. To read every field without allocating, pick a typed getter per field once, from the schema, and dispatch on it for each record. This requires knowing each field's type; here it comes from `GetFieldType`, which also reflects any conversion you configured:
+
+```csharp
+using var reader = DbSusFile.OpenReader("LTRR0610.dbc");
+
+// One plan per field, made once.
+var types = new TypeCode[reader.FieldCount];
+for (var i = 0; i < types.Length; i++)
+{
+    types[i] = Type.GetTypeCode(reader.GetFieldType(i));   // byte[] (unsupported types) gives Object
+}
+
+var text = new char[256];   // reused for every text value; a C field holds at most 254 bytes
+while (reader.Read())
+{
+    for (var i = 0; i < types.Length; i++)
+    {
+        if (reader.IsDBNull(i))
+        {
+            continue;
+        }
+
+        switch (types[i])
+        {
+            case TypeCode.String:
+                var length = (int)reader.GetChars(i, 0, text, 0, text.Length);
+                ReadOnlySpan<char> value = text.AsSpan(0, length);   // valid until the next GetChars
+                break;
+            case TypeCode.Int32: _ = reader.GetInt32(i); break;
+            case TypeCode.Int64: _ = reader.GetInt64(i); break;
+            case TypeCode.Decimal: _ = reader.GetDecimal(i); break;
+            case TypeCode.DateTime: _ = reader.GetDateTime(i); break;
+            case TypeCode.Boolean: _ = reader.GetBoolean(i); break;
+            default: _ = reader.GetRawBytes(i); break;   // unsupported types: the stored bytes
+        }
+    }
+}
+```
+
+`GetChars` decodes without allocating when the encoding is single-byte, which is the case for every code page chosen from the LDID. Measured on .NET 10 with the CNES fixture, this loop allocates nothing per record; the only allocations are fixed buffers, when the reader opens and once at the end of each part (4 KB, to read the remaining data and verify the checksum). Codes stored as ASCII digits can also be compared without decoding at all, on the raw bytes: `reader.GetRawBytes(i).StartsWith("0301"u8)`. `u8` literals need C# 11 or later in your project (on .NET Framework, set `<LangVersion>` accordingly).
+
 ## Performance
 
 Measured with BenchmarkDotNet (`benchmarks/DbSus.Benchmarks`, Release, .NET 10, AMD Ryzen 9 9950X3D) on one large SIA-PA file: 126 MB compressed, 1.17 GB of DBF, 2,956,469 records of 60 fields.
