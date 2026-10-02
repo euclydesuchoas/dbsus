@@ -81,10 +81,10 @@ internal static class DbfValueParser
     }
 
     /// <summary>
-    /// Parses an eight-digit date, <c>yyyyMMdd</c> (as in <c>D</c> fields) or, with
-    /// <paramref name="dayFirst"/>, <c>ddMMyyyy</c>. Blank or all zeros is null.
+    /// Parses a date in the given layout: <c>yyyyMMdd</c> (as in <c>D</c> fields), <c>ddMMyyyy</c>,
+    /// or <c>yyyyMM</c> (the first day of that month). Blank or all zeros is null.
     /// </summary>
-    public static bool TryParseDate(ReadOnlySpan<byte> trimmed, bool dayFirst, out DateTime? value)
+    public static bool TryParseDate(ReadOnlySpan<byte> trimmed, DbfDateLayout layout, out DateTime? value)
     {
         value = null;
         if (trimmed.IsEmpty || IsAllZeros(trimmed))
@@ -92,12 +92,38 @@ internal static class DbfValueParser
             return true;
         }
 
-        if (trimmed.Length != 8
-            || !TryParseDigits(trimmed.Slice(dayFirst ? 4 : 0, 4), out var year)
-            || !TryParseDigits(trimmed.Slice(dayFirst ? 2 : 4, 2), out var month)
-            || !TryParseDigits(trimmed.Slice(dayFirst ? 0 : 6, 2), out var day))
+        int year, month, day = 1;
+        switch (layout)
         {
-            return false;
+            case DbfDateLayout.YearMonth:
+                if (trimmed.Length != 6
+                    || !TryParseDigits(trimmed.Slice(0, 4), out year)
+                    || !TryParseDigits(trimmed.Slice(4, 2), out month))
+                {
+                    return false;
+                }
+
+                break;
+            case DbfDateLayout.DayMonthYear:
+                if (trimmed.Length != 8
+                    || !TryParseDigits(trimmed.Slice(4, 4), out year)
+                    || !TryParseDigits(trimmed.Slice(2, 2), out month)
+                    || !TryParseDigits(trimmed.Slice(0, 2), out day))
+                {
+                    return false;
+                }
+
+                break;
+            default:
+                if (trimmed.Length != 8
+                    || !TryParseDigits(trimmed.Slice(0, 4), out year)
+                    || !TryParseDigits(trimmed.Slice(4, 2), out month)
+                    || !TryParseDigits(trimmed.Slice(6, 2), out day))
+                {
+                    return false;
+                }
+
+                break;
         }
 
         if (year < 1 || month is < 1 or > 12 || day < 1 || day > DateTime.DaysInMonth(year, month))

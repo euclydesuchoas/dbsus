@@ -63,7 +63,7 @@ public sealed class DbfField
 
     internal DbfValueKind Kind { get; }
 
-    internal bool DayFirst => Conversion?.DayFirst ?? false;
+    internal DbfDateLayout DateLayout => Conversion?.DateLayout ?? DbfDateLayout.YearMonthDay;
 
     internal DbfField WithConversion(DbfFieldConversion conversion) =>
         new(Name, TypeCode, Length, DecimalCount, Index, Offset, conversion);

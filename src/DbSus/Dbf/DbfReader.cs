@@ -410,7 +410,7 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             case DbfValueKind.Int32 or DbfValueKind.Int64 or DbfValueKind.Decimal:
                 return DbfValueParser.IsBlank(bytes);
             case DbfValueKind.Date:
-                return DbfValueParser.TryParseDate(DbfValueParser.Trim(bytes), field.DayFirst, out var date) && date is null;
+                return DbfValueParser.TryParseDate(DbfValueParser.Trim(bytes), field.DateLayout, out var date) && date is null;
             case DbfValueKind.Boolean:
                 return DbfValueParser.TryParseBoolean(DbfValueParser.Trim(bytes), out var flag) && flag is null;
             default:
@@ -899,9 +899,10 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
                 throw new ArgumentException($"Cannot convert field {field}: only character (C) fields can be converted.", nameof(conversions));
             }
 
-            if (conversion.Value.Kind == DbfValueKind.Date && field.Length < 8)
+            if (conversion.Value.Kind == DbfValueKind.Date && field.Length < conversion.Value.Format!.Length)
             {
-                throw new ArgumentException($"Cannot convert field {field} to a date: it is narrower than 8 characters.", nameof(conversions));
+                throw new ArgumentException(
+                    $"Cannot convert field {field} to a date: it is narrower than {conversion.Value.Format.Length} characters.", nameof(conversions));
             }
 
             result[index] = field.WithConversion(conversion.Value);
@@ -1079,9 +1080,14 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     }
 
     private DateTime? ReadDate(DbfField field) =>
-        DbfValueParser.TryParseDate(DbfValueParser.Trim(CurrentRecord().AsSpan(field.Offset, field.Length)), field.DayFirst, out var value)
+        DbfValueParser.TryParseDate(DbfValueParser.Trim(CurrentRecord().AsSpan(field.Offset, field.Length)), field.DateLayout, out var value)
             ? value
-            : throw Invalid(field, field.DayFirst ? "a ddMMyyyy date" : "a yyyyMMdd date");
+            : throw Invalid(field, field.DateLayout switch
+            {
+                DbfDateLayout.DayMonthYear => "a ddMMyyyy date",
+                DbfDateLayout.YearMonth => "a yyyyMM date",
+                _ => "a yyyyMMdd date",
+            });
 
     // Values read as the field's own integer type: a fraction or an out-of-range value means the
     // data does not match the declared type, so it is a format error (the value is not reported).

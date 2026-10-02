@@ -19,6 +19,7 @@ public sealed class DbfFieldConversion
 {
     private const string YearMonthDay = "yyyyMMdd";
     private const string DayMonthYear = "ddMMyyyy";
+    private const string YearMonth = "yyyyMM";
 
     private DbfFieldConversion(DbfValueKind kind, Type targetType, string? format)
     {
@@ -35,7 +36,12 @@ public sealed class DbfFieldConversion
 
     internal DbfValueKind Kind { get; }
 
-    internal bool DayFirst => Format == DayMonthYear;
+    internal DbfDateLayout DateLayout => Format switch
+    {
+        DayMonthYear => DbfDateLayout.DayMonthYear,
+        YearMonth => DbfDateLayout.YearMonth,
+        _ => DbfDateLayout.YearMonthDay,
+    };
 
     /// <summary>Converts digits (with optional sign and surrounding spaces) to <see cref="int"/>.</summary>
     public static DbfFieldConversion Int32() => new(DbfValueKind.Int32, typeof(int), null);
@@ -47,16 +53,23 @@ public sealed class DbfFieldConversion
     public static DbfFieldConversion Decimal() => new(DbfValueKind.Decimal, typeof(decimal), null);
 
     /// <summary>
-    /// Converts an eight-digit date to <see cref="DateTime"/>. Supported formats:
-    /// <c>"yyyyMMdd"</c> (SIH, SIA, CNES) and <c>"ddMMyyyy"</c> (SIM, SINASC).
+    /// Converts a date stored as digits to <see cref="DateTime"/>. Supported formats:
+    /// <c>"yyyyMMdd"</c> (SIH, SIA, CNES), <c>"ddMMyyyy"</c> (SIM, SINASC), and <c>"yyyyMM"</c>, a
+    /// year and month (such as a processing month), returned as the first day of that month.
     /// </summary>
+    /// <remarks>
+    /// The value, without surrounding spaces, must have exactly as many digits as the format.
+    /// A conversion applies to one field, so a year and a month stored in two separate fields
+    /// cannot be combined into one date this way.
+    /// </remarks>
     /// <exception cref="ArgumentException">The format is not one of the supported ones.</exception>
     public static DbfFieldConversion Date(string format)
     {
         Guard.NotNull(format, nameof(format));
-        if (format != YearMonthDay && format != DayMonthYear)
+        if (format != YearMonthDay && format != DayMonthYear && format != YearMonth)
         {
-            throw new ArgumentException($"Unsupported date format '{format}'; use \"{YearMonthDay}\" or \"{DayMonthYear}\".", nameof(format));
+            throw new ArgumentException(
+                $"Unsupported date format '{format}'; use \"{YearMonthDay}\", \"{DayMonthYear}\" or \"{YearMonth}\".", nameof(format));
         }
 
         return new DbfFieldConversion(DbfValueKind.Date, typeof(DateTime), format);

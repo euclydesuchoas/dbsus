@@ -80,7 +80,7 @@ Date layout of character fields, as found in the files examined so far:
 | `ddMMyyyy` | SIM, SINASC |
 | `yyyyMMdd` | SIH, SIA, CNES |
 
-SINAN stores dates in native `D` fields, which need no conversion. The layout cannot be inferred from field names, and a wrong one is not always caught: a `yyyyMMdd` value read as `ddMMyyyy` can still form a valid date, with the wrong year. Fields that hold only a year and month (`yyyyMM`, such as a processing month) have no date conversion; read them as `Int32`.
+SINAN stores dates in native `D` fields, which need no conversion. The layout cannot be inferred from field names, and a wrong one is not always caught: a `yyyyMMdd` value read as `ddMMyyyy` can still form a valid date, with the wrong year. Fields that hold a year and month (`yyyyMM`, such as a processing month) convert with `DbfFieldConversion.Date("yyyyMM")`, to the first day of that month. A year and a month stored in two separate fields (as SIH-RD does with `ANO_CMPT` and `MES_CMPT`) are not combined into one date: a conversion applies to one field.
 
 ### Character encoding
 

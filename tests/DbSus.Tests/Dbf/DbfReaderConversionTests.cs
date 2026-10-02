@@ -153,13 +153,55 @@ public class DbfReaderConversionTests
     }
 
     [Fact]
+    public void Date_YearMonth_ParsesToTheFirstDayOfTheMonth()
+    {
+        using var reader = Converted('C', 6, "202407", DbfFieldConversion.Date("yyyyMM"));
+
+        Assert.Equal(typeof(DateTime), reader.GetFieldType(0));
+        Assert.Equal(new DateTime(2024, 7, 1), reader.GetDateTime(0));
+        Assert.Equal(new DateTime(2024, 7, 1), reader.GetValue(0));
+    }
+
+    [Theory]
+    [InlineData("      ")]
+    [InlineData("000000")]
+    public void Date_YearMonth_BlankOrZeros_IsDBNull(string stored)
+    {
+        using var reader = Converted('C', 6, stored, DbfFieldConversion.Date("yyyyMM"));
+
+        Assert.True(reader.IsDBNull(0));
+        Assert.Null(reader.GetFieldValue<DateTime?>(0));
+    }
+
+    [Theory]
+    [InlineData(6, "202413")]
+    [InlineData(6, "202400")]
+    [InlineData(6, "2024A1")]
+    [InlineData(8, "20240701")] // a full date in a field converted as a year and month
+    public void Date_YearMonth_Invalid_ThrowsFormatExceptionWithoutTheValue(int length, string stored)
+    {
+        using var reader = Converted('C', length, stored, DbfFieldConversion.Date("yyyyMM"));
+
+        var exception = Assert.Throws<FormatException>(() => reader.GetValue(0));
+
+        Assert.Contains("a yyyyMM date", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(stored, exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Conversions_YearMonthOnNarrowField_ThrowsArgumentException()
+    {
+        Assert.Throws<ArgumentException>(() => OpenWith('C', 5, "F", DbfFieldConversion.Date("yyyyMM")));
+    }
+
+    [Fact]
     public void Conversions_DateOnNarrowField_ThrowsArgumentException()
     {
         Assert.Throws<ArgumentException>(() => OpenWith('C', 6, "F", DbfFieldConversion.Date("yyyyMMdd")));
     }
 
     [Theory]
-    [InlineData("yyyyMM")]
+    [InlineData("MMyyyy")]
     [InlineData("dd/MM/yyyy")]
     [InlineData("YYYYMMDD")]
     public void Date_UnsupportedFormat_ThrowsArgumentException(string format)
