@@ -891,6 +891,11 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             return fields;
         }
 
+        if (columns.Count == 0)
+        {
+            throw new ArgumentException("The projection is empty; set Columns to null to expose every field.", nameof(columns));
+        }
+
         var byName = new Dictionary<string, DbfField>(StringComparer.OrdinalIgnoreCase);
         for (var i = fields.Length - 1; i >= 0; i--)
         {

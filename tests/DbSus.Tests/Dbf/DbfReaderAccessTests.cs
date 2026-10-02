@@ -176,6 +176,14 @@ public class DbfReaderAccessTests
     }
 
     [Fact]
+    public void Columns_Empty_ThrowsArgumentException()
+    {
+        var exception = Assert.Throws<ArgumentException>(() => Open(new DbfReadOptions { Columns = [] }));
+
+        Assert.Equal("columns", exception.ParamName);
+    }
+
+    [Fact]
     public void Columns_RepeatedName_ThrowsArgumentException()
     {
         Assert.Throws<ArgumentException>(() => Open(new DbfReadOptions { Columns = ["CODE", "code"] }));

@@ -43,7 +43,8 @@ public sealed class DbfReadOptions
 
     /// <summary>
     /// Gets or sets the names of the fields to expose, in the order given (a projection). Ordinals
-    /// refer to this list. When <see langword="null"/>, all fields are exposed in file order.
+    /// refer to this list. When <see langword="null"/>, all fields are exposed in file order. An
+    /// empty list is rejected when the reader opens (<see cref="ArgumentException"/>).
     /// </summary>
     public IReadOnlyList<string>? Columns { get; set; }
 
