@@ -7,11 +7,18 @@ namespace DbSus.Client.Tests;
 // The worst-case times given in the README, checked with small timeouts against a loopback server
 // whose data connection opens and then stays silent. With MaxRetries = 4 there are 5 attempts;
 // the waits between them are nominally 1, 2, 4 and 8 times InitialRetryDelay, each between half
-// and all of it, so 7.5 to 15 times InitialRetryDelay in all.
+// and all of it, so 7.5 to 15 times InitialRetryDelay in all. They run alone (no other test in
+// parallel) so that a busy machine does not stretch them; the lower bound checks the formula, the
+// upper one leaves room for a slow runner.
+[Collection(nameof(RunAlone))]
+[Trait("Category", "Timing")]
 public sealed class WorstCaseTimingTests : IDisposable
 {
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromMilliseconds(300);
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(100);
+
+    // Connecting and logging in on every attempt, and a slow or busy machine.
+    private static readonly TimeSpan Overhead = TimeSpan.FromSeconds(3);
     private readonly LoopbackFtpServer _server = new() { AdvertiseEpsv = false };
 
     public void Dispose() => _server.Dispose();
@@ -53,7 +60,7 @@ public sealed class WorstCaseTimingTests : IDisposable
         var highest = TimeSpan.FromTicks((perAttempt.Ticks * 5) + (RetryDelay.Ticks * 15));
         TestContext.Current.SendDiagnosticMessage($"{TestContext.Current.Test?.TestDisplayName}: {elapsed.TotalMilliseconds:0} ms (formula {lowest.TotalMilliseconds:0} to {highest.TotalMilliseconds:0} ms)");
         Assert.True(
-            elapsed >= lowest - TimeSpan.FromMilliseconds(100) && elapsed <= highest + TimeSpan.FromMilliseconds(1500),
+            elapsed >= lowest - TimeSpan.FromMilliseconds(100) && elapsed <= highest + Overhead,
             $"Took {elapsed.TotalMilliseconds:0} ms; the formula gives {lowest.TotalMilliseconds:0} to {highest.TotalMilliseconds:0} ms.");
     }
 
@@ -67,3 +74,7 @@ public sealed class WorstCaseTimingTests : IDisposable
         ReadTimeout = ReadTimeout,
     });
 }
+
+// Tests in this collection run with no other test in parallel.
+[CollectionDefinition(nameof(RunAlone), DisableParallelization = true)]
+public sealed class RunAlone;
