@@ -19,10 +19,12 @@ public abstract class DatasusTransferException : IOException
     }
 
     /// <summary>
-    /// Gets the path of the file or directory involved, relative to the root, or
-    /// <see langword="null"/> when the failure did not concern one.
+    /// Gets the path of the file or directory the operation concerned, relative to
+    /// <see cref="DatasusClientOptions.RootPath"/> and starting with <c>/</c> (<c>/</c> for the root
+    /// itself). It is always set: when the failure happened while connecting, it is the path of the
+    /// operation that needed the connection.
     /// </summary>
-    public string? RemotePath { get; internal set; }
+    public string RemotePath { get; internal set; } = string.Empty;
 
     /// <summary>
     /// Gets the FTP reply code of the last failure (e.g. <c>421</c> or <c>530</c>), or

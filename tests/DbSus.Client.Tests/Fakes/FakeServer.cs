@@ -13,6 +13,7 @@ internal sealed class FakeServer
 
     private readonly ConcurrentDictionary<string, FakeFile> _files = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentQueue<Func<Exception>> _connectFailures = new();
+    private readonly ConcurrentQueue<Func<Exception>> _operationFailures = new();
     private readonly ConcurrentQueue<long> _transferFaults = new();
     private int _activeConnections;
     private int _maxActiveConnections;
@@ -59,6 +60,23 @@ internal sealed class FakeServer
         }
     }
 
+    /// <summary>The next listings, info requests or transfers fail, on an open connection.</summary>
+    public void FailNextOperations(int count, Func<Exception> failure)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            _operationFailures.Enqueue(failure);
+        }
+    }
+
+    private void FailIfAsked()
+    {
+        if (_operationFailures.TryDequeue(out var failure))
+        {
+            throw failure();
+        }
+    }
+
     /// <summary>The next transfer drops the connection after serving <paramref name="bytes"/> bytes.</summary>
     public void FailNextTransferAfter(long bytes) => _transferFaults.Enqueue(bytes);
 
@@ -96,6 +114,7 @@ internal sealed class FakeServer
         public Task<IReadOnlyList<RemoteEntry>> ListAsync(string directory, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref server._listCalls);
+            server.FailIfAsked();
             var prefix = directory.TrimEnd('/') + "/";
             var entries = new Dictionary<string, RemoteEntry>(StringComparer.OrdinalIgnoreCase);
             foreach (var pair in server._files)
@@ -118,6 +137,7 @@ internal sealed class FakeServer
         public Task<RemoteFileInfo> GetInfoAsync(string path, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref server._infoCalls);
+            server.FailIfAsked();
             return server._files.TryGetValue(path, out var file)
                 ? Task.FromResult(new RemoteFileInfo(file.Content.Length, file.ModifiedUtc))
                 : throw new FileNotFoundException($"550 {path}: The system cannot find the file specified.");
@@ -128,6 +148,7 @@ internal sealed class FakeServer
             var transfer = Interlocked.Increment(ref server._transfers);
             server.TransferOffsets.Enqueue(offset);
             server.BeforeTransfer?.Invoke(transfer);
+            server.FailIfAsked();
             if (!server._files.TryGetValue(path, out var file))
             {
                 throw new FileNotFoundException($"550 {path}");

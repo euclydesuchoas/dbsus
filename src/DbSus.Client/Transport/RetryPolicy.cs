@@ -18,7 +18,7 @@ internal sealed class RetryPolicy(
 
     public int MaxRetries => maxRetries;
 
-    public async Task<T> RunAsync<T>(string operation, string? remotePath, Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken)
+    public async Task<T> RunAsync<T>(string operation, string remotePath, Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken)
     {
         for (var attempt = 0; ; attempt++)
         {
@@ -48,7 +48,11 @@ internal sealed class RetryPolicy(
             }
             catch (DatasusTransferException exception)
             {
-                exception.RemotePath ??= remotePath;
+                if (exception.RemotePath.Length == 0)
+                {
+                    exception.RemotePath = remotePath;
+                }
+
                 exception.Attempts = attempt + 1;
                 throw;
             }
