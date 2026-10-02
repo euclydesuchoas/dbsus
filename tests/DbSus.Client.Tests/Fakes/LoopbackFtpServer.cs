@@ -36,6 +36,8 @@ internal sealed class LoopbackFtpServer : IDisposable
     private readonly CancellationTokenSource _stop = new();
     private readonly ConcurrentBag<TcpClient> _connections = [];
     private int _controlConnections;
+    private int _controlClosedByClient;
+    private int _dataClosedByClient;
 
     public LoopbackFtpServer()
     {
@@ -90,6 +92,12 @@ internal sealed class LoopbackFtpServer : IDisposable
 
     /// <summary>Gets the number of control connections accepted.</summary>
     public int ControlConnections => Volatile.Read(ref _controlConnections);
+
+    /// <summary>Gets the number of control connections the client closed or reset.</summary>
+    public int ControlConnectionsClosedByClient => Volatile.Read(ref _controlClosedByClient);
+
+    /// <summary>Gets the number of stalled transfers whose data connection the client closed or reset.</summary>
+    public int DataConnectionsClosedByClient => Volatile.Read(ref _dataClosedByClient);
 
     /// <summary>Gets the commands received, in order, without arguments.</summary>
     public ConcurrentQueue<string> Commands { get; } = new();
@@ -200,12 +208,12 @@ internal sealed class LoopbackFtpServer : IDisposable
                         restart = 0;
                         data.Stop();
                         data = null;
-                        if (!completed)
+                        if (completed)
                         {
-                            return;
+                            await writer.WriteLineAsync("226 Transfer complete.").ConfigureAwait(false);
                         }
 
-                        await writer.WriteLineAsync("226 Transfer complete.").ConfigureAwait(false);
+                        // A stalled transfer gets no final reply; the server goes on reading commands.
                         continue;
                     }
 
@@ -222,9 +230,12 @@ internal sealed class LoopbackFtpServer : IDisposable
                         return;
                     }
                 }
+
+                ClosedByClient(ref _controlClosedByClient);
             }
             catch (IOException)
             {
+                ClosedByClient(ref _controlClosedByClient);
             }
             catch (ObjectDisposedException)
             {
@@ -274,12 +285,15 @@ internal sealed class LoopbackFtpServer : IDisposable
         }
     }
 
-    // Sends the file from the offset; false when it stalled, holding the connection until the server stops.
+    // Sends the file from the offset; false when it stalled, holding the data connection until the
+    // client closes it (or the server stops).
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1835", Justification = "Shared with net481, which has no Memory-based overload.")]
     private async Task<bool> SendFileAsync(TcpListener data, byte[] file, long offset)
     {
         using var connection = await data.AcceptTcpClientAsync().ConfigureAwait(false);
         var end = StallTransferAfter is { } stall ? Math.Min(file.Length, offset + stall) : file.Length;
-        connection.GetStream().Write(file, (int)offset, (int)(end - offset));
+        var stream = connection.GetStream();
+        stream.Write(file, (int)offset, (int)(end - offset));
         if (StallTransferAfter is null)
         {
             return true;
@@ -287,13 +301,29 @@ internal sealed class LoopbackFtpServer : IDisposable
 
         try
         {
-            await Task.Delay(Timeout.Infinite, _stop.Token).ConfigureAwait(false);
+            var probe = new byte[1];
+            if (await stream.ReadAsync(probe, 0, 1, _stop.Token).ConfigureAwait(false) == 0)
+            {
+                ClosedByClient(ref _dataClosedByClient);
+            }
+        }
+        catch (IOException)
+        {
+            ClosedByClient(ref _dataClosedByClient);
         }
         catch (OperationCanceledException)
         {
         }
 
         return false;
+    }
+
+    private void ClosedByClient(ref int counter)
+    {
+        if (!_stop.IsCancellationRequested)
+        {
+            Interlocked.Increment(ref counter);
+        }
     }
 
     private string Reply(string command, string argument) => command switch
