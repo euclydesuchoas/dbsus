@@ -21,12 +21,16 @@ public sealed class SessionAbortTests : IDisposable
 
     public void Dispose() => _server.Dispose();
 
+    // Delayed: the client closes the sockets before the server touches the data connection.
     [Theory(Timeout = 30_000)]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Abort_ClosesTheControlAndDataSocketsAndEndsThePendingRead(bool synchronous)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task Abort_ClosesTheControlAndDataSocketsAndEndsThePendingRead(bool synchronous, bool delayed)
     {
         var ct = TestContext.Current.CancellationToken;
+        _server.DelayBeforeStalledData = delayed ? TimeSpan.FromMilliseconds(200) : TimeSpan.Zero;
         var config = new FtpConfig { DataConnectionType = FtpDataConnectionType.AutoPassive, ConnectTimeout = 2000, ReadTimeout = 60_000, DataConnectionReadTimeout = 60_000 };
         using var session = synchronous
             ? new SyncFtpSession("127.0.0.1", _server.Port, config)

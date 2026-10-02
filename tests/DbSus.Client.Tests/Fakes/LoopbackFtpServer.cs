@@ -87,6 +87,12 @@ internal sealed class LoopbackFtpServer : IDisposable
     /// </summary>
     public string PassiveAddress { get; set; } = "127,0,0,1";
 
+    /// <summary>
+    /// Gets or sets how long a stalled transfer waits, after the 150 reply, before it touches the
+    /// data connection, so that a client closing it right away does so first.
+    /// </summary>
+    public TimeSpan DelayBeforeStalledData { get; set; }
+
     /// <summary>Gets or sets a command the server stops answering (it keeps the connection open).</summary>
     public string? SilentOn { get; set; }
 
@@ -297,14 +303,23 @@ internal sealed class LoopbackFtpServer : IDisposable
         await control.WriteLineAsync("150 Opening BINARY mode data connection.").ConfigureAwait(false);
         var end = StallTransferAfter is { } stall ? Math.Min(file.Length, offset + stall) : file.Length;
         var stream = connection.GetStream();
-        stream.Write(file, (int)offset, (int)(end - offset));
         if (StallTransferAfter is null)
         {
+            stream.Write(file, (int)offset, (int)(end - offset));
             return true;
         }
 
+        // From here on, any failure of the data connection is the client closing or resetting it,
+        // whether it happens while writing or while waiting; it must not be taken for the control
+        // connection's.
         try
         {
+            await Task.Delay(DelayBeforeStalledData, _stop.Token).ConfigureAwait(false);
+            if (end > offset)
+            {
+                stream.Write(file, (int)offset, (int)(end - offset));
+            }
+
             var probe = new byte[1];
             if (await stream.ReadAsync(probe, 0, 1, _stop.Token).ConfigureAwait(false) == 0)
             {
