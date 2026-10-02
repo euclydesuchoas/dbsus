@@ -1,0 +1,67 @@
+#nullable enable
+DbSus.Client.DatasusClient
+DbSus.Client.DatasusClient.ClearCacheAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+DbSus.Client.DatasusClient.DatasusClient(DbSus.Client.DatasusClientOptions? options = null) -> void
+DbSus.Client.DatasusClient.Dispose() -> void
+DbSus.Client.DatasusClient.DisposeAsync() -> System.Threading.Tasks.ValueTask
+DbSus.Client.DatasusClient.DownloadAsync(string! path, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<string!>!
+DbSus.Client.DatasusClient.FindPartsAsync(string! path, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<DbSus.Client.DatasusFileInfo!>!>!
+DbSus.Client.DatasusClient.GetInfoAsync(string! path, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Client.DatasusFileInfo!>!
+DbSus.Client.DatasusClient.ListAsync(string! directory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<DbSus.Client.DatasusFileInfo!>!>!
+DbSus.Client.DatasusClient.OpenReaderAsync(string! path, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfReader!>!
+DbSus.Client.DatasusClient.PruneCacheAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+DbSus.Client.DatasusClient.ReadHeaderAsync(string! path, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfHeader!>!
+DbSus.Client.DatasusClientOptions
+DbSus.Client.DatasusClientOptions.CacheDirectory.get -> string?
+DbSus.Client.DatasusClientOptions.CacheDirectory.set -> void
+DbSus.Client.DatasusClientOptions.ConnectTimeout.get -> System.TimeSpan
+DbSus.Client.DatasusClientOptions.ConnectTimeout.set -> void
+DbSus.Client.DatasusClientOptions.DatasusClientOptions() -> void
+DbSus.Client.DatasusClientOptions.Host.get -> string!
+DbSus.Client.DatasusClientOptions.Host.set -> void
+DbSus.Client.DatasusClientOptions.InitialRetryDelay.get -> System.TimeSpan
+DbSus.Client.DatasusClientOptions.InitialRetryDelay.set -> void
+DbSus.Client.DatasusClientOptions.ListingCacheDuration.get -> System.TimeSpan
+DbSus.Client.DatasusClientOptions.ListingCacheDuration.set -> void
+DbSus.Client.DatasusClientOptions.LockTimeout.get -> System.TimeSpan
+DbSus.Client.DatasusClientOptions.LockTimeout.set -> void
+DbSus.Client.DatasusClientOptions.MaxCacheSizeBytes.get -> long?
+DbSus.Client.DatasusClientOptions.MaxCacheSizeBytes.set -> void
+DbSus.Client.DatasusClientOptions.MaxConnections.get -> int
+DbSus.Client.DatasusClientOptions.MaxConnections.set -> void
+DbSus.Client.DatasusClientOptions.MaxRetries.get -> int
+DbSus.Client.DatasusClientOptions.MaxRetries.set -> void
+DbSus.Client.DatasusClientOptions.OnRetry.get -> System.Action<DbSus.Client.DatasusRetryInfo!>?
+DbSus.Client.DatasusClientOptions.OnRetry.set -> void
+DbSus.Client.DatasusClientOptions.Port.get -> int
+DbSus.Client.DatasusClientOptions.Port.set -> void
+DbSus.Client.DatasusClientOptions.ReadTimeout.get -> System.TimeSpan
+DbSus.Client.DatasusClientOptions.ReadTimeout.set -> void
+DbSus.Client.DatasusClientOptions.RootPath.get -> string!
+DbSus.Client.DatasusClientOptions.RootPath.set -> void
+DbSus.Client.DatasusClientOptions.VerifyOnDownload.get -> bool
+DbSus.Client.DatasusClientOptions.VerifyOnDownload.set -> void
+DbSus.Client.DatasusFileInfo
+DbSus.Client.DatasusFileInfo.IsDirectory.get -> bool
+DbSus.Client.DatasusFileInfo.LastModifiedUtc.get -> System.DateTime?
+DbSus.Client.DatasusFileInfo.Name.get -> string!
+DbSus.Client.DatasusFileInfo.Path.get -> string!
+DbSus.Client.DatasusFileInfo.Size.get -> long
+DbSus.Client.DatasusRequestRefusedException
+DbSus.Client.DatasusRetriesExhaustedException
+DbSus.Client.DatasusRetryInfo
+DbSus.Client.DatasusRetryInfo.Attempt.get -> int
+DbSus.Client.DatasusRetryInfo.Delay.get -> System.TimeSpan
+DbSus.Client.DatasusRetryInfo.Exception.get -> System.Exception!
+DbSus.Client.DatasusRetryInfo.FtpReplyCode.get -> string?
+DbSus.Client.DatasusRetryInfo.Operation.get -> string!
+DbSus.Client.DatasusRetryInfo.RemotePath.get -> string!
+DbSus.Client.DatasusTransferException
+DbSus.Client.DatasusTransferException.Attempts.get -> int
+DbSus.Client.DatasusTransferException.FtpReplyCode.get -> string?
+DbSus.Client.DatasusTransferException.RemotePath.get -> string!
+DbSus.Client.InsufficientDiskSpaceException
+DbSus.Client.InsufficientDiskSpaceException.AvailableBytes.get -> long
+DbSus.Client.InsufficientDiskSpaceException.Directory.get -> string!
+DbSus.Client.InsufficientDiskSpaceException.RequiredBytes.get -> long
+override DbSus.Client.DatasusFileInfo.ToString() -> string!
