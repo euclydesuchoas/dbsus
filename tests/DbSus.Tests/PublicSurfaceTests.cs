@@ -48,4 +48,13 @@ public class PublicSurfaceTests
     {
         Assert.Null(typeof(DbfField).GetProperty("Conversion"));
     }
+
+    [Fact]
+    public void DbfFieldConversion_ExposesOnlyItsFactoriesAndToString()
+    {
+        Assert.Null(typeof(DbfFieldConversion).GetProperty("TargetType"));
+        Assert.Null(typeof(DbfFieldConversion).GetProperty("Format"));
+        Assert.Equal("DateTime (ddMMyyyy)", DbfFieldConversion.Date("ddMMyyyy").ToString());
+        Assert.Equal("Int32", DbfFieldConversion.Int32().ToString());
+    }
 }

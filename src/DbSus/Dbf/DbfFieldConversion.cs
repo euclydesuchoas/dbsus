@@ -28,11 +28,11 @@ public sealed class DbfFieldConversion
         Format = format;
     }
 
-    /// <summary>Gets the .NET type the field is converted to.</summary>
-    public Type TargetType { get; }
+    // The .NET type the field is converted to.
+    internal Type TargetType { get; }
 
-    /// <summary>Gets the date format for date conversions; otherwise <see langword="null"/>.</summary>
-    public string? Format { get; }
+    // The date format for date conversions; otherwise null.
+    internal string? Format { get; }
 
     internal DbfValueKind Kind { get; }
 
