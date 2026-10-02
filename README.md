@@ -57,6 +57,17 @@ while (reader.Read())
 }
 ```
 
+Parts that are already open as streams go in as a list of `DbcPart`, in order; the name, optional, is used in messages:
+
+```csharp
+using var reader = DbSusFile.OpenDbcReader(
+    [new DbcPart("PAMG2407a.dbc", streamA), new DbcPart("PAMG2407b.dbc", streamB)],
+    new DbfReadOptions { Columns = ["PA_UFMUN", "PA_VALAPR"] },
+    leaveOpen: true);   // the streams stay yours; without it, they are disposed with the reader
+```
+
+`new DbcPart(stream)` makes a part without a name (`part N` in messages).
+
 ### Numbers and dates stored as text
 
 Many DATASUS fields are character fields holding numbers or dates, and date layouts differ between sources. Nothing is converted unless you ask:
@@ -213,7 +224,7 @@ Methods that take a stream have a `leaveOpen` parameter (default `false`):
 |---|---|---|
 | A path (`DbSusFile.OpenReader`, `DbfReader.Open(string)`, `DbcFile.OpenAsDbf(string)`, ...) | DbSus opens and closes the file; `leaveOpen` does not apply | — |
 | A stream (`DbfReader.Open(Stream)`, `DbcFile.OpenAsDbf(Stream)`, `DbSusFile.OpenDbcReader(Stream)`) | Disposed with the returned reader or stream, **and also if the call throws** | Never disposed: it stays yours |
-| Several streams, the parts of a table (`DbSusFile.OpenDbcReader` with a list of `DbcPart`, each a stream and an optional name) | Each is disposed once its part has been read or the reader is disposed; **all of them if the call throws** | Never disposed |
+| Several streams, the parts of a table (`DbSusFile.OpenDbcReader(IEnumerable<DbcPart>)`, each part a stream and an optional name) | Each is disposed once its part has been read or the reader is disposed; **all of them if the call throws** | Never disposed |
 | Two streams to `DbcFile.ConvertToDbf(Stream, Stream)` | Never disposed (there is no `leaveOpen`) | — |
 
 So `using var reader = DbfReader.Open(File.OpenRead(path));` does not leak the file even when the header is invalid.
