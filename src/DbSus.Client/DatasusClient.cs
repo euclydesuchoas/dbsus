@@ -82,6 +82,12 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     }
 
     /// <summary>Gets a file's exact size and modification time (FTP <c>SIZE</c> and <c>MDTM</c>).</summary>
+    /// <param name="path">Path of the file, relative to the root.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>
+    /// The file's path, name, size in bytes and modification time in UTC
+    /// (<see cref="DatasusFileInfo.LastModifiedUtc"/> is always set here).
+    /// </returns>
     /// <exception cref="FileNotFoundException">The file does not exist.</exception>
     public async Task<DatasusFileInfo> GetInfoAsync(string path, CancellationToken cancellationToken = default)
     {
@@ -99,6 +105,10 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     /// </summary>
     /// <param name="path">Path of any part or of the unsplit name, e.g. <c>/SIASUS/200801_/Dados/PAMG2407.dbc</c>.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>
+    /// The parts ordered by letter (a single entry for a table that is not split), each with its
+    /// exact size and modification time in UTC.
+    /// </returns>
     /// <exception cref="FileNotFoundException">No such file, or a part before the last one is missing.</exception>
     /// <exception cref="IOException">Ambiguous names on the server.</exception>
     public async Task<IReadOnlyList<DatasusFileInfo>> FindPartsAsync(string path, CancellationToken cancellationToken = default)
@@ -130,6 +140,11 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     /// Reads only the header of a remote DBC or DBF (a few kilobytes): schema and record count,
     /// without downloading the file. The transfer is aborted once the header has arrived.
     /// </summary>
+    /// <param name="path">Path of the file, relative to the root.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>The parsed DBF header: version, last update, record count, record length, LDID and fields.</returns>
+    /// <exception cref="FileNotFoundException">The file does not exist.</exception>
+    /// <exception cref="InvalidDataException">The file ends inside its header, or the header is invalid.</exception>
     public async Task<DbfHeader> ReadHeaderAsync(string path, CancellationToken cancellationToken = default)
     {
         Guard.NotDisposed(_disposed, this);
@@ -159,6 +174,9 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     /// <see cref="DatasusClientOptions.VerifyOnDownload"/>, a DBC whose CRC-32 fails is downloaded
     /// once more and then reported, never cached.
     /// </remarks>
+    /// <param name="path">Path of the file, relative to the root.</param>
+    /// <param name="cancellationToken">Cancels the download.</param>
+    /// <returns>The full local path of the downloaded file.</returns>
     /// <exception cref="FileNotFoundException">The file does not exist.</exception>
     /// <exception cref="InvalidDataException">The file failed its CRC-32 check twice.</exception>
     /// <exception cref="IOException">Retries were exhausted, or there is not enough disk space.</exception>
@@ -184,6 +202,11 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     /// <see cref="DbcReadOptions.ChecksumMismatch"/> callback, if any, is invoked.
     /// </param>
     /// <param name="cancellationToken">Cancels the downloads.</param>
+    /// <returns>
+    /// A reader positioned before the first record, over every part in order, after every part's
+    /// header has been checked. Each part's checksum is verified when that part has been read to
+    /// its end.
+    /// </returns>
     public async Task<DbfReader> OpenReaderAsync(string path, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null, CancellationToken cancellationToken = default)
     {
         Guard.NotDisposed(_disposed, this);
