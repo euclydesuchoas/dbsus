@@ -156,6 +156,7 @@ Decompression dominates typical use; the network will usually be slower still. N
 - Each package ships `LICENSE` and `README.md`; `DbSus` also ships `THIRD-PARTY-NOTICES.md`. Symbols go to `.snupkg` with SourceLink; package validation is on.
 - Packages are published only from CI builds (`ContinuousIntegrationBuild`), whose PDBs and DLLs carry `/_/` source paths instead of machine paths.
 - Tags by purpose: `datareader` and `ado.net` only on `DbSus` (its ADO.NET integration); `ftp` and `download` only on `DbSus.Client`; the rest is shared.
+- **Public API tracking** (Microsoft.CodeAnalysis.PublicApiAnalyzers): each library lists its public API in `PublicAPI.Shipped.txt` (what a published version contains) and `PublicAPI.Unshipped.txt` (what changed since). The build fails when the code and the files disagree, so every API change shows up in a review as a change to these files. The API is the same on every target framework, so there is one pair of files per project. Until the first release, `Shipped` is empty and the whole API is in `Unshipped`. When a version is published, `Unshipped` moves into `Shipped`; from then on, a removed or changed member appears in `Unshipped` as a `*REMOVED*` line. RS0026 is suppressed until that first move (see the project files).
 
 ## Open
 
