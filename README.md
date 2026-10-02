@@ -109,7 +109,7 @@ table.Load(reader);
 
 `DataTable.Load`, `SqlBulkCopy` and `GetValues` read every field the reader exposes. When you need only a few, list them in `DbfReadOptions.Columns`: the reader then exposes just those, in that order.
 
-How much that helps depends on how the values are read. Measured on one file (an SIH-RD month: 132,337 records of 113 fields), on one machine (the one of the [benchmarks](#performance), Windows 11, Release, .NET SDK 10.0.401), each variant run twice, each run in a new process:
+How much that helps depends on how the values are read. Measured on one file (an SIH-RD month: 132,337 records of 113 fields), on one machine (the one of the [benchmarks](#performance), Windows 11, Release, .NET SDK 10.0.401), each run in a new process. A first session ran four variants twice each:
 
 | Reading | Time (2 runs) | Allocated | Peak working set |
 |---|---|---|---|
@@ -118,7 +118,15 @@ How much that helps depends on how the values are read. Measured on one file (an
 | Typed getters chosen by `GetFieldType`, text as raw bytes, all 113 fields | 574 and 579 ms | 201 KiB (1.6 B per record) | 28.5 MiB |
 | The same, 3 projected fields | 468 and 487 ms | 201 KiB | 28 MiB |
 
-When values are materialised as objects (`GetValues`, `DataTable`), a projection cuts allocation a lot and the time somewhat. With typed getters and text read as raw bytes, allocation is already close to zero and a projection changes little: most of the time is decompression, which a projection does not reduce. For comparison, the same file already decompressed (`.dbf`), with 3 fields read through `GetValues`, took 173 ms from disk and 63 ms from the operating system's file cache.
+A second session added text decoded through `GetChars` into a reused buffer:
+
+| Reading | All 113 fields | 3 projected fields |
+|---|---|---|
+| `GetValues` | 0.68 s, 377 MiB | 0.48 to 0.50 s, 14 MiB |
+| Typed getters, text as raw bytes | 0.57 s | 0.47 s |
+| Typed getters, text decoded with `GetChars` | 0.68 s, 205 KiB | 0.48 s, 205 KiB |
+
+On this file and this machine: when values are materialised as objects (`GetValues`, `DataTable`), a projection cut allocation from 377 MiB to about 14 MiB and the time by about 30%. With typed getters and text decoded through `GetChars`, allocation was already close to zero and a projection still saved about 30% of the time, since decoding text costs time even without allocating. With text left as raw bytes it saved less (0.57 s to 0.47 s): most of the remaining time is decompression, which a projection does not reduce. For comparison, the same file already decompressed (`.dbf`), with 3 fields read through `GetValues`, took 173 ms from disk and 63 ms from the operating system's file cache.
 
 ### Loading into a database
 
