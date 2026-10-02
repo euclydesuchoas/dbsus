@@ -83,7 +83,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 - `DbcFile.ConvertToDbf(paths | streams)`: the path overload writes to a temporary file and moves it into place only after success, checksum included; the stream overload writes as it goes.
 - Options are an object (`DbcReadOptions`, `DbfReadOptions`), not boolean parameters, so new options do not change signatures. `VerifyChecksum` is on by default.
 - The one boolean parameter is `leaveOpen`, on every method that takes a stream: who owns a stream is decided per call, not per options object. With `leaveOpen: false` (the default) the stream belongs to DbSus from the call on: it is disposed with the returned reader or stream, and also if the call throws, so `Open(File.OpenRead(path))` never leaks. With `leaveOpen: true` it is never disposed. Methods that take paths open and close their own files; `DbcFile.ConvertToDbf(Stream, Stream)` never disposes either stream.
-- Checksum failures are `InvalidDataException` (a sealed type, so there is no subclass); `DbcReadOptions.ChecksumMismatch` is the hook for reacting to them specifically.
+- Checksum failures are `InvalidDataException` (a sealed type, so there is no subclass); `DbcReadOptions.ChecksumMismatch` is the hook for reacting to them specifically. The callback receives a `DbcChecksumMismatch` (part index and name, stored and computed CRC-32), a class so it can grow without breaking callers.
 - The decoder is pull-based and can suspend mid-copy, so callers can read in blocks of any size.
 
 ### DBF reader
@@ -92,14 +92,14 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 - **Types:** `C` → `string`; `N` without decimals → `int` (width ≤ 9), `long` (≤ 18), `decimal` (wider); `N` with decimals and `F` → `decimal`; `D` → `DateTime`; `L` → `bool`. Unsupported types (e.g. memo) are exposed as raw bytes and flagged, never as text.
 - **Nulls:** blank `N`/`F`/`D`/`L`, `?` in `L` and all-zero dates are `DBNull`; blank `C` is `""` unless `BlankStringsAsNull`. Trailing spaces are trimmed, leading spaces kept.
 - **Errors** are `FormatException` naming the field, the record and the part, never the value, because DATASUS data can be personal.
-- **No allocation per record** for `Read` and the typed getters (including `GetFieldValue<T>` on modern .NET; on .NET Framework its nullable forms allocate about 24 bytes per call). A test guards it.
+- **No allocation per record** for `Read` and the typed getters (including `GetFieldValue<T>` on modern .NET; on .NET Framework its nullable forms allocate about 24 bytes per call). A test guards it. `GetChars` decodes straight into the caller's buffer when the encoding is single-byte (every code page chosen from the LDID), so text can be read without allocating too.
 - **Access:** names ignore case; unknown names and ordinals throw `IndexOutOfRangeException` (ADO.NET contract); `TryGetOrdinal` does not throw. `Columns` projects and re-indexes fields. Deleted records are skipped unless requested.
 - **Checksum through the facade:** after the last record the reader drains the decompressed stream, so the `Read` that returns `false` is the one that reports a checksum mismatch.
 
 ### Character field conversions
 
 - Opt-in, per field: `DbfFieldConversion.Int32()`, `Int64()`, `Decimal()` and `Date("yyyyMMdd" | "ddMMyyyy")`, only on `C` fields, validated at open. A converted field reports its target type everywhere; blank is null; a value that does not parse or does not fit is a `FormatException` (field, record and part, never the value).
-- **Open:** `yyyyMM` dates.
+- `Date("yyyyMM")` converts a year and month (such as a processing month) to the first day of that month. A year and a month stored in two separate fields are not combined: a conversion applies to one field.
 
 ### Split tables and finding parts
 
@@ -116,7 +116,8 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 - **Paths** are strings relative to a configurable root (`/dissemin/publicos`). URLs, `..`, `.`, empty segments, `\`, control characters and names invalid on Windows or Linux are rejected. A structured catalogue (source, modality, year, month, state) is a later phase.
 - **FTP:** FluentFTP behind an internal interface; explicit `EncryptionMode = None`, raw `SIZE`/`MDTM`, `LIST` forced.
 - **Concurrency:** the client is thread-safe; a pool lends at most `MaxConnections` connections (default 2, maximum 4).
-- **Retries:** transient failures only (socket errors, timeouts, FTP 4xx, truncated transfers), exponential backoff with jitter capped at 30 s; `550` is `FileNotFoundException`.
+- **Retries:** transient failures only (socket errors, timeouts, FTP 4xx, truncated transfers), exponential backoff with jitter capped at 30 s; `550` is `FileNotFoundException`. `OnRetry` reports each retry (operation, attempt, wait, failure); its exceptions are ignored.
+- **Failures** have their own types, all deriving from `IOException`: `DatasusRetriesExhaustedException` and `DatasusRequestRefusedException` (with `Attempts`, `FtpReplyCode` and `RemotePath`) and `InsufficientDiskSpaceException`. A permanent FTP reply is never retried.
 - **Cache:** `<cache>/<remote path>/<file>/<size>-<MDTM>/`, one folder per server version, so a new version never overwrites a file a reader has open. Interrupted downloads resume with `REST` only when size and time are unchanged. With `VerifyOnDownload` (default) the file is fully decompressed and its CRC checked before entering the cache. Per-entry lock files (`FileShare.None`; `flock` on Linux/macOS) coordinate processes. Old partial files are removed only when older than 24 hours and unlocked; with a size limit, least recently used entries are evicted, never one in use.
 - **Without a cache:** downloads go to a temporary folder and are deleted when the reader is done.
 
@@ -153,5 +154,4 @@ Decompression dominates typical use; the network will usually be slower still. N
 ## Open
 
 - Real async in the core and a streaming (no download) mode in the client.
-- `yyyyMM` date conversions.
 - The encoding fallback and LDID 0x02/0x57 on files with accented text.
