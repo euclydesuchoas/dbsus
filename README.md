@@ -197,6 +197,22 @@ Every record returned before that point came from the same file, so if the check
 
 `DbfReader.Read` and the typed getters (`GetInt32`, `GetInt64`, `GetDecimal`, `GetDouble`, `GetDateTime`, `GetBoolean`, `IsDBNull`, `GetRawBytes`) do not allocate per record. `GetFieldValue<T>` does not allocate either on .NET 5 and later. **On .NET Framework, its nullable forms (e.g. `GetFieldValue<int?>`) allocate about 24 bytes per call** (measured on 4.8.1, x64; the non-nullable forms do not), so there prefer `IsDBNull` plus a typed getter in hot loops. `GetValue`, `GetValues` and `GetString` allocate by nature.
 
+## Performance
+
+Measured with BenchmarkDotNet (`benchmarks/DbSus.Benchmarks`, Release, .NET 10, AMD Ryzen 9 9950X3D) on one large SIA-PA file: 126 MB compressed, 1.17 GB of DBF, 2,956,469 records of 60 fields.
+
+| What | DBF throughput | Allocated per record |
+|---|---|---|
+| Decompression only | 311 MB/s | 0.05 B |
+| Decompression and reading the records | 309 MB/s | 0.06 B |
+| Plus 3 typed getters per record | 299 MB/s | 0.06 B |
+| Plus 2 converted character fields | 293 MB/s | 0.06 B |
+| Every value of every field (`GetValues`, boxed) | 189 MB/s | 1,867 B |
+
+The small allocations of the first four rows are fixed buffers, not per-record costs. Decompression dominates; when files come from the DATASUS server, the network is usually slower still.
+
+In a real-world test, a complete SIA-PA month split into two parts, about 8 million records, was read in about 11 seconds, with about 0 bytes allocated per record, a memory peak of 34 MiB and no garbage collection.
+
 ## .NET Framework
 
 The minimum is .NET Framework 4.7.2, which uses the packages' `net472` build. If an application still fails on the first read with a `FileLoadException` for `System.Memory` (for example an unusual build setup that resolves the `netstandard2.0` build instead), add a binding redirect to its `app.config`. `newVersion` must be the assembly version of the `System.Memory.dll` the application ships; for example 4.0.5.0, from the `System.Memory` 4.6.3 package:
