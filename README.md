@@ -19,7 +19,7 @@ Target frameworks: `net10.0`, `net472` and `netstandard2.0`. Supported runtimes:
 
 `DbSus.Client` is tested with FluentFTP 55.0.0 and declares that version as a minimum. NuGet picks the lowest version that satisfies every requirement, so an application gets FluentFTP 55.0.0 unless it references a newer version itself or another package requires one. On .NET Framework, FluentFTP is strong-named and its assembly version changes with every release, so any version other than 55.0.0 needs a binding redirect: SDK-style executable projects generate it; ASP.NET (`web.config`) and older projects need it written by hand.
 
-With a newer FluentFTP, one thing can degrade without any error. The client relies on FluentFTP's protected connection hooks to close a connection by force; if a version removes them or stops calling them, nothing fails to build or load, but on .NET Framework cancelling the token, and the client's limit on each read of a download, may no longer end a stalled operation (the read timeout still ends a server that stops answering commands). A test of the hooks watches for this, and a weekly CI workflow runs the client's tests against the newest stable FluentFTP, so that a release that changes how the hooks are called shows up as a failing run; it only reports, it does not stop an application from using that release.
+With a newer FluentFTP, the part that can break is the client's use of FluentFTP's protected connection hooks, through which it closes a connection by force. If a version removes them or stops calling them, nothing fails to build or load. On .NET Framework, where ending a stalled or cancelled operation depends on them, the client checks that FluentFTP reported each connection: if the control connection was not reported, connecting fails; if a data connection was not reported, opening a file for reading fails before anything is read, and a listing fails right after FluentFTP has read it (its result is discarded). The error is a `NotSupportedException` that names the FluentFTP version in use and the one the client is tested with; it is not retried. On the other runtimes there is no such check: there, with the hooks switched off in a test, cancelling, the read timeout and the limit on each read of a download still ended stalled operations. A test of the hooks watches for such a change, and a weekly CI workflow runs the client's tests against the newest stable FluentFTP, so that a release that changes how the hooks are called shows up as a failing run; it only reports, it does not stop an application from using that release.
 
 ## Usage
 
@@ -219,6 +219,7 @@ Exceptions:
 | `InvalidDataException` | A downloaded `.dbc` failed its CRC-32 check twice, a remote header is invalid, or, while reading, the data is corrupt or fails its checksum at the end. |
 | `TimeoutException` | Another thread or process held the same cache entry for longer than `LockTimeout` (10 minutes by default). |
 | `OperationCanceledException` | The cancellation token was canceled. |
+| `NotSupportedException` | On .NET Framework only: the FluentFTP version in use did not report its connections to the client (see [Packages](#packages)). |
 
 #### When the connection fails
 
