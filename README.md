@@ -265,7 +265,7 @@ while (reader.Read())
 }
 ```
 
-`GetChars` decodes without allocating when the encoding is single-byte, which is the case for every code page chosen from the LDID. Measured on .NET 10 with the CNES fixture, this loop allocates nothing per record; the only allocations are fixed buffers, when the reader opens and once at the end of each part (4 KB, to read the remaining data and verify the checksum). Codes stored as ASCII digits can also be compared without decoding at all, on the raw bytes: `reader.GetRawBytes(i).StartsWith("0301"u8)`. `u8` literals need C# 11 or later in your project (on .NET Framework, set `<LangVersion>` accordingly).
+`GetChars` decodes without allocating when the encoding is single-byte, which is the case for every code page chosen from the LDID. Measured with this exact loop over the CNES fixture repeated to 204,000 records, as a `.dbf` and as a `.dbc`, leaving out what opening the reader allocates. On .NET 10 (`GC.GetAllocatedBytesForCurrentThread`): 0 bytes for the `.dbf` and 4,120 bytes for the `.dbc`, a single 4 KB buffer at the end of the part to read the remaining data and verify the checksum, and no garbage collection. On .NET Framework 4.8 (`AppDomain.MonitoringTotalAllocatedMemorySize`, a counter that advances by allocation blocks rather than per object, so it cannot show that 4 KB buffer): 0 bytes in both cases and no garbage collection. Codes stored as ASCII digits can also be compared without decoding at all, on the raw bytes: `reader.GetRawBytes(i).StartsWith("0301"u8)`. `u8` literals need C# 11 or later in your project (on .NET Framework, set `<LangVersion>` accordingly).
 
 ## Performance
 
