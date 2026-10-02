@@ -170,7 +170,7 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// <returns>A reader positioned before the first record. Disposing it closes every file.</returns>
     /// <exception cref="InvalidDataException">A header is invalid, or the parts do not share the same schema.</exception>
     /// <exception cref="ArgumentException">No path is given, or a projected column does not exist or is repeated.</exception>
-    public static DbfReader Open(IEnumerable<string> paths, DbfReadOptions? options = null)
+    internal static DbfReader Open(IEnumerable<string> paths, DbfReadOptions? options = null)
     {
         var list = RequireParts(paths, nameof(paths));
         var parts = new List<DbfPart>();
@@ -237,7 +237,7 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// <returns>A reader positioned before the first record.</returns>
     /// <exception cref="InvalidDataException">A header is invalid, or the parts do not share the same schema.</exception>
     /// <exception cref="ArgumentException">No stream is given, a stream is not readable, or a projected column does not exist or is repeated.</exception>
-    public static DbfReader Open(IEnumerable<Stream> parts, DbfReadOptions? options = null, bool leaveOpen = false)
+    internal static DbfReader Open(IEnumerable<Stream> parts, DbfReadOptions? options = null, bool leaveOpen = false)
     {
         Guard.NotNull(parts, nameof(parts));
         var given = parts.ToList();

@@ -50,7 +50,7 @@ public sealed class DbfField
     /// <see cref="DbfReadOptions.Conversions"/>, or <see langword="null"/>. When set,
     /// <see cref="FieldType"/> is the conversion's target type.
     /// </summary>
-    public DbfFieldConversion? Conversion { get; }
+    internal DbfFieldConversion? Conversion { get; }
 
     /// <summary>
     /// Gets a value indicating whether DbSus interprets this field's type. Unsupported fields (for

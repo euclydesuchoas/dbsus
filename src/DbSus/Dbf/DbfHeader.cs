@@ -57,7 +57,7 @@ public sealed class DbfHeader
     /// Gets the number of bytes at the end of each record that no field covers. It is 0 in every
     /// DATASUS file examined; a positive value is tolerated and the bytes are ignored.
     /// </summary>
-    public int UnusedRecordBytes { get; }
+    internal int UnusedRecordBytes { get; }
 
     /// <summary>
     /// Reads only the table header from the start of a stream, leaving the stream positioned right
