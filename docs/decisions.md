@@ -104,6 +104,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 ### Split tables and finding parts
 
 - The same `DbfReader` reads several parts as one table. Every part's header is compared with the first when the reader opens, before any record, so a bulk load never starts on an inconsistent set. `RecordNumber` counts across parts; each part's checksum is verified when its last record is read, and its file is closed right away. Parts come as file paths or, from streams, as a list of `DbcPart` (a stream and an optional name, `part N` when absent), one list rather than parallel lists of streams and names.
+- There is no public way to read a DBF split into parts from streams any more (only DBC parts, as `DbcPart`); DBF parts given by path are still read as one table with `DbSusFile.OpenReader(paths)`.
 - `DbSusFile.FindParts` returns the parts of a split table in letter order. Names match ignoring case on every OS; a gap is a `FileNotFoundException` naming the missing part; an unlettered file next to lettered parts is an `IOException`. A missing **last** part cannot be detected locally; the client uses the FTP listing as the source of truth.
 
 ### Integrity and database loads
