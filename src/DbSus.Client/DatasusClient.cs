@@ -233,14 +233,15 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
             var options = new DbcReadOptions
             {
                 VerifyChecksum = dbcOptions?.VerifyChecksum ?? true,
-                ChecksumMismatch = (index, name) =>
+                ChecksumMismatch = mismatch =>
                 {
                     if (cache is not null)
                     {
-                        new CacheEntry(Path.GetDirectoryName(locals[index])!, Path.GetFileName(locals[index])).MarkInvalid();
+                        var local = locals[mismatch.PartIndex];
+                        new CacheEntry(Path.GetDirectoryName(local)!, Path.GetFileName(local)).MarkInvalid();
                     }
 
-                    callerCallback?.Invoke(index, name);
+                    callerCallback?.Invoke(mismatch);
                 },
             };
             return DbSusFile.OpenDbcReader(streams, [.. parts.Select(part => part.Name)], dbfOptions, options);

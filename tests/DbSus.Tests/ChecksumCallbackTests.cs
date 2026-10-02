@@ -26,7 +26,7 @@ public sealed class ChecksumCallbackTests : IDisposable
     {
         var path = Write("RDRR2206.dbc", SyntheticDbc.BuildDbc(Dbf, checksum: 0));
         var calls = new List<(int Index, string? Name, int Thread)>();
-        var options = new DbcReadOptions { ChecksumMismatch = (index, name) => calls.Add((index, name, Environment.CurrentManagedThreadId)) };
+        var options = new DbcReadOptions { ChecksumMismatch = mismatch => calls.Add((mismatch.PartIndex, mismatch.PartName, Environment.CurrentManagedThreadId)) };
         using var stream = DbcFile.OpenAsDbf(path, options);
 
         Assert.Throws<InvalidDataException>(() => stream.CopyTo(Stream.Null));
@@ -38,7 +38,7 @@ public sealed class ChecksumCallbackTests : IDisposable
     public void OpenAsDbf_Stream_CallbackReceivesNullName()
     {
         string? received = "unset";
-        var options = new DbcReadOptions { ChecksumMismatch = (_, name) => received = name };
+        var options = new DbcReadOptions { ChecksumMismatch = mismatch => received = mismatch.PartName };
         using var stream = DbcFile.OpenAsDbf(new MemoryStream(SyntheticDbc.BuildDbc(Dbf, checksum: 0)), options);
 
         Assert.Throws<InvalidDataException>(() => stream.CopyTo(Stream.Null));
@@ -47,9 +47,25 @@ public sealed class ChecksumCallbackTests : IDisposable
     }
 
     [Fact]
+    public void Callback_ReceivesTheStoredAndTheComputedChecksums()
+    {
+        DbcChecksumMismatch? received = null;
+        var options = new DbcReadOptions { ChecksumMismatch = mismatch => received = mismatch };
+        using var stream = DbcFile.OpenAsDbf(new MemoryStream(SyntheticDbc.BuildDbc(Dbf, checksum: 0x12345678)), options);
+
+        Assert.Throws<InvalidDataException>(() => stream.CopyTo(Stream.Null));
+
+        Assert.NotNull(received);
+        Assert.Equal(0x12345678u, received.ExpectedChecksum);
+        Assert.Equal(ReferenceCrc32.Compute(Dbf), received.ActualChecksum);
+        Assert.Equal(0, received.PartIndex);
+        Assert.Null(received.PartName);
+    }
+
+    [Fact]
     public void Callback_ThatThrows_DoesNotReplaceTheChecksumException()
     {
-        var options = new DbcReadOptions { ChecksumMismatch = (_, _) => throw new InvalidOperationException("callback failure") };
+        var options = new DbcReadOptions { ChecksumMismatch = _ => throw new InvalidOperationException("callback failure") };
         using var stream = DbcFile.OpenAsDbf(new MemoryStream(SyntheticDbc.BuildDbc(Dbf, checksum: 0)), options);
 
         var exception = Assert.Throws<InvalidDataException>(() => stream.CopyTo(Stream.Null));
@@ -61,7 +77,7 @@ public sealed class ChecksumCallbackTests : IDisposable
     public void Callback_IsNotCalledWhenTheChecksumMatches()
     {
         var called = false;
-        var options = new DbcReadOptions { ChecksumMismatch = (_, _) => called = true };
+        var options = new DbcReadOptions { ChecksumMismatch = _ => called = true };
         using var stream = DbcFile.OpenAsDbf(new MemoryStream(SyntheticDbc.BuildDbc(Dbf)), options);
 
         stream.CopyTo(Stream.Null);
@@ -75,7 +91,7 @@ public sealed class ChecksumCallbackTests : IDisposable
         var first = Write("PAMG2407a.dbc", SyntheticDbc.BuildDbc(Dbf));
         var second = Write("PAMG2407b.dbc", SyntheticDbc.BuildDbc(Dbf, checksum: 0));
         var calls = new List<(int, string?)>();
-        using var reader = DbSusFile.OpenDbcReader([first, second], dbcOptions: new DbcReadOptions { ChecksumMismatch = (i, n) => calls.Add((i, n)) });
+        using var reader = DbSusFile.OpenDbcReader([first, second], dbcOptions: new DbcReadOptions { ChecksumMismatch = mismatch => calls.Add((mismatch.PartIndex, mismatch.PartName)) });
 
         var exception = Assert.Throws<InvalidDataException>(() => Drain(reader));
 
@@ -88,7 +104,7 @@ public sealed class ChecksumCallbackTests : IDisposable
     {
         var calls = new List<(int, string?)>();
         var parts = new Stream[] { new MemoryStream(SyntheticDbc.BuildDbc(Dbf, checksum: 0)), new MemoryStream(SyntheticDbc.BuildDbc(Dbf)) };
-        using var reader = DbSusFile.OpenDbcReader(parts, ["PAMG2407a.dbc", "PAMG2407b.dbc"], dbcOptions: new DbcReadOptions { ChecksumMismatch = (i, n) => calls.Add((i, n)) });
+        using var reader = DbSusFile.OpenDbcReader(parts, ["PAMG2407a.dbc", "PAMG2407b.dbc"], dbcOptions: new DbcReadOptions { ChecksumMismatch = mismatch => calls.Add((mismatch.PartIndex, mismatch.PartName)) });
 
         var exception = Assert.Throws<InvalidDataException>(() => Drain(reader));
 
@@ -101,7 +117,7 @@ public sealed class ChecksumCallbackTests : IDisposable
     {
         var calls = new List<(int, string?)>();
         var parts = new Stream[] { new MemoryStream(SyntheticDbc.BuildDbc(Dbf)), new MemoryStream(SyntheticDbc.BuildDbc(Dbf, checksum: 0)) };
-        using var reader = DbSusFile.OpenDbcReader(parts, dbcOptions: new DbcReadOptions { ChecksumMismatch = (i, n) => calls.Add((i, n)) });
+        using var reader = DbSusFile.OpenDbcReader(parts, dbcOptions: new DbcReadOptions { ChecksumMismatch = mismatch => calls.Add((mismatch.PartIndex, mismatch.PartName)) });
 
         Assert.Throws<InvalidDataException>(() => Drain(reader));
 
@@ -130,7 +146,7 @@ public sealed class ChecksumCallbackTests : IDisposable
     public void ConvertToDbf_Streams_KeepsTheCallback()
     {
         var called = false;
-        var options = new DbcReadOptions { ChecksumMismatch = (_, _) => called = true };
+        var options = new DbcReadOptions { ChecksumMismatch = _ => called = true };
 
         Assert.Throws<InvalidDataException>(() => DbcFile.ConvertToDbf(new MemoryStream(SyntheticDbc.BuildDbc(Dbf, checksum: 0)), new MemoryStream(), options));
 

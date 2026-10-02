@@ -23,7 +23,7 @@ internal sealed class DbcDbfStream : Stream
     private readonly int _partIndex;
     private readonly string? _partName;
     private readonly string _prefix;
-    private readonly Action<int, string?>? _checksumMismatch;
+    private readonly Action<DbcChecksumMismatch>? _checksumMismatch;
     private readonly byte[] _header;
     private readonly uint _expectedChecksum;
     private readonly BlastDecoder _decoder;
@@ -169,18 +169,23 @@ internal sealed class DbcDbfStream : Stream
             return;
         }
 
-        NotifyMismatch();
+        NotifyMismatch(actual);
         throw new InvalidDataException(
             $"{_prefix}DBC checksum mismatch: the file declares CRC-32 0x{_expectedChecksum:X8} but the decompressed DBF has 0x{actual:X8}.");
     }
 
     // By contract the checksum exception is the one that propagates, whatever the callback does.
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031", Justification = "A failing callback must not replace the checksum exception.")]
-    private void NotifyMismatch()
+    private void NotifyMismatch(uint actual)
     {
+        if (_checksumMismatch is null)
+        {
+            return;
+        }
+
         try
         {
-            _checksumMismatch?.Invoke(_partIndex, _partName);
+            _checksumMismatch(new DbcChecksumMismatch(_partIndex, _partName, _expectedChecksum, actual));
         }
         catch (Exception)
         {

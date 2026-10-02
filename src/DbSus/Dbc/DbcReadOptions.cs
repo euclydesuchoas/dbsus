@@ -28,13 +28,11 @@ public sealed class DbcReadOptions
 
     /// <summary>
     /// Gets or sets a callback invoked when a checksum mismatch is detected, just before the
-    /// <see cref="InvalidDataException"/> is thrown. It receives the zero-based part index (0 for a
-    /// single file) and the part name, never any data. The name is the file name when opened by
-    /// path, the caller's name for named streams, <c>part N</c> for unnamed streams of a split
-    /// table, and <see langword="null"/> for a single unnamed stream. The callback runs
-    /// synchronously, on the thread whose read reached the end of the part. If it throws, its
-    /// exception is discarded and the checksum exception is still the one that propagates.
-    /// Typical use: marking a cached copy of the file as invalid.
+    /// <see cref="InvalidDataException"/> is thrown. It receives a <see cref="DbcChecksumMismatch"/>
+    /// with the part's index and name and the stored and computed checksums, never any data. The
+    /// callback runs synchronously, on the thread whose read reached the end of the part. If it
+    /// throws, its exception is discarded and the checksum exception is still the one that
+    /// propagates. Typical use: marking a cached copy of the file as invalid.
     /// </summary>
     /// <remarks>
     /// A checksum mismatch is reported as a plain <see cref="InvalidDataException"/>, the same type as
@@ -42,7 +40,7 @@ public sealed class DbcReadOptions
     /// dedicated subclass. This callback is therefore the way to react specifically to a checksum
     /// failure: it is invoked for that case only.
     /// </remarks>
-    public Action<int, string?>? ChecksumMismatch { get; set; }
+    public Action<DbcChecksumMismatch>? ChecksumMismatch { get; set; }
 
     internal DbcReadOptions With(bool leaveOpen) => new()
     {

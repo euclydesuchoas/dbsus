@@ -60,7 +60,7 @@ public sealed class CacheTests : IDisposable
         File.WriteAllBytes(local, bytes);
         var calls = new List<(int, string?)>();
 
-        using (var reader = await client.OpenReaderAsync(Dados + "/RDRR2206.dbc", dbcOptions: new DbcReadOptions { ChecksumMismatch = (i, n) => calls.Add((i, n)) }, cancellationToken: Ct))
+        using (var reader = await client.OpenReaderAsync(Dados + "/RDRR2206.dbc", dbcOptions: new DbcReadOptions { ChecksumMismatch = mismatch => calls.Add((mismatch.PartIndex, mismatch.PartName)) }, cancellationToken: Ct))
         {
             Assert.ThrowsAny<InvalidDataException>(() => Drain(reader));
             Assert.True(File.Exists(Path.Combine(Path.GetDirectoryName(local)!, "entry.invalid")));

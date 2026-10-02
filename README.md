@@ -200,7 +200,7 @@ Every `.dbc` file stores a CRC-32 of the whole DBF it contains. That checksum ca
 - With `DbSusFile.OpenDbcReader` (or `OpenReader` on a `.dbc`), the `Read()` call that would return `false` throws `InvalidDataException` instead. For a table split into parts, each part is checked when its last record has been read.
 - With `DbcFile.OpenAsDbf`, the read that reaches the end of the stream throws.
 - A reader disposed before the end never performs the check.
-- The exception is a plain `InvalidDataException`, like other data errors. To react **specifically** to a checksum failure (for example to discard a cached copy), set `DbcReadOptions.ChecksumMismatch`: it is called with the part index and name just before the exception, and only for checksum failures.
+- The exception is a plain `InvalidDataException`, like other data errors. To react **specifically** to a checksum failure (for example to discard a cached copy), set `DbcReadOptions.ChecksumMismatch`: it is called with a `DbcChecksumMismatch` (part index and name, stored and computed CRC-32) just before the exception, and only for checksum failures.
 
 Every record returned before that point came from the same file, so if the checksum fails they cannot be trusted either. **When loading into a database, write inside a transaction or into a staging table, and commit (or swap the staging table in) only after `Read()` has returned `false` without an exception.**
 
