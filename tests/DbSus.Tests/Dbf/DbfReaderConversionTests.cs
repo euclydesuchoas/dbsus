@@ -40,7 +40,7 @@ public class DbfReaderConversionTests
 
         var exception = Assert.Throws<FormatException>(() => reader.GetValue(0));
 
-        Assert.Contains(format == "ddMMyyyy" ? "DDMMYYYY" : "YYYYMMDD", exception.Message, StringComparison.Ordinal);
+        Assert.Contains($"a {format} date", exception.Message, StringComparison.Ordinal);
         Assert.DoesNotContain(stored, exception.Message, StringComparison.Ordinal);
     }
 

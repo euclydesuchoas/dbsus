@@ -81,8 +81,8 @@ internal static class DbfValueParser
     }
 
     /// <summary>
-    /// Parses an eight-digit date, <c>YYYYMMDD</c> (as in <c>D</c> fields) or, with
-    /// <paramref name="dayFirst"/>, <c>DDMMYYYY</c>. Blank or all zeros is null.
+    /// Parses an eight-digit date, <c>yyyyMMdd</c> (as in <c>D</c> fields) or, with
+    /// <paramref name="dayFirst"/>, <c>ddMMyyyy</c>. Blank or all zeros is null.
     /// </summary>
     public static bool TryParseDate(ReadOnlySpan<byte> trimmed, bool dayFirst, out DateTime? value)
     {

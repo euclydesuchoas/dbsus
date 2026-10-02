@@ -35,7 +35,7 @@ namespace DbSus.Dbf;
 /// empty string, or <see cref="DBNull"/> with <see cref="DbfReadOptions.BlankStringsAsNull"/>);
 /// <c>N</c> without decimals is an <see cref="int"/> up to 9 digits wide, a <see cref="long"/> up
 /// to 18 and a <see cref="decimal"/> beyond; <c>N</c> with decimals and <c>F</c> are
-/// <see cref="decimal"/>; <c>D</c> is a <see cref="DateTime"/> (<c>YYYYMMDD</c>); <c>L</c> is a
+/// <see cref="decimal"/>; <c>D</c> is a <see cref="DateTime"/> (<c>yyyyMMdd</c>); <c>L</c> is a
 /// <see cref="bool"/>. Blank numbers, dates and logicals, and dates made of zeros, are
 /// <see cref="DBNull"/>. Content that does not parse throws <see cref="FormatException"/>; the
 /// message names the field and the record but, deliberately, not the value.
@@ -1050,7 +1050,7 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     private DateTime? ReadDate(DbfField field) =>
         DbfValueParser.TryParseDate(DbfValueParser.Trim(CurrentRecord().AsSpan(field.Offset, field.Length)), field.DayFirst, out var value)
             ? value
-            : throw Invalid(field, field.DayFirst ? "a DDMMYYYY date" : "a YYYYMMDD date");
+            : throw Invalid(field, field.DayFirst ? "a ddMMyyyy date" : "a yyyyMMdd date");
 
     // Values read as the field's own integer type: a fraction or an out-of-range value means the
     // data does not match the declared type, so it is a format error (the value is not reported).
