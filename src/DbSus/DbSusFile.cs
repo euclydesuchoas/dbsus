@@ -20,8 +20,11 @@ public static class DbSusFile
     /// <param name="dbcOptions">DBC read options (used for <c>.dbc</c> files), or <see langword="null"/>.</param>
     /// <returns>A reader positioned before the first record. Disposing it closes the file.</returns>
     /// <exception cref="ArgumentException">The extension is neither <c>.dbc</c> nor <c>.dbf</c>.</exception>
-    public static DbfReader OpenReader(string path, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null) =>
-        OpenReader([path], dbfOptions, dbcOptions);
+    public static DbfReader OpenReader(string path, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null)
+    {
+        Guard.NotNull(path, nameof(path));
+        return OpenByExtension([path], nameof(path), dbfOptions, dbcOptions);
+    }
 
     /// <summary>
     /// Opens the parts of a split table as one reader, in the order given, choosing DBC or DBF for
@@ -36,27 +39,8 @@ public static class DbSusFile
     /// </returns>
     /// <exception cref="ArgumentException">No path is given, or an extension is neither <c>.dbc</c> nor <c>.dbf</c>.</exception>
     /// <exception cref="InvalidDataException">A header is invalid, or the parts do not share the same schema.</exception>
-    public static DbfReader OpenReader(IEnumerable<string> paths, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null)
-    {
-        var list = DbfReader.RequireParts(paths, nameof(paths));
-        return OpenPaths(list, dbcOptions, dbfOptions, path =>
-        {
-            var extension = Path.GetExtension(path);
-            if (string.Equals(extension, ".dbc", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            if (string.Equals(extension, ".dbf", StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            throw new ArgumentException(
-                $"Cannot tell the format of '{Path.GetFileName(path)}' from its extension; use OpenDbcReader or DbfReader.Open.",
-                nameof(paths));
-        });
-    }
+    public static DbfReader OpenReader(IEnumerable<string> paths, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null) =>
+        OpenByExtension(DbfReader.RequireParts(paths, nameof(paths)), nameof(paths), dbfOptions, dbcOptions);
 
     /// <summary>
     /// Opens a DBC file, whatever its extension, as a reader over the DBF it contains.
@@ -70,8 +54,11 @@ public static class DbSusFile
     /// <see cref="InvalidDataException"/> if the data does not match the DBC's CRC-32. To tell a
     /// checksum failure apart from other data errors, use <see cref="DbcReadOptions.ChecksumMismatch"/>.
     /// </returns>
-    public static DbfReader OpenDbcReader(string path, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null) =>
-        OpenDbcReader([path], dbfOptions, dbcOptions);
+    public static DbfReader OpenDbcReader(string path, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null)
+    {
+        Guard.NotNull(path, nameof(path));
+        return OpenDbcReader([path], dbfOptions, dbcOptions);
+    }
 
     /// <summary>
     /// Opens the DBC parts of a split table, whatever their extension, as one reader, in the order given.
@@ -108,8 +95,11 @@ public static class DbSusFile
     /// if the data does not match the DBC's CRC-32. To tell a checksum failure apart from other data
     /// errors, use <see cref="DbcReadOptions.ChecksumMismatch"/>.
     /// </returns>
-    public static DbfReader OpenDbcReader(Stream dbc, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null) =>
-        OpenDbcReader([dbc], dbfOptions, dbcOptions);
+    public static DbfReader OpenDbcReader(Stream dbc, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null)
+    {
+        Guard.NotNull(dbc, nameof(dbc));
+        return OpenDbcReader([dbc], dbfOptions, dbcOptions);
+    }
 
     /// <summary>
     /// Opens the DBC streams of a split table as one reader, in the order given.
@@ -196,6 +186,27 @@ public static class DbSusFile
             extension,
             (missing, message) => new FileNotFoundException(message, Path.Combine(directory, missing)));
         return [.. parts.Select(name => Path.Combine(directory, name))];
+    }
+
+    private static DbfReader OpenByExtension(List<string> list, string paramName, DbfReadOptions? dbfOptions, DbcReadOptions? dbcOptions)
+    {
+        return OpenPaths(list, dbcOptions, dbfOptions, path =>
+        {
+            var extension = Path.GetExtension(path);
+            if (string.Equals(extension, ".dbc", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (string.Equals(extension, ".dbf", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            throw new ArgumentException(
+                $"Cannot tell the format of '{Path.GetFileName(path)}' from its extension; use OpenDbcReader or DbfReader.Open.",
+                paramName);
+        });
     }
 
     private static DbfReader OpenPaths(List<string> paths, DbcReadOptions? dbcOptions, DbfReadOptions? dbfOptions, Func<string, bool> isDbc)

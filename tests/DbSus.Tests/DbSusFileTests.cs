@@ -52,6 +52,24 @@ public sealed class DbSusFileTests : IDisposable
     }
 
     [Fact]
+    public void OpenReader_UnknownExtension_NamesThePathParameter()
+    {
+        var path = Write("table.bin", SyntheticDbc.BuildDbc(Dbf));
+
+        var exception = Assert.Throws<ArgumentException>(() => DbSusFile.OpenReader(path));
+
+        Assert.Equal("path", exception.ParamName);
+    }
+
+    [Fact]
+    public void SingleFileOpeners_Null_ThrowArgumentNullExceptionNamingTheirParameter()
+    {
+        Assert.Equal("path", Assert.Throws<ArgumentNullException>(() => DbSusFile.OpenReader((string)null!)).ParamName);
+        Assert.Equal("path", Assert.Throws<ArgumentNullException>(() => DbSusFile.OpenDbcReader((string)null!)).ParamName);
+        Assert.Equal("dbc", Assert.Throws<ArgumentNullException>(() => DbSusFile.OpenDbcReader((Stream)null!)).ParamName);
+    }
+
+    [Fact]
     public void OpenReader_DbcEndsInsideItsHeader_NamesTheFile()
     {
         var path = Write("short.dbc", SyntheticDbc.BuildDbc(Dbf).AsSpan(0, 20).ToArray());
