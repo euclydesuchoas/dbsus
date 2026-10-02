@@ -93,7 +93,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 - **Nulls:** blank `N`/`F`/`D`/`L`, `?` in `L` and all-zero dates are `DBNull`; blank `C` is `""` unless `BlankStringsAsNull`. Trailing spaces are trimmed, leading spaces kept.
 - **Errors** are `FormatException` naming the field, the record and the part, never the value, because DATASUS data can be personal.
 - **No allocation per record** for `Read` and the typed getters (including `GetFieldValue<T>` on modern .NET; on .NET Framework its nullable forms allocate about 24 bytes per call). A test guards it. `GetChars` decodes straight into the caller's buffer when the encoding is single-byte (every code page chosen from the LDID), so text can be read without allocating too.
-- **Access:** names ignore case; unknown names and ordinals throw `IndexOutOfRangeException` (ADO.NET contract); `TryGetOrdinal` does not throw. `Columns` projects and re-indexes fields. Deleted records are skipped unless requested.
+- **Access:** names ignore case; unknown names and ordinals throw `IndexOutOfRangeException` (ADO.NET contract); `TryGetOrdinal` does not throw. `Columns` projects and re-indexes fields. Deleted records are skipped unless requested. `DbfField.FileIndex` is the position in the file, not the ordinal, which counts only the exposed fields.
 - **Checksum through the facade:** after the last record the reader drains the decompressed stream, so the `Read` that returns `false` is the one that reports a checksum mismatch.
 
 ### Character field conversions
@@ -103,7 +103,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 
 ### Split tables and finding parts
 
-- The same `DbfReader` reads several parts as one table. Every part's header is compared with the first when the reader opens, before any record, so a bulk load never starts on an inconsistent set. `RecordNumber` counts across parts; each part's checksum is verified when its last record is read, and its file is closed right away.
+- The same `DbfReader` reads several parts as one table. Every part's header is compared with the first when the reader opens, before any record, so a bulk load never starts on an inconsistent set. `RecordNumber` counts across parts; each part's checksum is verified when its last record is read, and its file is closed right away. Parts come as file paths or, from streams, as a list of `DbcPart` (a stream and an optional name, `part N` when absent), one list rather than parallel lists of streams and names.
 - `DbSusFile.FindParts` returns the parts of a split table in letter order. Names match ignoring case on every OS; a gap is a `FileNotFoundException` naming the missing part; an unlettered file next to lettered parts is an `IOException`. A missing **last** part cannot be detected locally; the client uses the FTP listing as the source of truth.
 
 ### Integrity and database loads
