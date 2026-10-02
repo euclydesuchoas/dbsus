@@ -17,6 +17,10 @@ Preview. Nothing is published on NuGet yet and the API may still change.
 
 Target frameworks: `net10.0`, `net472` and `netstandard2.0`. Supported runtimes: .NET 8 or later, .NET Framework **4.7.2** or later (it gets the `net472` build), and other `netstandard2.0` platforms.
 
+`DbSus.Client` is tested with FluentFTP 55.0.0 and declares that version as a minimum. NuGet picks the lowest version that satisfies every requirement, so an application gets FluentFTP 55.0.0 unless it references a newer version itself or another package requires one. On .NET Framework, FluentFTP is strong-named and its assembly version changes with every release, so any version other than 55.0.0 needs a binding redirect: SDK-style executable projects generate it; ASP.NET (`web.config`) and older projects need it written by hand.
+
+With a newer FluentFTP, one thing can degrade without any error. The client relies on FluentFTP's protected connection hooks to close a connection by force; if a version removes them or stops calling them, nothing fails to build or load, but on .NET Framework cancelling the token, and the client's limit on each read of a download, may no longer end a stalled operation (the read timeout still ends a server that stops answering commands). A test of the hooks watches for this.
+
 ## Usage
 
 ### Read a `.dbc`
