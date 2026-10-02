@@ -1,21 +1,27 @@
 name: FluentFTP latest
 
 # Runs the client's tests against the newest stable FluentFTP, every Monday and by hand (Actions >
-# FluentFTP latest > Run workflow), to find out early whether a new release still works with the
-# client, which relies on FluentFTP's protected virtual connection hooks. Informational only: it
-# changes no file in the repository (the version is a command-line property), opens no pull
-# request, and is a workflow of its own, so a failure here blocks nothing.
+# FluentFTP latest > Run workflow, where another version can be given), to find out early whether a
+# new release still works with the client, which relies on FluentFTP's protected virtual
+# connection hooks. Informational only: it changes no file in the repository (the version is a
+# command-line property), opens no pull request, never contacts the DATASUS server, and is a
+# workflow of its own, so a failure here blocks nothing.
 on:
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "FluentFTP version to test, e.g. 54.2.1 (empty: the newest stable)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
 
 jobs:
   latest:
-    name: Client tests on the newest FluentFTP (${{ matrix.os }})
+    name: Client tests on FluentFTP ${{ inputs.version || 'newest' }} (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -34,14 +40,27 @@ jobs:
         with:
           global-json-file: global.json
 
-      # PowerShell is on both runners, so this step does not depend on other tools.
+      # PowerShell is on both runners, so this step does not depend on other tools. A requested
+      # version must be a plain version number published on nuget.org: it ends up in an MSBuild
+      # property, so nothing else may get through.
       - id: version
         shell: pwsh
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
         run: |
           $versions = (Invoke-RestMethod https://api.nuget.org/v3-flatcontainer/fluentftp/index.json).versions
-          $latest = @($versions | Where-Object { $_ -notmatch '-' })[-1]
-          "Newest stable FluentFTP: $latest"
-          "value=$latest" >> $env:GITHUB_OUTPUT
+          $requested = "$env:REQUESTED_VERSION".Trim()
+          if ($requested -eq '') {
+            $version = @($versions | Where-Object { $_ -notmatch '-' })[-1]
+            "Newest stable FluentFTP: $version"
+          } elseif ($requested -notmatch '^[0-9]+\.[0-9]+\.[0-9]+$' -or $versions -notcontains $requested) {
+            Write-Error "FluentFTP version '$requested' is not a published stable version."
+            exit 1
+          } else {
+            $version = $requested
+            "Requested FluentFTP: $version"
+          }
+          "value=$version" >> $env:GITHUB_OUTPUT
 
       # The exact version, in brackets; a range with a comma cannot be passed with -p.
       - shell: bash
