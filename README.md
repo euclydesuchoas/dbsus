@@ -107,7 +107,18 @@ table.Load(reader);
 
 ### Reading only some fields
 
-`DataTable.Load`, `SqlBulkCopy` and `GetValues` read every field the reader exposes. When you need only a few, list them in `DbfReadOptions.Columns`: the reader then exposes just those, in that order. In a real-world test, reading 3 of a file's 113 fields this way took about a third of the time and allocated about 27 times less than reading all of them. With typed getters on ordinals looked up once, a projection changes little, since only the fields you ask for are parsed anyway.
+`DataTable.Load`, `SqlBulkCopy` and `GetValues` read every field the reader exposes. When you need only a few, list them in `DbfReadOptions.Columns`: the reader then exposes just those, in that order.
+
+How much that helps depends on how the values are read. Measured on one file (an SIH-RD month: 132,337 records of 113 fields), on one machine (the one of the [benchmarks](#performance), Windows 11, Release, .NET SDK 10.0.401), each variant run twice, each run in a new process:
+
+| Reading | Time (2 runs) | Allocated | Peak working set |
+|---|---|---|---|
+| `GetValues`, all 113 fields | 689 and 681 ms | 377 MiB (2,984 B per record) | 77 MiB |
+| `GetValues`, 3 projected fields | 487 and 483 ms | 14.3 MiB (114 B per record) | 42 MiB |
+| Typed getters chosen by `GetFieldType`, text as raw bytes, all 113 fields | 574 and 579 ms | 201 KiB (1.6 B per record) | 28.5 MiB |
+| The same, 3 projected fields | 468 and 487 ms | 201 KiB | 28 MiB |
+
+When values are materialised as objects (`GetValues`, `DataTable`), a projection cuts allocation a lot and the time somewhat. With typed getters and text read as raw bytes, allocation is already close to zero and a projection changes little: most of the time is decompression, which a projection does not reduce. For comparison, the same file already decompressed (`.dbf`), with 3 fields read through `GetValues`, took 173 ms from disk and 63 ms from the operating system's file cache.
 
 ### Loading into a database
 
