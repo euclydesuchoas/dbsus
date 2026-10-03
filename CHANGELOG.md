@@ -1,0 +1,35 @@
+# Changelog
+
+All notable changes to this project are documented in this file. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
+[Semantic Versioning](https://semver.org/) (during 0.x, a minor version may break the API).
+
+## [Unreleased]
+
+### Added
+
+#### DbSus
+
+- DBC decompression to DBF (`DbcFile.OpenAsDbf`, `DbcFile.ConvertToDbf`), with the CRC-32 check (`DbcReadOptions`).
+- `DbcReadOptions.ChecksumMismatch`, a callback to react specifically to a checksum failure; it is called with a `DbcChecksumMismatch` (part index and name, stored and computed CRC-32) just before the exception.
+- `DbfReader`, a streaming `DbDataReader`: typed getters, raw bytes (`GetRawBytes`), field projection (`DbfReadOptions.Columns`), deleted records (`IncludeDeletedRecords`), blank strings as null (`BlankStringsAsNull`), and the encoding taken from the header's language driver ID, with a fallback (`FallbackEncoding`).
+- Conversions of character fields (`DbfFieldConversion`): `Int32`, `Int64`, `Decimal`, and `Date` with the formats `yyyyMMdd`, `ddMMyyyy` and `yyyyMM`.
+- Tables split into parts, read as one table (`DbSusFile.FindParts`, `OpenReader`, `OpenDbcReader`, `DbcPart`).
+
+#### DbSus.Client
+
+- `DatasusClient` for the DATASUS FTP server: listing, file size and date, discovery of the parts of a split table, header reading without a full download, resumable downloads checked with the DBC's CRC-32, an optional cache, and a reader over remote files (`OpenReaderAsync`).
+- Retries of transient failures with exponential backoff (`MaxRetries`, `InitialRetryDelay`, `OnRetry`), and typed exceptions (`DatasusTransferException`, `DatasusRetriesExhaustedException`, `DatasusRequestRefusedException`, `InsufficientDiskSpaceException`).
+- Read timeouts and cancellation (verified on .NET 10 and .NET Framework 4.8).
+- On .NET Framework, a `NotSupportedException` when the FluentFTP version in use does not report its connections to the client.
+
+### Notes
+
+- Target frameworks: `net10.0`, `net472` and `netstandard2.0`.
+- `DbSus.Client` requires FluentFTP 55.0.0 or later and is tested with FluentFTP 55.0.0; on .NET Framework, other versions may need a binding redirect; SDK-style executables generate it automatically.
+
+### Known limitations
+
+- The handling of stalled reads was not verified on Mono, Unity or Xamarin.
+- On .NET Framework, `GetFieldValue<T>` with a nullable type (e.g. `GetFieldValue<int?>`) allocates about 24 bytes per call (measured on .NET Framework 4.8.1); the non-nullable forms do not.
+- A listing can be partial if the client's read of it fails while the server still answers `226`. `FindPartsAsync` reduces the risk for split tables but does not remove it; `ListAsync` returns the listing as received.
