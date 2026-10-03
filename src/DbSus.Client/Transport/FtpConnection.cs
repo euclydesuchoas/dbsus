@@ -6,8 +6,8 @@ using FluentFTP.Exceptions;
 namespace DbSus.Client.Transport;
 
 /// <summary>
-/// FTP transport over FluentFTP. The DATASUS server is IIS FTP: anonymous, plain FTP only (it
-/// refuses TLS), with SIZE, MDTM and REST but no MLSD.
+/// FTP transport over FluentFTP. The DATASUS server is IIS FTP: anonymous, plain FTP (it lists
+/// AUTH TLS but refused it when it was tried), with SIZE, MDTM and REST but no MLSD.
 /// </summary>
 internal sealed class FtpConnectionFactory(DatasusClientOptions options) : IDatasusConnectionFactory
 {
@@ -15,8 +15,8 @@ internal sealed class FtpConnectionFactory(DatasusClientOptions options) : IData
     {
         var config = new FtpConfig
         {
-            // Plain text on purpose: the server does not offer TLS. Integrity comes from the size
-            // check and the DBC's CRC-32, which detects corruption but not tampering.
+            // Plain text on purpose: the server refused AUTH TLS when it was tried. Integrity comes
+            // from the size check and the DBC's CRC-32, which detects corruption but not tampering.
             EncryptionMode = FtpEncryptionMode.None,
             DataConnectionType = FtpDataConnectionType.AutoPassive,
             ConnectTimeout = Milliseconds(options.ConnectTimeout),

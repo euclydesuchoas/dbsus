@@ -70,7 +70,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 
 ### FTP server
 
-- `ftp.datasus.gov.br`, anonymous, IIS. Supports `SIZE`, `MDTM` (UTC, seconds), `REST STREAM`, `EPSV`/`PASV`. No `MLSD`: only DOS-format `LIST` (two-digit years, minute precision). No TLS: `AUTH TLS` is refused by server policy.
+- `ftp.datasus.gov.br`, anonymous, IIS. Supports `SIZE`, `MDTM` (UTC, seconds), `REST STREAM`, `EPSV`/`PASV`. No `MLSD`: only DOS-format `LIST` (two-digit years, minute precision). No TLS: the `FEAT` reply lists `AUTH TLS` (seen in October 2026), but `AUTH TLS` is refused by server policy.
 - Public files live under `/dissemin/publicos/` (e.g. `SIHSUS/200801_/Dados/RD{UF}{YYMM}.dbc`, `SIASUS/200801_/Dados/PA{UF}{YYMM}{part}.dbc`).
 - **Files are republished** under the same name with different content, so anything cached or pinned must be keyed on size and modification time (or a hash), not on the name.
 - **No HTTP(S) mirror:** the FTP host does not answer on ports 80/443. The website's download page uses undocumented, form-driven endpoints that return HTML; the library does not use them.
