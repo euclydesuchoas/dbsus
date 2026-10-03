@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Compiles and runs the csharp blocks of README.md and docs/*.md, as generated into
+    obj/generated/ by tools/doc-examples/generate.cs (run it first). The settings are the ones a
+    reader may have: C# 8, no implicit usings, on .NET 10 and .NET Framework 4.7.2. Not part of
+    DbSus.slnx: it builds only after the generator has run.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net10.0;net472</TargetFrameworks>
+    <LangVersion>8.0</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>DocExamples</RootNamespace>
+    <!-- Snippets are not production code: no analyzers, and unused example variables are fine. -->
+    <AnalysisLevel>none</AnalysisLevel>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CS0168;CS0219</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(BaseIntermediateOutputPath)generated/*.cs" />
+    <None Include="../data/fixtures/LTRR0610.dbc" Link="LTRR0610.dbc" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/DbSus/DbSus.csproj" />
+    <ProjectReference Include="../../src/DbSus.Client/DbSus.Client.csproj" />
+  </ItemGroup>
+
+  <Target Name="RequireGeneratedExamples" BeforeTargets="CoreCompile">
+    <Error Condition="!Exists('$(BaseIntermediateOutputPath)generated/Program.cs')"
+           Text="No generated examples: run 'dotnet run tools/doc-examples/generate.cs' first." />
+  </Target>
+
+</Project>
