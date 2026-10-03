@@ -1,0 +1,55 @@
+name: Documentation examples
+
+# Compiles the csharp blocks of README.md and docs/*.md (net10.0 and net472, C# 8, no implicit
+# usings) and runs those that need neither the network nor a database, against the committed
+# fixture; also checks that their links are absolute and point at existing files. Blocks marked
+# "csharp no-check" (Dapper, SqlBulkCopy) are left out and checked by hand. Never contacts the
+# DATASUS server. See tools/doc-examples/generate.cs.
+on:
+  push:
+    branches: [main]
+    paths:
+      - README.md
+      - docs/**
+      - src/**
+      - tools/doc-examples/**
+      - tests/doc-examples/**
+      - .github/workflows/doc-examples.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - README.md
+      - docs/**
+      - src/**
+      - tools/doc-examples/**
+      - tests/doc-examples/**
+      - .github/workflows/doc-examples.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  examples:
+    name: Documentation examples (windows-latest)
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - run: dotnet run tools/doc-examples/generate.cs
+
+      - run: dotnet build tests/doc-examples --configuration Release
+
+      - run: dotnet run --project tests/doc-examples --configuration Release --no-build --framework net10.0
+
+      - run: dotnet run --project tests/doc-examples --configuration Release --no-build --framework net472
