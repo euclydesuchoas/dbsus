@@ -1,0 +1,45 @@
+# Performance
+
+The throughput and field-projection figures come from one machine: AMD Ryzen 9 9950X3D, Windows 11, Release builds, .NET SDK 10.0.401. Other files, machines and runtimes will differ.
+
+## Throughput
+
+Measured with BenchmarkDotNet (`benchmarks/DbSus.Benchmarks`, .NET 10) on one large SIA-PA file: 126 MB compressed, 1.17 GB of DBF, 2,956,469 records of 60 fields.
+
+| What | DBF throughput | Allocated per record |
+|---|---|---|
+| Decompression only | 311 MB/s | 0.05 B |
+| Decompression and reading the records | 309 MB/s | 0.06 B |
+| Plus 3 typed getters per record | 299 MB/s | 0.06 B |
+| Plus 2 converted character fields | 293 MB/s | 0.06 B |
+| Every value of every field (`GetValues`, boxed) | 189 MB/s | 1,867 B |
+
+The small allocations of the first four rows are fixed buffers, not per-record costs. Decompression dominates; when files come from the DATASUS server, the network is usually slower still.
+
+In a real-world test, a complete SIA-PA month split into two parts, about 8 million records, was read in about 11 seconds, with about 0 bytes allocated per record and no garbage collection. The memory peak was 34 MiB: the peak working set (`PeakWorkingSet64`) of the whole process, the .NET runtime included.
+
+## Reading only some fields
+
+One file (an SIH-RD month: 132,337 records of 113 fields), read as a `.dbc`, each run in a new process; times are the range of two or three runs.
+
+| Reading | Fields | Time | Allocated | Peak working set |
+|---|---|---|---|---|
+| `GetValues` | all 113 | 0.68 to 0.69 s | 377 MiB (2,984 B per record) | 77 MiB |
+| `GetValues` | 3 projected | 0.48 to 0.50 s | 14.3 MiB (114 B per record) | 42 MiB |
+| Typed getters chosen by `GetFieldType`, text as raw bytes | all 113 | 0.57 to 0.58 s | 201 KiB (1.6 B per record) | 28.5 MiB |
+| The same | 3 projected | 0.47 to 0.49 s | 201 KiB | 28 MiB |
+| Typed getters, text decoded with `GetChars` into a reused buffer | all 113 | 0.68 s | 205 KiB | not measured |
+| The same | 3 projected | 0.48 s | 205 KiB | not measured |
+
+On this file and this machine: when values are materialized as objects (`GetValues`, `DataTable`), a projection cut allocation from 377 MiB to about 14 MiB and the time by about 30%. With typed getters and text decoded through `GetChars`, allocation was already close to zero and a projection still saved about 30% of the time, since decoding text costs time even without allocating. With text left as raw bytes it saved less (0.57 s to 0.47 s): most of the remaining time is decompression, which a projection does not reduce. For comparison, the same file already decompressed (`.dbf`), with 3 fields read through `GetValues`, took 173 ms from disk and 63 ms from the operating system's file cache.
+
+## Allocation of the reading loop
+
+The loop in [reading without allocation](https://github.com/euclydesuchoas/dbsus/blob/main/docs/reading.md) was measured over the CNES test file repeated to 204,000 records, as a `.dbf` and as a `.dbc`, leaving out what opening the reader allocates:
+
+| Runtime | Counter | `.dbf` | `.dbc` | Garbage collections |
+|---|---|---|---|---|
+| .NET 10 | `GC.GetAllocatedBytesForCurrentThread` | 0 bytes | 4,120 bytes | none |
+| .NET Framework 4.8 | `AppDomain.MonitoringTotalAllocatedMemorySize` | 0 bytes | 0 bytes | none |
+
+The 4,120 bytes are a single 4 KB buffer at the end of the data, used to read what remains and verify the checksum. The .NET Framework counter advances by allocation blocks rather than per object, so it cannot show that buffer.
