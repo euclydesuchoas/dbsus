@@ -403,7 +403,7 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     }
 
     // Reads from a network stream, reporting connection failures as transient (worth retrying).
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1835", Justification = "netstandard2.0 has no Memory-based Stream overloads.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1835", Justification = "net472 and netstandard2.0 have no Memory-based Stream overloads.")]
     private static async Task<int> ReadNetworkAsync(Stream stream, byte[] buffer, int offset, int count, CancellationToken cancellationToken)
     {
         try
@@ -599,7 +599,7 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1835", Justification = "netstandard2.0 has no Memory-based Stream overloads.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1835", Justification = "net472 and netstandard2.0 have no Memory-based Stream overloads.")]
     private Task<bool> FetchAsync(RemotePath remote, RemoteFileInfo info, string partialPath, CancellationToken cancellationToken)
     {
         var existing = File.Exists(partialPath) ? new FileInfo(partialPath).Length : 0;

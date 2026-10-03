@@ -671,7 +671,7 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// <remarks>
     /// On .NET 5 and later, value types such as <see cref="int"/>, <see cref="decimal"/> or
     /// <see cref="DateTime"/>, and their nullable forms, are returned without allocating. On .NET
-    /// Framework (which uses the <c>netstandard2.0</c> build) the non-nullable forms do not allocate
+    /// Framework (which uses the <c>net472</c> build) the non-nullable forms do not allocate
     /// either, but the nullable forms (e.g. <c>GetFieldValue&lt;int?&gt;</c>) box on every call,
     /// about 24 bytes each (measured on .NET Framework 4.8.1, x64); there, prefer
     /// <see cref="IsDBNull(int)"/> plus a typed getter in hot loops.

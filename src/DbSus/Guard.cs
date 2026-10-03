@@ -1,6 +1,6 @@
 namespace DbSus;
 
-// Argument checks for both targets: the throw helpers exist on net10.0 but not on netstandard2.0.
+// Argument checks for every target: the throw helpers exist on net10.0 but not on net472 or netstandard2.0.
 internal static class Guard
 {
     public static void NotNull(object? value, string paramName)
