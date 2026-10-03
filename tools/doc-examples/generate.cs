@@ -14,6 +14,8 @@
 //   restore, such as Dapper or Microsoft.Data.SqlClient); such blocks are listed, not compiled.
 // - ```csharp net-only and ```csharp netfx-only limit a block to .NET 5 or later, or to .NET
 //   Framework (for example, code-page encodings come from different places on each).
+// - Any other marker is an error, and README.md, the package page on nuget.org, takes no marker
+//   at all: every block there is compiled.
 // - A block that uses DatasusClient is compiled but not run: it would reach the DATASUS server.
 // - Each block's lines keep their position through #line directives, so compiler errors and run
 //   failures name the Markdown file and line.
@@ -33,6 +35,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 const string RepositoryUrl = "https://github.com/euclydesuchoas/dbsus/blob/main/";
+string[] KnownMarkers = ["no-check", "net-only", "netfx-only"];
 var root = FindRepositoryRoot(Directory.GetCurrentDirectory());
 var output = Path.Combine(root, "tests", "doc-examples", "obj", "generated");
 var substitutions = new (string From, string To)[]
@@ -76,17 +79,27 @@ foreach (var source in sources)
         }
 
         var language = info[0];
+        var markers = info.Skip(1).ToArray();
+        var unknown = markers.Except(KnownMarkers, StringComparer.Ordinal).ToArray();
         if (language is "cs" or "c#" or "C#" or "CSharp")
         {
             errors.Add($"{location}: write ```csharp (or ```csharp no-check) so the block is recognized.");
         }
-        else if (language == "csharp" && info.Contains("no-check"))
+        else if (language == "csharp" && source == "README.md" && markers.Length > 0)
+        {
+            errors.Add($"{location}: README.md is the package page on nuget.org; its csharp blocks must be plain (no markers), so that each one is compiled and, when offline, run.");
+        }
+        else if (language == "csharp" && unknown.Length > 0)
+        {
+            errors.Add($"{location}: unknown marker '{string.Join("', '", unknown)}'; the accepted markers are {string.Join(", ", KnownMarkers)}.");
+        }
+        else if (language == "csharp" && markers.Contains("no-check"))
         {
             skipped.Add(location);
         }
         else if (language == "csharp")
         {
-            var target = info.Contains("net-only") ? "NET" : info.Contains("netfx-only") ? "NETFRAMEWORK" : null;
+            var target = markers.Contains("net-only") ? "NET" : markers.Contains("netfx-only") ? "NETFRAMEWORK" : null;
             var block = Block.Parse(source, Path.Combine(root, source).Replace('\\', '/'), start, lines[start..end], substitutions, target);
             if (block.DeclaresTypes)
             {
