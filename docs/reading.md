@@ -120,15 +120,24 @@ SINAN stores dates in native `D` fields, which need no conversion. The layout ca
 
 ## Character encoding
 
-The code page of character fields comes from the header's language driver ID (LDID); when it is 0 or unknown, code page 1252 is used (change it with `FallbackEncoding`). To force an encoding, set `DbfReadOptions.Encoding`. Code-page encodings such as 850 are built into .NET Framework, but not into .NET Core and .NET 5 or later, where `Encoding.GetEncoding(850)` throws `NotSupportedException`. There, take the encoding from the provider, without registering anything process-wide:
+The code page of character fields comes from the header's language driver ID (LDID); when it is 0 or unknown, code page 1252 is used (change it with `FallbackEncoding`). To force an encoding, set `DbfReadOptions.Encoding`. Code-page encodings such as 850 are built into .NET Framework, but not into .NET Core and .NET 5 or later, where `Encoding.GetEncoding(850)` throws `NotSupportedException`.
 
-```csharp
+On .NET 5 or later and .NET Core, take the encoding from the provider, without registering anything process-wide:
+
+```csharp net-only
 using System.Text;
 using DbSus.Dbf;
 
-// .NET 5 or later and .NET Core:
 var options = new DbfReadOptions { Encoding = CodePagesEncodingProvider.Instance.GetEncoding(850) };
-// .NET Framework: new DbfReadOptions { Encoding = Encoding.GetEncoding(850) }
+```
+
+On .NET Framework, where code pages are built in:
+
+```csharp netfx-only
+using System.Text;
+using DbSus.Dbf;
+
+var options = new DbfReadOptions { Encoding = Encoding.GetEncoding(850) };
 ```
 
 Calling `Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)` once at startup also works. DbSus itself never registers a provider.
@@ -152,7 +161,7 @@ table.Load(reader);
 
 With Dapper, fields map to properties by name:
 
-```csharp
+```csharp no-check
 using System.Linq;
 using Dapper;
 using DbSus;
@@ -167,7 +176,7 @@ var beds = reader.Parse<BedCount>().ToList();
 
 The checksum of a `.dbc` is only known at the end (see the next section), so load into a staging table inside a transaction and commit only after the reader finished:
 
-```csharp
+```csharp no-check
 using System.Threading.Tasks;
 using DbSus;
 using Microsoft.Data.SqlClient;
