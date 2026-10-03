@@ -4,7 +4,7 @@ using Xunit;
 
 namespace DbSus.Client.Tests;
 
-// The worst-case times given in the README, checked with small timeouts against a loopback server
+// The worst-case times given in docs/ftp-troubleshooting.md, checked with small timeouts against a loopback server
 // whose data connection opens and then stays silent. With MaxRetries = 4 there are 5 attempts;
 // the waits between them are nominally 1, 2, 4 and 8 times InitialRetryDelay, each between half
 // and all of it, so 7.5 to 15 times InitialRetryDelay in all. They run alone (no other test in

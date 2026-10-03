@@ -113,7 +113,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 
 ### Integrity and database loads
 
-- The checksum can only be confirmed at the end of the data, so database loads should use a transaction or a staging table and commit only after the reader finished without an exception. The README shows this.
+- The checksum can only be confirmed at the end of the data, so database loads should use a transaction or a staging table and commit only after the reader finished without an exception. The reading guide (`docs/reading.md`) shows this.
 - Plain FTP plus CRC-32 detects corruption, not tampering.
 
 ### Client
