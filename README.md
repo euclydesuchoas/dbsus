@@ -1,6 +1,6 @@
 # DbSus
 
-A .NET library for reading the `.dbc` (compressed dBase) and `.dbf` files distributed by DATASUS, in fully managed C#, with no dependency on R, Python or native binaries. DATASUS is the Department of Information and Informatics of Brazil's public health system (SUS), part of the Ministry of Health. It distributes data files from its health information systems, many of them as `.dbc`.
+A .NET library for reading the `.dbc` (compressed dBase) and `.dbf` files distributed by DATASUS, in fully managed C#, with no dependency on R, Python or native binaries. DATASUS is the Ministry of Health's Department of Information and Informatics of the SUS, Brazil's public health system. It distributes data files from its health information systems, many of them as `.dbc`.
 
 > **Disclaimer:** DbSus is an independent project. It is not affiliated with, endorsed by or maintained by the Brazilian Ministry of Health (Ministério da Saúde) or DATASUS.
 
@@ -21,6 +21,8 @@ dotnet add package DbSus.Client --prerelease
 | `DbSus.Client` | Download from the DATASUS FTP server and read what you download. It depends on `DbSus`. |
 
 ## Quick start
+
+The snippets are statements: paste them into a method (the last one into an async method) or into a top-level program (C# 9 or later).
 
 Read a `.dbc` (or a `.dbf`):
 
@@ -54,16 +56,17 @@ using DbSus.Client;
 // Without CacheDirectory, downloads go to a folder under the system's temporary directory.
 await using var client = new DatasusClient(new DatasusClientOptions { CacheDirectory = "datasus-cache" });
 using var reader = await client.OpenReaderAsync("/CNES/200508_/Dados/LT/LTRR0610.dbc");
+int cnes = reader.GetOrdinal("CNES");
 while (reader.Read())
 {
-    Console.WriteLine(reader.GetString(reader.GetOrdinal("CNES")));
+    Console.WriteLine(reader.GetString(cnes));
 }
 ```
 
 ## Features
 
 - DBC decompressed while you read: no temporary file, no full copy in memory.
-- A `DbDataReader`, usable with `DataTable.Load`, `SqlBulkCopy` and Dapper.
+- A `DbDataReader`, so it plugs into ADO.NET consumers such as `DataTable.Load`.
 - Typed getters that do not allocate per record, and raw access to the stored bytes.
 - Field projection (`Columns`), deleted records on request, blank strings as null.
 - Encoding taken from the header's language driver ID, with a fallback.
@@ -89,6 +92,7 @@ The CRC-32 of a `.dbc` can only be checked once the last byte has been decompres
 
 - DbSus reads; it does not write `.dbc` files. It writes `.dbf` files only as the output of a conversion.
 - Tested with dBase III files (version 0x03). Field types `C`, `N`, `F`, `D` and `L` are interpreted; others, such as `M` (memo), are exposed only as their stored bytes, and memo files are not read.
+- Character encoding: the code page comes from the header's language driver ID (LDID), and LDID 0x00 (no driver) is read as code page 1252. The only accented text found (CNES) reads correctly as code page 1252, including in a file whose LDID is 0x00; the 1252 fallback for LDID 0x00, and whether files marked 0x02 and 0x57 really hold text in those code pages, are still to be validated. `DbfReadOptions.Encoding` overrides the code page.
 - The reader is forward-only. It is not thread-safe, and the asynchronous methods it inherits from `DbDataReader` complete synchronously. `DatasusClient` is thread-safe.
 - On .NET Framework, `GetFieldValue<T>` with a nullable type (e.g. `GetFieldValue<int?>`) allocates about 24 bytes per call; the non-nullable forms do not.
 - A listing from the server can be partial if the client's read of it fails while the server still answers `226`. `FindPartsAsync` reduces the risk for split tables but does not remove it; `ListAsync` returns the listing as received.
@@ -96,7 +100,7 @@ The CRC-32 of a `.dbc` can only be checked once the last byte has been decompres
 
 ## Security
 
-The DATASUS server only offers **plain FTP** (it refuses TLS, as of October 2026), so traffic is unencrypted and could be observed or altered in transit. DbSus checks the size reported by the server and the **CRC-32** stored in each `.dbc`. A CRC-32 detects accidental corruption, **not deliberate tampering**: whoever alters a file can recompute it. The data is public, but if your use requires authenticity, compare against hashes obtained through a trusted channel.
+The DATASUS server lists `AUTH TLS` in its `FEAT` reply (seen in October 2026), but `AUTH TLS` was refused when it was tried. DbSus connects **without encryption** (plain FTP), so traffic could be observed or altered in transit. DbSus checks the size reported by the server and the **CRC-32** stored in each `.dbc`. A CRC-32 detects accidental corruption, **not deliberate tampering**: whoever alters a file can recompute it. The data is public, but if your use requires authenticity, compare against hashes obtained through a trusted channel.
 
 ## License
 
