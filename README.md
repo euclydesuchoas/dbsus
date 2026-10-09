@@ -67,7 +67,7 @@ while (reader.Read())
 
 - DBC decompressed while you read: no temporary file, no full copy in memory.
 - A `DbDataReader`, so it plugs into ADO.NET consumers such as `DataTable.Load`.
-- Typed getters that do not allocate per record, and raw access to the stored bytes.
+- Typed getters that do not allocate per record (measured on .NET 8, 9 and 10 and on .NET Framework 4.8), and raw access to the stored bytes.
 - Field projection (`Columns`), deleted records on request, blank strings as null.
 - Encoding taken from the header's language driver ID, with a fallback.
 - Opt-in conversions of character fields: `Int32`, `Int64`, `Decimal`, and dates (`yyyyMMdd`, `ddMMyyyy`, `yyyyMM`).
@@ -94,7 +94,7 @@ The CRC-32 of a `.dbc` can only be checked once the last byte has been decompres
 - Tested with dBase III files (version 0x03). Field types `C`, `N`, `F`, `D` and `L` are interpreted; others, such as `M` (memo), are exposed only as their stored bytes, and memo files are not read.
 - Character encoding: the code page comes from the header's language driver ID (LDID), and LDID 0x00 (no driver) is read as code page 1252. The only accented text found (CNES) reads correctly as code page 1252, including in a file whose LDID is 0x00; the 1252 fallback for LDID 0x00, and whether files marked 0x02 and 0x57 really hold text in those code pages, are still to be validated. `DbfReadOptions.Encoding` overrides the code page.
 - The reader is forward-only. It is not thread-safe, and the asynchronous methods it inherits from `DbDataReader` complete synchronously. `DatasusClient` is thread-safe.
-- On .NET Framework, `GetFieldValue<T>` with a nullable type (e.g. `GetFieldValue<int?>`) allocates about 24 bytes per call; the non-nullable forms do not.
+- On .NET Framework and .NET 8, `GetFieldValue<T>` with a nullable type (e.g. `GetFieldValue<int?>`) allocates on every call: about 24 bytes on .NET Framework 4.8.1, and 24 bytes (32 for `decimal?`) on .NET 8. The non-nullable forms do not, and on .NET 9 and .NET 10 the nullable forms do not either (measured).
 - A listing from the server can be partial if the client's read of it fails while the server still answers `226`. `FindPartsAsync` reduces the risk for split tables but does not remove it; `ListAsync` returns the listing as received.
 - The handling of stalled reads was verified on .NET 10 and .NET Framework 4.8; Mono, Unity and Xamarin were not checked.
 
