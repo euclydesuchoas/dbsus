@@ -31,7 +31,7 @@ Calculated from the default options, for a listing or a download whose data conn
 
 The same formulas were checked against a local test server with small timeouts (`ConnectTimeout` 200 ms, `ReadTimeout` 300 ms, `InitialRetryDelay` 100 ms), on .NET 10 and .NET Framework 4.8. `ReadTimeout` limits each wait for data, not a whole transfer: a download that keeps receiving data slowly is never cut by it.
 
-On every runtime, .NET Framework included, these waits end at their timeouts, and canceling the token ends them at once (the connection is closed and not reused). This was verified on .NET Framework 4.8 and .NET 10; Mono, Unity and Xamarin were not checked.
+On .NET Framework 4.8 and .NET 10, where this was verified, these waits end at their timeouts, and canceling the token ends them at once (the connection is closed and not reused). Other runtimes, such as .NET 8 and 9, Mono, Unity and Xamarin, were not checked.
 
 In a web request or any call with a deadline, lower `MaxRetries`, `ConnectTimeout` and `ReadTimeout`, and pass a cancellation token that carries the deadline.
 
