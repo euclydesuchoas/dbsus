@@ -70,10 +70,11 @@ public sealed class FtpTransportMessageTests : IDisposable
     }
 
     [Fact]
-    // Failed once, in a full run, without a message to go on; on failure it now says what the
-    // port announced as closed was doing.
+    // Failed once, in a full run, without a message to go on; on failure it now says when it
+    // started and what the port announced as closed was doing.
     public async Task ReadingDataConnectionFails_SaysOpeningForReading()
     {
+        var started = DateTime.UtcNow;
         using var client = Client();
 
         try
@@ -86,12 +87,12 @@ public sealed class FtpTransportMessageTests : IDisposable
         }
         catch (Xunit.Sdk.XunitException failure)
         {
-            throw new Xunit.Sdk.XunitException($"{failure.Message}{Environment.NewLine}{await DescribeClosedPortAsync(_server.PassivePort)}", failure);
+            throw new Xunit.Sdk.XunitException($"{failure.Message}{Environment.NewLine}Test started at {started:yyyy-MM-dd HH:mm:ss.fff} UTC; control port {_server.Port}. {await DescribeClosedPortAsync(_server.PassivePort)}", failure);
         }
     }
 
-    // What a new connection to the port announced as closed does now: refused, timed out or connected.
-    private static async Task<string> DescribeClosedPortAsync(int port)
+    // What a new connection to a port that should be closed does now: refused, timed out or connected.
+    private static async Task<string> DescribeClosedPortAsync(int port, string name = "the passive port announced as closed")
     {
         var at = DateTime.UtcNow;
         using var probe = new System.Net.Sockets.TcpClient();
@@ -101,20 +102,33 @@ public sealed class FtpTransportMessageTests : IDisposable
             : connect.IsFaulted
                 ? $"was refused ({(connect.Exception?.InnerException as System.Net.Sockets.SocketException)?.SocketErrorCode})"
                 : "connected: something is listening on it";
-        return $"Diagnostics at {at:yyyy-MM-dd HH:mm:ss.fff} UTC: the passive port announced as closed was {port}; a new connection to it {outcome}.";
+        return $"Diagnostics at {at:yyyy-MM-dd HH:mm:ss.fff} UTC: {name} was {port}; a new connection to it {outcome}.";
     }
 
     [Fact]
+    // Failed once, in a full run; on failure it says when it started, what the server saw, and
+    // what the control port (stopped after login) and the passive port were doing.
     public async Task ControlConnectionReopenedDuringTheStep_DoesNotSingleOutTheDataConnection()
     {
         _server.DropControlConnectionAfterLogin = true;
+        var started = DateTime.UtcNow;
 
         using var client = Client();
 
-        var exception = await Assert.ThrowsAsync<DatasusRetriesExhaustedException>(() => client.ListAsync("/X", Ct));
+        try
+        {
+            var exception = await Assert.ThrowsAsync<DatasusRetriesExhaustedException>(() => client.ListAsync("/X", Ct));
 
-        Assert.Contains($"while listing /dissemin/publicos/X on 127.0.0.1:{_server.Port}: ", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("The control connection was reopened during this step, so the connection attempt that failed may be the control connection or the passive data connection", exception.Message, StringComparison.Ordinal);
+            Assert.Contains($"while listing /dissemin/publicos/X on 127.0.0.1:{_server.Port}: ", exception.Message, StringComparison.Ordinal);
+            Assert.Contains("The control connection was reopened during this step, so the connection attempt that failed may be the control connection or the passive data connection", exception.Message, StringComparison.Ordinal);
+        }
+        catch (Xunit.Sdk.XunitException failure)
+        {
+            throw new Xunit.Sdk.XunitException(
+                $"{failure.Message}{Environment.NewLine}Test started at {started:yyyy-MM-dd HH:mm:ss.fff} UTC; control connections accepted: {_server.ControlConnections}; commands: [{string.Join(",", _server.Commands)}]."
+                + $" {await DescribeClosedPortAsync(_server.Port, "the control port, stopped after login,")} {await DescribeClosedPortAsync(_server.PassivePort)}",
+                failure);
+        }
     }
 
     private DatasusClient Client(int? port = null) => new(new DatasusClientOptions
