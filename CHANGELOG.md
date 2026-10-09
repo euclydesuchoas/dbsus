@@ -31,6 +31,6 @@ All notable changes to this project are documented in this file. The format foll
 ### Known limitations
 
 - The handling of stalled reads was not verified on Mono, Unity or Xamarin.
-- On .NET Framework, `GetFieldValue<T>` with a nullable type (e.g. `GetFieldValue<int?>`) allocates about 24 bytes per call (measured on .NET Framework 4.8.1); the non-nullable forms do not.
+- On .NET Framework and .NET 8, `GetFieldValue<T>` with a nullable type (e.g. `GetFieldValue<int?>`) allocates on every call: about 24 bytes on .NET Framework 4.8.1, and 24 bytes (32 for `decimal?`) on .NET 8. The non-nullable forms do not, nor do the nullable forms on .NET 9 and .NET 10 (measured).
 - On .NET Framework without long path support, a deep `CacheDirectory` can make a cache entry's path longer than 260 characters; the download then fails with an `IOException` before the file's data is requested. Keep `CacheDirectory` short (see the compatibility guide). It was not observed on .NET 10.
 - A listing can be partial if the client's read of it fails while the server still answers `226`. `FindPartsAsync` reduces the risk for split tables but does not remove it; `ListAsync` returns the listing as received.
