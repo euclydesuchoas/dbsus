@@ -1,6 +1,6 @@
 # Compatibility
 
-Target frameworks, runtimes, dependencies, long paths on .NET Framework, the FluentFTP version used by `DbSus.Client`, and what the DATASUS server supports.
+Target frameworks, runtimes, dependencies, long paths on .NET Framework, the FluentFTP version used by `DbSus.Client`, and TLS on the DATASUS server.
 
 ## Target frameworks and runtimes
 
