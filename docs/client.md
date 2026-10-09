@@ -55,7 +55,7 @@ When a connection fails or takes long, see [FTP troubleshooting](https://github.
 | `DatasusRetriesExhaustedException` | Transient failures persisted after every retry. `Attempts`, `FtpReplyCode` (e.g. `421`) and `RemotePath` tell the details. |
 | `DatasusRequestRefusedException` | The server refused the request with a permanent reply other than 550 (e.g. `530`); not retried. Same properties. |
 | `InsufficientDiskSpaceException` | Not enough free space for the file (`Directory`, `RequiredBytes`, `AvailableBytes`), checked before the transfer. |
-| `IOException` | Part names on the server are ambiguous, or an invalid cached copy is still open by a reader. The three exceptions above also derive from `IOException`, so a `catch (IOException)` still sees them. |
+| `IOException` | Part names on the server are ambiguous, an invalid cached copy is still open by a reader, or a file of a cache entry could not be written (for example, on .NET Framework without long path support, a path too long for a deep `CacheDirectory`: see [compatibility](https://github.com/euclydesuchoas/dbsus/blob/main/docs/compatibility.md)); in that case the original exception is the inner exception. The three exceptions above also derive from `IOException`, so a `catch (IOException)` still sees them. |
 | `InvalidDataException` | A downloaded `.dbc` failed its CRC-32 check twice, a remote header is invalid, or, while reading, the data is corrupt or fails its checksum at the end. |
 | `TimeoutException` | Another thread or process held the same cache entry for longer than `LockTimeout` (10 minutes by default). |
 | `OperationCanceledException` | The cancellation token was canceled. |
