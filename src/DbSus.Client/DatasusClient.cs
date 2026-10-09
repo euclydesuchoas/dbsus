@@ -20,7 +20,7 @@ namespace DbSus.Client;
 /// <para>
 /// Paths are relative to <see cref="DatasusClientOptions.RootPath"/>, e.g.
 /// <c>/SIASUS/200801_/Dados/PAMG2407a.dbc</c>. The FTP traffic is plain text (the server lists
-/// <c>AUTH TLS</c> but refused it when it was tried). Integrity rests on the size reported by the server and on the CRC-32 inside each DBC,
+/// <c>AUTH TLS</c> but refuses it: in October 2026 it answered 534, "Local policy on server does not allow TLS secure connections"). Integrity rests on the size reported by the server and on the CRC-32 inside each DBC,
 /// which detects corruption but not deliberate tampering.
 /// </para>
 /// </remarks>
