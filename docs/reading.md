@@ -217,7 +217,7 @@ Every record returned before that point came from the same file, so if the check
 
 ## Reading without allocation
 
-`DbfReader.Read` and the typed getters (`GetInt32`, `GetInt64`, `GetDecimal`, `GetDouble`, `GetDateTime`, `GetBoolean`, `IsDBNull`, `GetRawBytes`) do not allocate per record, nor does `GetChars` into a reused buffer when the encoding is single-byte (every code page chosen from the LDID). `GetFieldValue<T>` does not allocate either on .NET 5 and later. **On .NET Framework, its nullable forms (e.g. `GetFieldValue<int?>`) allocate about 24 bytes per call** (measured on 4.8.1, x64; the non-nullable forms do not), so there prefer `IsDBNull` plus a typed getter in hot loops. `GetValue`, `GetValues` and `GetString` allocate by nature.
+`DbfReader.Read` and the typed getters (`GetInt32`, `GetInt64`, `GetDecimal`, `GetDouble`, `GetDateTime`, `GetBoolean`, `IsDBNull`, `GetRawBytes`) do not allocate per record, nor does `GetChars` into a reused buffer when the encoding is single-byte (as are the code pages of the LDIDs found in DATASUS files). `GetFieldValue<T>` does not allocate either on .NET 5 and later. **On .NET Framework, its nullable forms (e.g. `GetFieldValue<int?>`) allocate about 24 bytes per call** (measured on 4.8.1, x64; the non-nullable forms do not), so there prefer `IsDBNull` plus a typed getter in hot loops. `GetValue`, `GetValues` and `GetString` allocate by nature.
 
 `GetValues` boxes every value. To read every field without allocating, pick a typed getter per field once, from the schema, and dispatch on it for each record. Here the type of each field comes from `GetFieldType`, which also reflects any conversion you configured:
 
@@ -261,6 +261,6 @@ while (reader.Read())
 }
 ```
 
-`GetChars` decodes without allocating when the encoding is single-byte, which is the case for every code page chosen from the LDID. Measured with this loop on .NET 10, a `.dbf` allocated nothing and a `.dbc` a single 4 KB buffer at the end of the data, to read what remains and verify the checksum; the conditions are in [performance](https://github.com/euclydesuchoas/dbsus/blob/main/docs/performance.md).
+`GetChars` decodes without allocating when the encoding is single-byte, which is the case for the code pages of the LDIDs found in DATASUS files (0x00, 0x02, 0x03, 0x57 and 0x58). With a double-byte code page (LDIDs 0x78, 0x79, 0x7A and 0x7B: code pages 950, 949, 936 and 932) or a multi-byte `DbfReadOptions.Encoding` such as UTF-8, it decodes the whole value into a new string first and allocates like `GetString`. Measured with this loop on .NET 10, a `.dbf` allocated nothing and a `.dbc` a single 4 KB buffer at the end of the data, to read what remains and verify the checksum; the conditions are in [performance](https://github.com/euclydesuchoas/dbsus/blob/main/docs/performance.md).
 
 Codes stored as ASCII digits can also be compared without decoding at all, on the raw bytes: `reader.GetRawBytes(i).StartsWith("0301"u8)`. `u8` literals need C# 11 or later in your project (on .NET Framework, set `<LangVersion>` accordingly).
