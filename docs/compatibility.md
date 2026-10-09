@@ -17,7 +17,14 @@ The code examples in the guides compile with C# 8. The optional comparison on ra
 
 ## Dependencies
 
-The packages accept `System.Memory` 4.5.3 or later, `System.Text.Encoding.CodePages` 4.4.0 or later and `Microsoft.Bcl.AsyncInterfaces` 1.0.0 or later, so an application that already references one of them, at those versions or later, keeps its own version without a downgrade error (NU1605). `DbSus` has no dependency on `net10.0`; `DbSus.Client` also depends on FluentFTP (see below).
+Dependencies declared by each package, per target. Each version is a minimum: an application that already references one of them, at that version or later, keeps its own version without a downgrade error (NU1605).
+
+| Package | `net10.0` | `net472` | `netstandard2.0` |
+|---|---|---|---|
+| `DbSus` | None | `System.Memory` 4.5.3 | `System.Memory` 4.5.3, `System.Text.Encoding.CodePages` 4.4.0 |
+| `DbSus.Client` | `DbSus` (same version), FluentFTP 55.0.0 | `DbSus` (same version), FluentFTP 55.0.0, `Microsoft.Bcl.AsyncInterfaces` 1.0.0 | `DbSus` (same version), FluentFTP 55.0.0, `Microsoft.Bcl.AsyncInterfaces` 1.0.0 |
+
+For FluentFTP, see below.
 
 ## .NET Framework and System.Memory
 
