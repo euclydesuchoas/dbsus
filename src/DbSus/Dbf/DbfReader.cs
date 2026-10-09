@@ -596,10 +596,11 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// or, when <paramref name="buffer"/> is <see langword="null"/>, the length of the text.
     /// </returns>
     /// <remarks>
-    /// With a single-byte encoding (every code page DbSus selects from the LDID) the characters are
-    /// decoded straight into <paramref name="buffer"/>, without allocating; reuse one buffer across
-    /// records. With a multi-byte <see cref="DbfReadOptions.Encoding"/> it allocates like
-    /// <see cref="GetString(int)"/>.
+    /// With a single-byte encoding (such as the code pages of the LDIDs found in DATASUS files) the
+    /// characters are decoded straight into <paramref name="buffer"/>, without allocating; reuse one
+    /// buffer across records. With a multi-byte encoding (the double-byte code pages 932, 936, 949
+    /// and 950 that some LDIDs select, or a multi-byte <see cref="DbfReadOptions.Encoding"/> such as
+    /// UTF-8) it allocates like <see cref="GetString(int)"/>.
     /// </remarks>
     /// <exception cref="InvalidCastException">The field is not a character field, or the value is null.</exception>
     public override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
