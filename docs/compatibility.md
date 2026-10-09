@@ -45,7 +45,7 @@ On .NET Framework without long path support, a file whose path is longer than 26
 
 `DbSus.Client` is tested with FluentFTP 55.0.0 and declares that version as a minimum. NuGet picks the lowest version that satisfies every requirement, so an application gets FluentFTP 55.0.0 unless it references a newer version itself or another package requires one.
 
-On .NET Framework, FluentFTP is strong-named and its assembly version changes with every release, so any version other than 55.0.0 needs a binding redirect: SDK-style executable projects generate it; ASP.NET (`web.config`) and older projects need it written by hand.
+On .NET Framework, FluentFTP is strong-named and its assembly version changes with every release, so any version other than 55.0.0 needs a binding redirect: SDK-style executable projects generate it by default; ASP.NET (`web.config`) and older projects need it written by hand.
 
 ### What a newer FluentFTP can change
 
