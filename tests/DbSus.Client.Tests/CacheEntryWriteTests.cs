@@ -73,37 +73,43 @@ public sealed class CacheEntryWriteTests : IDisposable
     }
 
     // The entry folder can be created, but not the download's .partial inside it: the client must
-    // fail before the transfer, with a message that points at the cache path.
+    // fail before the transfer, with a message that points at the cache path. Each case has one
+    // test per branch; the branch that does not apply to this runtime and machine is skipped, with
+    // the reason, and the one that runs says so in its output.
     [Fact]
-    public async Task DownloadAsync_PartialPathTooLong_FailsBeforeAnyTransferOrWorksWithLongPaths()
+    public async Task DownloadAsync_PartialPathTooLong_WithoutLongPaths_FailsBeforeAnyTransfer()
     {
-        await AssertDeepCacheRoot(entryDirectoryLength: 243);
+        await AssertFailsBeforeAnyTransfer(entryDirectoryLength: 243);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_PartialPathTooLong_WithLongPaths_Downloads()
+    {
+        await AssertDownloads(entryDirectoryLength: 243);
     }
 
     // The entry folder itself cannot be created.
     [Fact]
-    public async Task DownloadAsync_EntryFolderTooLong_FailsBeforeAnyTransferOrWorksWithLongPaths()
+    public async Task DownloadAsync_EntryFolderTooLong_WithoutLongPaths_FailsBeforeAnyTransfer()
     {
-        await AssertDeepCacheRoot(entryDirectoryLength: 252);
+        await AssertFailsBeforeAnyTransfer(entryDirectoryLength: 252);
     }
 
-    private async Task AssertDeepCacheRoot(int entryDirectoryLength)
+    [Fact]
+    public async Task DownloadAsync_EntryFolderTooLong_WithLongPaths_Downloads()
     {
-        var content = ClientFixture.Dbc("A1");
-        _fixture.Server.Add(File1, content);
-        var suffix = Path.Combine("SIHSUS", "200801_", "Dados", "RDRR2206.dbc", content.Length + "-20250808120000");
-        var padding = entryDirectoryLength - _fixture.Workspace.Length - 2 - suffix.Length;
-        var root = Path.Combine(_fixture.Workspace, new string('c', padding));
-        Assert.Equal(entryDirectoryLength, Path.Combine(root, suffix).Length);
-        var client = _fixture.Client(configure: options => options.CacheDirectory = root);
+        await AssertDownloads(entryDirectoryLength: 252);
+    }
 
+    private async Task AssertFailsBeforeAnyTransfer(int entryDirectoryLength)
+    {
         if (LongPathsWork())
         {
-            // .NET 8 or later, or .NET Framework with long paths enabled: nothing changes.
-            var local = await client.DownloadAsync(File1, Ct);
-            Assert.Equal(content, File.ReadAllBytes(local));
-            return;
+            Assert.Skip("Long paths work on this runtime and machine, so a deep cache root does not fail here; the WithLongPaths test covers this case.");
         }
+
+        TestContext.Current.TestOutputHelper?.WriteLine($"Branch: long paths do not work here; an entry folder of {entryDirectoryLength} characters must fail before any transfer.");
+        var (client, _) = DeepCacheRoot(entryDirectoryLength);
 
         var exception = await Assert.ThrowsAsync<IOException>(() => client.DownloadAsync(File1, Ct));
 
@@ -114,6 +120,35 @@ public sealed class CacheEntryWriteTests : IDisposable
             exception.Message,
             StringComparison.Ordinal);
         Assert.Equal(0, _fixture.Server.Transfers);
+    }
+
+    private async Task AssertDownloads(int entryDirectoryLength)
+    {
+        if (!LongPathsWork())
+        {
+            Assert.Skip("Long paths do not work on this runtime and machine (.NET Framework without long path support); the WithoutLongPaths test covers this case.");
+        }
+
+        // .NET 8 or later, or .NET Framework with long paths enabled: nothing changes.
+        TestContext.Current.TestOutputHelper?.WriteLine($"Branch: long paths work here; an entry folder of {entryDirectoryLength} characters must download normally.");
+        var (client, content) = DeepCacheRoot(entryDirectoryLength);
+
+        var local = await client.DownloadAsync(File1, Ct);
+
+        Assert.Equal(content, File.ReadAllBytes(local));
+        Assert.Equal(1, _fixture.Server.Transfers);
+    }
+
+    // A client whose cache root makes the entry folder of File1 exactly that long.
+    private (DatasusClient Client, byte[] Content) DeepCacheRoot(int entryDirectoryLength)
+    {
+        var content = ClientFixture.Dbc("A1");
+        _fixture.Server.Add(File1, content);
+        var suffix = Path.Combine("SIHSUS", "200801_", "Dados", "RDRR2206.dbc", content.Length + "-20250808120000");
+        var padding = entryDirectoryLength - _fixture.Workspace.Length - 2 - suffix.Length;
+        var root = Path.Combine(_fixture.Workspace, new string('c', padding));
+        Assert.Equal(entryDirectoryLength, Path.Combine(root, suffix).Length);
+        return (_fixture.Client(configure: options => options.CacheDirectory = root), content);
     }
 
     // Whether this runtime and machine can create a file whose path exceeds 260 characters.
