@@ -670,7 +670,7 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// receive <see langword="null"/> for null values; numeric types convert as the typed getters do.
     /// </summary>
     /// <remarks>
-    /// On .NET 5 and later, value types such as <see cref="int"/>, <see cref="decimal"/> or
+    /// On .NET 10 (measured), value types such as <see cref="int"/>, <see cref="decimal"/> or
     /// <see cref="DateTime"/>, and their nullable forms, are returned without allocating. On .NET
     /// Framework (which uses the <c>net472</c> build) the non-nullable forms do not allocate
     /// either, but the nullable forms (e.g. <c>GetFieldValue&lt;int?&gt;</c>) box on every call,
