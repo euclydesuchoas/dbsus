@@ -19,7 +19,7 @@ while (reader.Read())
 
 The DBC is decompressed while you read: no temporary file, no full copy in memory. The reader is a `DbDataReader` that reads forward only.
 
-Converting a `.dbc` into a `.dbf` is all or nothing: no partial file is left on failure.
+Converting a `.dbc` into a `.dbf` file by path is all or nothing: the DBF is written to a temporary file and moved into place only at the end, so no partial file is left on failure. The overload that writes to a stream (`ConvertToDbf(Stream, Stream)`) writes as it decompresses: on failure, what was already written stays in that stream.
 
 ```csharp
 using DbSus.Dbc;
