@@ -670,12 +670,12 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// receive <see langword="null"/> for null values; numeric types convert as the typed getters do.
     /// </summary>
     /// <remarks>
-    /// On .NET 10 (measured), value types such as <see cref="int"/>, <see cref="decimal"/> or
-    /// <see cref="DateTime"/>, and their nullable forms, are returned without allocating. On .NET
-    /// Framework (which uses the <c>net472</c> build) the non-nullable forms do not allocate
-    /// either, but the nullable forms (e.g. <c>GetFieldValue&lt;int?&gt;</c>) box on every call,
-    /// about 24 bytes each (measured on .NET Framework 4.8.1, x64); there, prefer
-    /// <see cref="IsDBNull(int)"/> plus a typed getter in hot loops.
+    /// Value types such as <see cref="int"/>, <see cref="decimal"/> or <see cref="DateTime"/> are
+    /// returned without allocating (measured on .NET 8, 9 and 10 and on .NET Framework 4.8.1).
+    /// Their nullable forms (e.g. <c>GetFieldValue&lt;int?&gt;</c>) are too on .NET 9 and .NET 10,
+    /// but box on every call on .NET 8 (24 bytes; 32 for <c>decimal?</c>) and on .NET Framework
+    /// (about 24 bytes, measured on 4.8.1, x64): it depends on the runtime's JIT, not on the
+    /// package build. There, prefer <see cref="IsDBNull(int)"/> plus a typed getter in hot loops.
     /// </remarks>
     public override T GetFieldValue<T>(int ordinal)
     {
