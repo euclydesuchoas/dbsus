@@ -5,7 +5,9 @@ namespace DbSus.Client.Tests;
 
 // The real FTP transport (FluentFTP) against a loopback server whose data connections always fail
 // (refused, or timed out where the system is slow to refuse): what the messages say, and which
-// passive commands FluentFTP sends.
+// passive commands FluentFTP sends. They run alone (no other test in parallel): the ports they
+// rely on being closed are released ephemeral ports, which another test's listener could take.
+[Collection(nameof(RunAlone))]
 public sealed class FtpTransportMessageTests : IDisposable
 {
     private readonly LoopbackFtpServer _server = new();
