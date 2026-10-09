@@ -91,10 +91,16 @@ internal sealed class EntryMeta
         return text.ToString();
     }
 
-    /// <summary>Writes to a temporary file in the same folder and moves it over the target.</summary>
+    /// <summary>
+    /// Writes to <c>entry.meta.tmp</c> in the same folder and moves it over the target. Every caller
+    /// holds the entry's lock, so one fixed temporary name is enough: a temporary file left by a
+    /// process that stopped is overwritten by the next write (or pruned after 24 hours). The short
+    /// name keeps the download's <c>.partial</c> the longest path of an entry, for file names of
+    /// seven characters or more, so a path that is too long fails before any data is transferred.
+    /// </summary>
     public void WriteAtomically(string file)
     {
-        var temporary = file + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        var temporary = file + ".tmp";
         File.WriteAllText(temporary, Serialize(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         FileMoves.Replace(temporary, file);
     }

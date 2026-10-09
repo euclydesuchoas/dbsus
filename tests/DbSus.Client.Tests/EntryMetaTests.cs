@@ -61,6 +61,27 @@ public class EntryMetaTests
     }
 
     [Fact]
+    public void WriteAtomically_OrphanTemporaryFromAnEarlierWrite_IsOverwritten()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "dbsus-entry-meta-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var meta = Path.Combine(directory, "entry.meta");
+            File.WriteAllText(meta + ".tmp", "a longer half-written text left by a process that stopped while writing");
+
+            Sample.WriteAtomically(meta);
+
+            Assert.Equal(["entry.meta"], Directory.GetFiles(directory).Select(Path.GetFileName));
+            Assert.Equal(Sample.Serialize(), File.ReadAllText(meta));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void TryParse_MissingKey_ReturnsNull()
     {
         var lines = Sample.Serialize().Split('\n').Where(line => !line.StartsWith("lastUsedUtc=", StringComparison.Ordinal));
