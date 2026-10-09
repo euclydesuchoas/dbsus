@@ -32,7 +32,7 @@ The packages accept `System.Memory` 4.5.3 or later, `System.Text.Encoding.CodePa
 
 ## Long paths on .NET Framework
 
-On .NET Framework without long path support, a file whose path is longer than 260 characters cannot be created. A cache entry adds the remote path, a version folder and the file name to `CacheDirectory`, about 80 characters for DATASUS files (for example `\SIASUS\200801_\Dados\PAMG2407a.dbc\183994941-20250808134958\PAMG2407a.dbc.partial`), so keep `CacheDirectory` short, such as `D:\datasus-cache`. When an entry cannot be written, `DownloadAsync` and `OpenReaderAsync` throw an `IOException` that says so, with the original exception as its inner exception, before the file's data is requested. .NET 8 or later is not affected.
+On .NET Framework without long path support, a file whose path is longer than 260 characters cannot be created. A cache entry adds the remote path, a version folder and the file name to `CacheDirectory`, about 80 characters for DATASUS files (for example `\SIASUS\200801_\Dados\PAMG2407a.dbc\183994941-20250808134958\PAMG2407a.dbc.partial`), so keep `CacheDirectory` short, such as `D:\datasus-cache`. When an entry cannot be written, `DownloadAsync` and `OpenReaderAsync` throw an `IOException` that says so, with the original exception as its inner exception, before the file's data is requested. It was not observed on .NET 10.
 
 ## FluentFTP
 
