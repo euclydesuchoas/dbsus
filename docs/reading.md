@@ -104,7 +104,8 @@ using var reader = DbSusFile.OpenReader("LTRR0610.dbc", options);
 
 // Dates: name only fields that exist in the file you open, with that source's layout, e.g.
 //   SIM (DO), SINASC (DN):  options.Conversions["DTOBITO"]  = DbfFieldConversion.Date("ddMMyyyy");
-//   SIH (RD), SIA, CNES:    options.Conversions["DT_INTER"] = DbfFieldConversion.Date("yyyyMMdd");
+//   SIH (RD):               options.Conversions["DT_INTER"] = DbfFieldConversion.Date("yyyyMMdd");
+//   SIA and CNES use the same yyyyMMdd layout, in their own date fields.
 ```
 
 A converted field reports its new type everywhere (`GetFieldType`, schema, `GetValue`). Values that do not parse or do not fit throw `FormatException`, naming the field and record but never the value. The available conversions are `Int32`, `Int64`, `Decimal`, and `Date` with the layouts `yyyyMMdd`, `ddMMyyyy` and `yyyyMM`.
