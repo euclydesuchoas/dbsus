@@ -56,7 +56,7 @@ So `using var reader = DbfReader.Open(File.OpenRead(path));` does not leak the f
 
 ## Tables split into parts
 
-SIA-PA files come in parts (`PAMG2407a.dbc`, `PAMG2407b.dbc`, …). They are read as one table, after every part's header has been checked to have the same fields:
+Only large SIA-PA files come in parts (`PAMG2407a.dbc`, `PAMG2407b.dbc`, …); smaller ones, such as `PAAP2004.dbc` and `PARR2407.dbc`, are a single file. `DbSusFile.FindParts` serves both cases: it returns the parts in order, or the single file. Parts are read as one table, after every part's header has been checked to have the same fields:
 
 ```csharp
 using DbSus;
