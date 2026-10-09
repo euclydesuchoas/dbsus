@@ -123,6 +123,8 @@ SINAN stores dates in native `D` fields, which need no conversion. The layout ca
 
 The code page of character fields comes from the header's language driver ID (LDID); when it is 0 or unknown, code page 1252 is used (change it with `FallbackEncoding`). To force an encoding, set `DbfReadOptions.Encoding`. Code-page encodings such as 850 are built into .NET Framework, but not into .NET Core and .NET 5 or later, where `Encoding.GetEncoding(850)` throws `NotSupportedException`.
 
+LDID 0x00 (no driver) is therefore read as code page 1252. This was validated on a single CNES file, whose LDID is 0x00 and whose accented text reads correctly as code page 1252. Whether files marked 0x02 (code page 850) and 0x57 (ISO-8859-1) really hold text in those code pages is still to be validated.
+
 On .NET 5 or later and .NET Core, take the encoding from the provider, without registering anything process-wide:
 
 ```csharp net-only
