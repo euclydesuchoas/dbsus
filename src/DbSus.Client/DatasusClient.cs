@@ -232,6 +232,10 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     /// <exception cref="DatasusRetriesExhaustedException">Transient failures persisted after every retry.</exception>
     /// <exception cref="DatasusRequestRefusedException">The server refused the request permanently.</exception>
     /// <exception cref="InsufficientDiskSpaceException">There is not enough free disk space for the file.</exception>
+    /// <exception cref="IOException">
+    /// A file of the cache entry could not be written, for example because the path is too long on
+    /// .NET Framework without long path support (see <see cref="DatasusClientOptions.CacheDirectory"/>).
+    /// </exception>
     public async Task<string> DownloadAsync(string path, CancellationToken cancellationToken = default)
     {
         Guard.NotDisposed(_disposed, this);
@@ -514,7 +518,7 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     private async Task<string> DownloadToCacheAsync(CacheStore cache, RemotePath remote, RemoteFileInfo info, CancellationToken cancellationToken)
     {
         var entry = cache.EntryFor(remote, info);
-        Directory.CreateDirectory(entry.Directory);
+        WriteCacheEntry(remote, () => Directory.CreateDirectory(entry.Directory));
         var gate = _gates.GetOrAdd(entry.Directory, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -534,10 +538,10 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
                 }
 
                 await FetchVerifiedAsync(remote, info, entry.PartialPath, cancellationToken).ConfigureAwait(false);
-                FileMoves.Replace(entry.PartialPath, entry.DataPath);
+                WriteCacheEntry(remote, () => FileMoves.Replace(entry.PartialPath, entry.DataPath));
                 var now = _utcNow();
-                new EntryMeta(remote.Relative, info.Size, info.LastModifiedUtc, now, now, _options.VerifyOnDownload && IsDbc(remote))
-                    .WriteAtomically(entry.MetaPath);
+                var meta = new EntryMeta(remote.Relative, info.Size, info.LastModifiedUtc, now, now, _options.VerifyOnDownload && IsDbc(remote));
+                WriteCacheEntry(remote, () => meta.WriteAtomically(entry.MetaPath));
             }
         }
         finally
@@ -622,8 +626,10 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
 
             if (offset < info.Size)
             {
+                // The .partial is opened before the transfer, so a path that cannot be written fails
+                // before any data is requested.
+                using var target = OpenPartial(remote, partialPath);
                 using var source = await lease.Connection.OpenReadAsync(remote.Full, offset, token).ConfigureAwait(false);
-                using var target = new FileStream(partialPath, FileMode.Append, FileAccess.Write, FileShare.None, 81920, useAsync: true);
                 var buffer = new byte[81920];
                 int read;
                 while ((read = await ReadNetworkAsync(source, buffer, 0, buffer.Length, token).ConfigureAwait(false)) > 0)
@@ -644,6 +650,35 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
             return true;
         }, cancellationToken);
     }
+
+    private FileStream OpenPartial(RemotePath remote, string partialPath)
+    {
+        FileStream Open() => new(partialPath, FileMode.Append, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+        return _cache is null ? Open() : WriteCacheEntry(remote, Open);
+    }
+
+    // Creates or writes a file of a cache entry. On .NET Framework without long path support, a path
+    // that is too long fails with one of these two exceptions, whose messages do not say why.
+    private static T WriteCacheEntry<T>(RemotePath remote, Func<T> write)
+    {
+        try
+        {
+            return write();
+        }
+        catch (Exception exception) when (exception is DirectoryNotFoundException or PathTooLongException)
+        {
+            throw new IOException(
+                $"Could not write the cache entry of {remote.Relative}: {exception.Message} On .NET Framework without long path support, the entry path may be too long: use a shorter CacheDirectory.",
+                exception);
+        }
+    }
+
+    private static void WriteCacheEntry(RemotePath remote, Action write) =>
+        WriteCacheEntry(remote, () =>
+        {
+            write();
+            return true;
+        });
 
     private static async Task EnsureSameVersionAsync(ConnectionPool.Lease lease, RemotePath remote, RemoteFileInfo info, string partialPath, CancellationToken cancellationToken)
     {

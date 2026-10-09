@@ -4,8 +4,8 @@ using Xunit;
 namespace DbSus.Client.Tests;
 
 /// <summary>
-/// What happens when a cache entry cannot be completed: data without metadata, and a temporary
-/// file left by a process that stopped.
+/// What happens when a cache entry cannot be completed: data without metadata, a temporary file
+/// left by a process that stopped, and paths too long for .NET Framework without long path support.
 /// </summary>
 public sealed class CacheEntryWriteTests : IDisposable
 {
@@ -70,6 +70,66 @@ public sealed class CacheEntryWriteTests : IDisposable
         Assert.Equal(["RDRR2206.dbc", "entry.lock", "entry.meta"], Directory.GetFiles(directory).Select(Path.GetFileName).OrderBy(name => name, StringComparer.Ordinal));
         Assert.Contains("lastUsedUtc=2026-09-30T13:00:00.0000000Z", File.ReadAllText(Path.Combine(directory, "entry.meta")), StringComparison.Ordinal);
         Assert.Equal(1, _fixture.Server.Transfers);
+    }
+
+    // The entry folder can be created, but not the download's .partial inside it: the client must
+    // fail before the transfer, with a message that points at the cache path.
+    [Fact]
+    public async Task DownloadAsync_PartialPathTooLong_FailsBeforeAnyTransferOrWorksWithLongPaths()
+    {
+        await AssertDeepCacheRoot(entryDirectoryLength: 243);
+    }
+
+    // The entry folder itself cannot be created.
+    [Fact]
+    public async Task DownloadAsync_EntryFolderTooLong_FailsBeforeAnyTransferOrWorksWithLongPaths()
+    {
+        await AssertDeepCacheRoot(entryDirectoryLength: 252);
+    }
+
+    private async Task AssertDeepCacheRoot(int entryDirectoryLength)
+    {
+        var content = ClientFixture.Dbc("A1");
+        _fixture.Server.Add(File1, content);
+        var suffix = Path.Combine("SIHSUS", "200801_", "Dados", "RDRR2206.dbc", content.Length + "-20250808120000");
+        var padding = entryDirectoryLength - _fixture.Workspace.Length - 2 - suffix.Length;
+        var root = Path.Combine(_fixture.Workspace, new string('c', padding));
+        Assert.Equal(entryDirectoryLength, Path.Combine(root, suffix).Length);
+        var client = _fixture.Client(configure: options => options.CacheDirectory = root);
+
+        if (LongPathsWork())
+        {
+            // .NET 8 or later, or .NET Framework with long paths enabled: nothing changes.
+            var local = await client.DownloadAsync(File1, Ct);
+            Assert.Equal(content, File.ReadAllBytes(local));
+            return;
+        }
+
+        var exception = await Assert.ThrowsAsync<IOException>(() => client.DownloadAsync(File1, Ct));
+
+        Assert.True(exception.InnerException is DirectoryNotFoundException or PathTooLongException, exception.InnerException?.GetType().FullName);
+        Assert.StartsWith("Could not write the cache entry of " + File1 + ": ", exception.Message, StringComparison.Ordinal);
+        Assert.EndsWith(
+            " On .NET Framework without long path support, the entry path may be too long: use a shorter CacheDirectory.",
+            exception.Message,
+            StringComparison.Ordinal);
+        Assert.Equal(0, _fixture.Server.Transfers);
+    }
+
+    // Whether this runtime and machine can create a file whose path exceeds 260 characters.
+    private bool LongPathsWork()
+    {
+        var directory = Path.Combine(_fixture.Workspace, "probe", new string('p', 120), new string('q', 120));
+        try
+        {
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(Path.Combine(directory, "probe.txt"), string.Empty);
+            return true;
+        }
+        catch (Exception exception) when (exception is DirectoryNotFoundException or PathTooLongException)
+        {
+            return false;
+        }
     }
 
     // As left by a metadata write that failed: the data file is there, possibly unverified, and
