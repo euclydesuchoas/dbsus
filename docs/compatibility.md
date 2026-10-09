@@ -11,7 +11,7 @@ Both packages target `net10.0`, `net472` and `netstandard2.0`.
 | Supported | .NET 8 or later; .NET Framework 4.7.2 or later (the declared minimum; it gets the `net472` build); other `netstandard2.0` platforms |
 | Tested | The test suite runs on .NET 10 and .NET Framework 4.8.1. A package test in CI also runs on .NET 8, with the `netstandard2.0` build. |
 
-The handling of stalled reads in `DbSus.Client` was verified on .NET 10 and .NET Framework 4.8; Mono, Unity and Xamarin were not checked.
+The handling of stalled reads in `DbSus.Client` was verified on .NET 10 and .NET Framework 4.8; .NET 8 and 9, Mono, Unity and Xamarin were not checked.
 
 The code examples in the guides compile with C# 8. The optional comparison on raw bytes with a `u8` literal needs C# 11.
 

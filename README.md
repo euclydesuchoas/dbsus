@@ -96,7 +96,7 @@ The CRC-32 of a `.dbc` can only be checked once the last byte has been decompres
 - The reader is forward-only. It is not thread-safe, and the asynchronous methods it inherits from `DbDataReader` complete synchronously. `DatasusClient` is thread-safe.
 - On .NET Framework and .NET 8, `GetFieldValue<T>` with a nullable type (e.g. `GetFieldValue<int?>`) allocates on every call: about 24 bytes on .NET Framework 4.8.1, and 24 bytes (32 for `decimal?`) on .NET 8. The non-nullable forms do not, and on .NET 9 and .NET 10 the nullable forms do not either (measured).
 - A listing from the server can be partial if the client's read of it fails while the server still answers `226`. `FindPartsAsync` reduces the risk for split tables but does not remove it; `ListAsync` returns the listing as received.
-- The handling of stalled reads was verified on .NET 10 and .NET Framework 4.8; Mono, Unity and Xamarin were not checked.
+- The handling of stalled reads was verified on .NET 10 and .NET Framework 4.8; .NET 8 and 9, Mono, Unity and Xamarin were not checked.
 
 ## Security
 
