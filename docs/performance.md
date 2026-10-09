@@ -40,6 +40,8 @@ The loop in [reading without allocation](https://github.com/euclydesuchoas/dbsus
 | Runtime | Counter | `.dbf` | `.dbc` | Garbage collections |
 |---|---|---|---|---|
 | .NET 10 | `GC.GetAllocatedBytesForCurrentThread` | 0 bytes | 4,120 bytes | none |
+| .NET 9 (`netstandard2.0` build) | `GC.GetAllocatedBytesForCurrentThread` | 0 bytes | 4,120 bytes | none |
+| .NET 8 (`netstandard2.0` build) | `GC.GetAllocatedBytesForCurrentThread` | 0 bytes | 4,120 bytes | none |
 | .NET Framework 4.8 | `AppDomain.MonitoringTotalAllocatedMemorySize` | 0 bytes | 0 bytes | none |
 
-The 4,120 bytes are a single 4 KB buffer at the end of the data, used to read what remains and verify the checksum. The .NET Framework counter advances by allocation blocks rather than per object, so it cannot show that buffer.
+The 4,120 bytes are a single 4 KB buffer at the end of the data, used to read what remains and verify the checksum. The .NET Framework counter advances by allocation blocks rather than per object, so it cannot show that buffer. The .NET 8 and .NET 9 rows were measured through the package, which those runtimes load as its `netstandard2.0` build, after a warm-up pass. On .NET 8, the loop allocates nothing, but the nullable forms of `GetFieldValue<T>` would: see [reading without allocation](https://github.com/euclydesuchoas/dbsus/blob/main/docs/reading.md).
