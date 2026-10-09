@@ -160,7 +160,7 @@ var table = new DataTable();
 table.Load(reader);
 ```
 
-With Dapper, fields map to properties by name:
+With Dapper, fields map to properties by name (checked by hand with `Parse<T>` and Dapper 2.1.89, on a mapping of two fields, as below):
 
 ```csharp no-check
 using System.Linq;
