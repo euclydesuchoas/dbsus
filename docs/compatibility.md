@@ -1,6 +1,6 @@
 # Compatibility
 
-Target frameworks, runtimes, dependencies and the FluentFTP version used by `DbSus.Client`.
+Target frameworks, runtimes, dependencies, long paths on .NET Framework, the FluentFTP version used by `DbSus.Client`, and what the DATASUS server supports.
 
 ## Target frameworks and runtimes
 
@@ -30,6 +30,10 @@ The packages accept `System.Memory` 4.5.3 or later, `System.Text.Encoding.CodePa
 </dependentAssembly>
 ```
 
+## Long paths on .NET Framework
+
+On .NET Framework without long path support, a file whose path is longer than 260 characters cannot be created. A cache entry adds the remote path, a version folder and the file name to `CacheDirectory`, about 80 characters for DATASUS files (for example `\SIASUS\200801_\Dados\PAMG2407a.dbc\183994941-20250808134958\PAMG2407a.dbc.partial`), so keep `CacheDirectory` short, such as `D:\datasus-cache`. When an entry cannot be written, `DownloadAsync` and `OpenReaderAsync` throw an `IOException` that says so, with the original exception as its inner exception, before the file's data is requested. .NET 8 or later is not affected.
+
 ## FluentFTP
 
 `DbSus.Client` is tested with FluentFTP 55.0.0 and declares that version as a minimum. NuGet picks the lowest version that satisfies every requirement, so an application gets FluentFTP 55.0.0 unless it references a newer version itself or another package requires one.
@@ -44,3 +48,7 @@ The client uses FluentFTP's protected connection hooks to close a connection by 
 - **On the other runtimes** there is no such check: there, with the hooks switched off in a test, canceling, the read timeout and the limit on each read of a download still ended stalled operations.
 
 A test of the hooks watches for such a change, and a weekly CI workflow runs the client's tests against the newest stable FluentFTP, so that a release that changes how the hooks are called shows up as a failing run. It only reports; it does not stop an application from using that release.
+
+## The DATASUS server
+
+`DbSus.Client` connects without encryption because the server refuses TLS: its `FEAT` reply lists `AUTH TLS`, but in October 2026 `AUTH TLS` was answered with `534 Local policy on server does not allow TLS secure connections.` See Security in the [README](https://github.com/euclydesuchoas/dbsus/blob/main/README.md).
