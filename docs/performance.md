@@ -6,6 +6,8 @@ Every figure in this guide comes from one machine: AMD Ryzen 9 9950X3D, Windows 
 
 Measured with BenchmarkDotNet (`benchmarks/DbSus.Benchmarks`, .NET 10) on one large SIA-PA file: 126 MB compressed, 1.17 GB of DBF, 2,956,469 records of 60 fields.
 
+To run it, from the repository root: `dotnet run -c Release --project benchmarks/DbSus.Benchmarks -- --filter "*"`. It takes no path: it reads `tests/data/local/PAMG2407b.dbc` (SIA-PA, Minas Gerais, July 2024, part b), found from the repository root. That file is not in the repository; it has to be downloaded from the DATASUS server, which republishes files, so another download can be a different version and give other numbers.
+
 | What | DBF throughput | Allocated per record |
 |---|---|---|
 | Decompression only | 311 MB/s | 0.05 B |
