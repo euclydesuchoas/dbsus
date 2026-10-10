@@ -1,4 +1,5 @@
 using System.Reflection;
+using DbSus.Tests.TestSupport;
 using Xunit;
 
 namespace DbSus.Client.Tests;
@@ -92,6 +93,34 @@ public class DatasusCatalogTests
             Assert.Same(dataset, property.GetValue(null));
             Assert.Same(dataset, DatasusCatalog.Get(dataset.Source, dataset.Code));
             Assert.Contains(dataset, DatasusCatalog.Datasets);
+        }
+    }
+
+    [Fact]
+    public void PathsGuide_HasOneRowPerDataset_SayingWhatTheCatalogSays()
+    {
+        // Rows of the table "The file types in the catalog": nine cells, the first one a source.
+        var sources = DatasusCatalog.Datasets.Select(dataset => dataset.Source).Distinct().ToList();
+        var rows = File.ReadAllLines(Path.Combine(RepositoryPaths.Root, "docs", "datasus-paths.md"))
+            .Select(line => line.Split('|').Select(cell => cell.Trim()).ToArray())
+            .Where(cells => cells.Length == 11 && sources.Contains(cells[1]))
+            .ToList();
+
+        Assert.Equal(DatasusCatalog.Datasets.Count, rows.Count);
+        foreach (var (cells, dataset) in rows.Zip(DatasusCatalog.Datasets, (cells, dataset) => (cells, dataset)))
+        {
+            var era = dataset.CurrentEra;
+            var folder = era.PreliminaryDirectory is null ? $"`{era.Directory}`" : $"`{era.Directory}`, preliminary in `{era.PreliminaryDirectory}`";
+
+            Assert.Equal(dataset.Source, cells[1]);
+            Assert.Equal(dataset.Code, cells[2]);
+            Assert.Equal(dataset.OfficialName, cells[3]);
+            Assert.Equal(dataset.Coverage == DatasusCoverage.Uf ? "state" : "state and country", cells[4]);
+            Assert.Equal(dataset.Periodicity == DatasusPeriodicity.Monthly ? "monthly" : "yearly", cells[5]);
+            Assert.Equal(dataset.FirstPeriod.ToString(), cells[6]);
+            Assert.Equal(folder, cells[7]);
+            Assert.Equal($"`{era.FileNamePattern}`", cells[8]);
+            Assert.True(cells[9] is "yes" or "no", cells[9]);
         }
     }
 
