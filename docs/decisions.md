@@ -47,7 +47,7 @@ Confirmed on every file examined:
 
 ### DBF dialect seen across sources
 
-Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggregate (no individual values recorded). Here "examined" means their headers, and counts over their data, such as which field types and which bytes occur. It does not mean "read", which in these notes is reading a file record by record with the DbSus reader: that was done for files of five types (SIA-PA, SIH-RD and CNES LT, EQ and ST; `docs/datasus-paths.md` says which).
+Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggregate (no individual values recorded). Here "examined" means their headers, and counts over their data, such as which field types and which bytes occur. It does not mean "read", which in these notes is reading a file record by record with the DbSus reader: that was done later, for one file of each of the 26 file types of the catalog (`docs/datasus-paths.md`), and found only `C` and `N` fields.
 
 - **Header:** field descriptors end at 0x0D, at an empty name, or where the header length runs out (the CNES file above has no terminator at all). Spare bytes after the last field are tolerated; in every file examined the fields fill the record exactly.
 - **Field types:** `C` everywhere, `N` in most sources, `D` only in SINAN; no `F`, `L` or `M`.
@@ -59,7 +59,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 
 ### Language driver (LDID) and code pages
 
-- Values seen, in the headers of the files examined: 0x00 (no driver) in SIM, SINASC, SINAN, SIH SP/ER, SIA AM/AQ/PS and CNES SR/ST; 0x02 in SIH RD/RJ; 0x03 in SIA PA/BI; 0x57 in SIA AD/AR; 0x58 in CNES EQ/LT/PF/HB. For the types that were examined but not read, the value is known from the header alone: that is the case of 0x57 (SIA AD and AR) and, among the files with 0x58, of CNES PF and HB.
+- Values seen, in the headers of the files examined: 0x00 (no driver) in SIM, SINASC, SINAN, SIH SP/ER, SIA AM/AQ/PS and CNES SR/ST; 0x02 in SIH RD/RJ; 0x03 in SIA PA/BI; 0x57 in SIA AD/AR; 0x58 in CNES EQ/LT/PF/HB. The files read later, one of each file type of the catalog, had the same values, and added 0x00 in SIA ATD/ACF and 0x58 in CNES DC/EP/EF/GM/IN/RC. Reading a file record by record does not check its text: for 0x57 (SIA AD and AR) and for CNES PF and HB the value says which code page is declared, and no text was looked at.
 - Meaning: 0x02 = code page 850 and 0x03 = 1252 (Microsoft's Visual FoxPro table); 0x58 = 1252, 0x57 = ISO-8859-1 and 0x59 = 1252 (dBASE drivers, per the MiraMon documentation and GDAL's LDID table).
 - The only accented text found (CNES) reads correctly as code page 1252, including in a file whose LDID is 0x00.
 - **To validate:** the 1252 fallback for LDID 0x00, and whether files marked 0x02 and 0x57 really hold text in those code pages.
@@ -142,7 +142,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 - **`DatasusUf`** members are named by the abbreviation that file names carry, and their values are the IBGE codes of the states. There is no zero member: `default(DatasusUf)` is rejected rather than named.
 - **`DatasusPeriod`** is a month or a year. A year is never equal to a month, and a year sorts before its own months.
 - **`OfficialName` is in Portuguese,** a deliberate exception to the rule that everything in the code is in English: it is the name under which DATASUS publishes the file type, a proper name, kept as DATASUS spells it (including `Confeção`).
-- **"Read with DbSus"** in the paths guide means that a real file of the type was decompressed, passed its CRC-32 check and was read record by record. It is "yes" for 5 of the 26 file types; for the others only the path was verified.
+- **"Read"** in the paths guide means that a real file of the type, with at least one record, was decompressed, passed its CRC-32 check and was read record by record, every field of every record. In October 2026 that was done for one file of each of the 26 file types, usually a small and old one; it says nothing about other periods, and nothing about the folders of preliminary data, from which no file was read.
 
 ## Performance
 
