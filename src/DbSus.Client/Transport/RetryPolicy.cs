@@ -32,10 +32,11 @@ internal sealed class RetryPolicy(
                 var attempts = attempt + 1;
                 if (attempt >= maxRetries)
                 {
+                    // An unexpected exception of the FTP library is reported itself, as it was thrown.
                     throw new DatasusRetriesExhaustedException(
                         $"{operation} failed after {attempts} {(attempts == 1 ? "attempt" : "attempts")}: {exception.Message}",
                         exception.ReplyCode,
-                        exception)
+                        exception.IsLibraryFailure ? exception.InnerException : exception)
                     {
                         RemotePath = remotePath,
                         Attempts = attempts,

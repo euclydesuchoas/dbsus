@@ -1,5 +1,7 @@
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using FluentFTP;
+using FluentFTP.Exceptions;
 
 namespace DbSus.Client.Transport;
 
@@ -38,7 +40,55 @@ internal abstract class FtpSession : IDisposable
     public abstract void Abort();
 
     public abstract void Dispose();
+
+    /// <summary>
+    /// Runs one call into FluentFTP. An exception that FluentFTP is not meant to throw (for
+    /// example a <see cref="NullReferenceException"/> of its own, as FluentFTP 55.0.0 throws from a
+    /// listing whose control connection the server has closed) leaves here as an
+    /// <see cref="FtpLibraryFailureException"/>, so that it is told apart from every exception of
+    /// this library's own code, which is never wrapped. Only calls into FluentFTP go through here.
+    /// </summary>
+    internal static async Task<T> InLibraryAsync<T>(Func<Task<T>> call)
+    {
+        try
+        {
+            return await call().ConfigureAwait(false);
+        }
+        catch (Exception exception) when (IsUnexpected(exception))
+        {
+            throw new FtpLibraryFailureException(exception);
+        }
+    }
+
+    /// <summary>The synchronous form of <see cref="InLibraryAsync"/>.</summary>
+    internal static T InLibrary<T>(Func<T> call)
+    {
+        try
+        {
+            return call();
+        }
+        catch (Exception exception) when (IsUnexpected(exception))
+        {
+            throw new FtpLibraryFailureException(exception);
+        }
+    }
+
+    // What FluentFTP throws by design is handled where the step is known (FtpConnection.Translate):
+    // its own exceptions and network failures. Cancellation and invalid arguments are the caller's,
+    // and are never turned into a transport failure; nor is a failure of the process itself.
+    private static bool IsUnexpected(Exception exception) => exception is not (
+        OperationCanceledException or ArgumentException
+        or FtpException or IOException or SocketException or TimeoutException
+        or OutOfMemoryException or StackOverflowException or AccessViolationException or ThreadAbortException);
 }
+
+/// <summary>
+/// FluentFTP threw an exception it is not meant to throw; the original is the
+/// <see cref="Exception.InnerException"/>. Created only by <see cref="FtpSession.InLibraryAsync"/>
+/// and <see cref="FtpSession.InLibrary"/>.
+/// </summary>
+internal sealed class FtpLibraryFailureException(Exception original)
+    : Exception("The FTP library failed with an unexpected exception.", original);
 
 /// <summary>The sockets a FluentFTP client opens, control and data, so they can be closed by force.</summary>
 internal sealed class SocketTracker
@@ -114,15 +164,20 @@ internal sealed class AsyncFtpSession(string host, int port, FtpConfig config) :
 
     public override FtpReply LastReply => _client.LastReply;
 
-    public override Task ConnectAsync(CancellationToken cancellationToken) => _client.Connect(cancellationToken);
+    public override Task ConnectAsync(CancellationToken cancellationToken) => InLibraryAsync(async () =>
+    {
+        await _client.Connect(cancellationToken).ConfigureAwait(false);
+        return true;
+    });
 
-    public override Task<FtpReply> ExecuteAsync(string command, CancellationToken cancellationToken) => _client.Execute(command, cancellationToken);
+    public override Task<FtpReply> ExecuteAsync(string command, CancellationToken cancellationToken) =>
+        InLibraryAsync(() => _client.Execute(command, cancellationToken));
 
     public override Task<FtpListItem[]> GetListingAsync(string path, FtpListOption options, CancellationToken cancellationToken) =>
-        _client.GetListing(path, options, cancellationToken);
+        InLibraryAsync(() => _client.GetListing(path, options, cancellationToken));
 
     public override Task<Stream> OpenReadAsync(string path, long offset, CancellationToken cancellationToken) =>
-        _client.OpenRead(path, FtpDataType.Binary, offset, checkIfFileExists: false, cancellationToken);
+        InLibraryAsync(() => _client.OpenRead(path, FtpDataType.Binary, offset, checkIfFileExists: false, cancellationToken));
 
     public override void Abort() => _client.Sockets.CloseAll();
 
@@ -177,7 +232,11 @@ internal sealed class SyncFtpSession(string host, int port, FtpConfig config, So
     public override Task ConnectAsync(CancellationToken cancellationToken) => Task.Run(
         () =>
         {
-            _client.Connect();
+            InLibrary(() =>
+            {
+                _client.Connect();
+                return true;
+            });
             if (_client.Sockets.ControlRegistrations == 0)
             {
                 throw Unsupported("control");
@@ -186,13 +245,13 @@ internal sealed class SyncFtpSession(string host, int port, FtpConfig config, So
         cancellationToken);
 
     public override Task<FtpReply> ExecuteAsync(string command, CancellationToken cancellationToken) =>
-        Task.Run(() => _client.Execute(command), cancellationToken);
+        Task.Run(() => InLibrary(() => _client.Execute(command)), cancellationToken);
 
     public override Task<FtpListItem[]> GetListingAsync(string path, FtpListOption options, CancellationToken cancellationToken) => Task.Run(
         () =>
         {
             var before = _client.Sockets.DataRegistrations;
-            var items = _client.GetListing(path, options);
+            var items = InLibrary(() => _client.GetListing(path, options));
             return _client.Sockets.DataRegistrations != before ? items : throw Unsupported("data");
         },
         cancellationToken);
@@ -201,7 +260,7 @@ internal sealed class SyncFtpSession(string host, int port, FtpConfig config, So
         () =>
         {
             var before = _client.Sockets.DataRegistrations;
-            var stream = _client.OpenRead(path, FtpDataType.Binary, offset, checkIfFileExists: false);
+            var stream = InLibrary(() => _client.OpenRead(path, FtpDataType.Binary, offset, checkIfFileExists: false));
             if (_client.Sockets.DataRegistrations != before)
             {
                 return stream;

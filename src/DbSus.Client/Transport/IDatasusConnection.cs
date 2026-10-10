@@ -78,4 +78,10 @@ internal sealed class TransientTransportException : IOException
 
     /// <summary>Gets the FTP reply code (4xx), or null for a dropped connection or a timeout.</summary>
     public string? ReplyCode { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether the failure is an exception that the FTP library is not
+    /// meant to throw, in which case it is the <see cref="Exception.InnerException"/>.
+    /// </summary>
+    public bool IsLibraryFailure { get; set; }
 }

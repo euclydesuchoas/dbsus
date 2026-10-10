@@ -162,6 +162,18 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
         {
             throw Classify(exception.CompletionCode, $"FTP reply while {step.Description}: {exception.Message}", exception);
         }
+        catch (FtpLibraryFailureException exception)
+        {
+            // Worth retrying, on another connection: this one is never used again, since a
+            // connection goes back to the pool only after a clean operation.
+            var original = exception.InnerException!;
+            throw new TransientTransportException(
+                $"FTP transport failure while {step.Description}: the FTP library failed with an unexpected {original.GetType().Name} ({original.Message}) and the connection was discarded.",
+                original)
+            {
+                IsLibraryFailure = true,
+            };
+        }
         catch (Exception exception) when (exception is FtpException or IOException or SocketException or TimeoutException
                                           && exception is not FileNotFoundException and not TransientTransportException
                                           and not DatasusTransferException)
