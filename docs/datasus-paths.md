@@ -25,50 +25,116 @@ foreach (string candidate in deaths.GetCandidatePaths(DatasusUf.RR, DatasusPerio
 - **Only the shape of the request is checked:** a month for a monthly file type, a year for a yearly one, a real state. Whether the file exists is never checked: DATASUS publishes late, leaves gaps, and does not have every state in every period. A path built here may name a file that is not on the server; opening it then fails with `FileNotFoundException`.
 - **Only the folder layout in use now is built.** A period before the dataset's `FirstPeriod` fails with `ArgumentOutOfRangeException`; use the path as a string for it (see "Older layouts" below).
 - **Only files of a state are built.** Files for the whole country are reached with the path as a string.
+- **The name is built in upper case, with a lower-case extension.** The server lists some names in another case (see "Letter case" below).
 
-In the file name patterns below, `{UF}` is the two-letter abbreviation of the state, `{YY}` and `{YYYY}` are the year with two or four digits, and `{MM}` is the month with two digits.
+## Finding and opening a table
+
+The client finds a table on the server from the same three things, and opens it:
+
+```csharp
+using System;
+using DbSus.Client;
+
+await using var client = new DatasusClient(new DatasusClientOptions { CacheDirectory = "datasus-cache" });
+
+// Final data only: one table, downloaded and read, whether it is one file or several parts.
+using (var reader = await client.OpenReaderAsync(DatasusCatalog.SiaSus.PA, DatasusUf.MG, DatasusPeriod.OfMonth(2024, 7)))
+{
+    while (reader.Read()) { }
+}
+
+// Final or preliminary: ask the server where the table is, then decide.
+DatasusTableInfo table = await client.FindTableAsync(DatasusCatalog.Sim.DO, DatasusUf.RR, DatasusPeriod.OfYear(2025));
+Console.WriteLine($"{table.Path}: {table.Parts.Count} file(s), {table.Size} bytes, preliminary: {table.IsPreliminary}");
+using (var reader = await client.OpenReaderAsync(table))
+{
+    while (reader.Read()) { }
+}
+
+// What a folder lists for a dataset, in a range of periods: one entry per table.
+var tables = await client.ListTablesAsync(DatasusCatalog.Cnes.LT, DatasusPeriod.OfMonth(2024, 1), DatasusPeriod.OfMonth(2024, 12), DatasusUf.RR);
+```
+
+- **`OpenReaderAsync(dataset, uf, period)` opens final data only.** When only a preliminary table exists, it fails with a `FileNotFoundException` that says so. Preliminary data is read by choice: find the table with `FindTableAsync`, see `IsPreliminary`, and pass it to `OpenReaderAsync(table)`.
+- **`FindTableAsync` is the reliable way to know whether a table exists.** It looks in the folder's listing and then asks the server for the file itself, the final one first and then the preliminary one, so a listing that is incomplete or out of date does not hide a table.
+- **`ListTablesAsync` shows what the listing shows, and no more.** It costs one listing per folder and no other request. A listing that arrives incomplete while the server still reports it as complete omits tables without any error (a known limit, see [FTP troubleshooting](https://github.com/euclydesuchoas/dbsus/blob/main/docs/ftp-troubleshooting.md)), and listings are reused for `ListingCacheDuration` (10 minutes by default), so a table published in the meantime does not show until then. Use it to see what there is, and `FindTableAsync` to be sure about one table.
+- **The path of a table is the name as the server lists it** (`DatasusTableInfo.Path`), in its real letter case. The cache is keyed by the remote path, so opening by dataset, state and period always uses that name, and a file is not downloaded twice under two spellings.
 
 ## The file types in the catalog
 
-| Source | Code | Official name | Coverage | Published | From | Folder | File name | Read with DbSus |
-|---|---|---|---|---|---|---|---|---|
-| SIASUS | PA | Produção Ambulatorial | state | monthly | 2008-01 | `/SIASUS/200801_/Dados` | `PA{UF}{YY}{MM}.dbc` | yes |
-| SIASUS | AD | APAC de Laudos Diversos | state | monthly | 2008-01 | `/SIASUS/200801_/Dados` | `AD{UF}{YY}{MM}.dbc` | no |
-| SIASUS | AM | APAC de Medicamentos | state | monthly | 2008-01 | `/SIASUS/200801_/Dados` | `AM{UF}{YY}{MM}.dbc` | no |
-| SIASUS | AQ | APAC de Quimioterapia | state | monthly | 2008-01 | `/SIASUS/200801_/Dados` | `AQ{UF}{YY}{MM}.dbc` | no |
-| SIASUS | AR | APAC de Radioterapia | state | monthly | 2008-01 | `/SIASUS/200801_/Dados` | `AR{UF}{YY}{MM}.dbc` | no |
-| SIASUS | PS | Psicossocial | state | monthly | 2008-01 | `/SIASUS/200801_/Dados` | `PS{UF}{YY}{MM}.dbc` | no |
-| SIASUS | ATD | APAC Tratamento Dialítico | state | monthly | 2008-01 | `/SIASUS/200801_/Dados` | `ATD{UF}{YY}{MM}.dbc` | no |
-| SIASUS | ACF | APAC Confeção de Fístula Arteriovenosa | state | monthly | 2008-01 | `/SIASUS/200801_/Dados` | `ACF{UF}{YY}{MM}.dbc` | no |
-| SIHSUS | RD | AIH Reduzida | state | monthly | 2008-01 | `/SIHSUS/200801_/Dados` | `RD{UF}{YY}{MM}.dbc` | yes |
-| SIHSUS | SP | Serviços Profissionais | state | monthly | 2008-01 | `/SIHSUS/200801_/Dados` | `SP{UF}{YY}{MM}.dbc` | no |
-| SIHSUS | RJ | AIH Rejeitadas | state | monthly | 2008-01 | `/SIHSUS/200801_/Dados` | `RJ{UF}{YY}{MM}.dbc` | no |
-| SIHSUS | ER | AIH Rejeitadas com código de erro | state | monthly | 2008-01 | `/SIHSUS/200801_/Dados` | `ER{UF}{YY}{MM}.dbc` | no |
-| CNES | LT | Leitos | state | monthly | 2005-08 | `/CNES/200508_/Dados/LT` | `LT{UF}{YY}{MM}.dbc` | yes |
-| CNES | EQ | Equipamentos | state | monthly | 2005-08 | `/CNES/200508_/Dados/EQ` | `EQ{UF}{YY}{MM}.dbc` | yes |
-| CNES | ST | Estabelecimentos | state | monthly | 2005-08 | `/CNES/200508_/Dados/ST` | `ST{UF}{YY}{MM}.dbc` | yes |
-| CNES | PF | Profissional | state | monthly | 2005-08 | `/CNES/200508_/Dados/PF` | `PF{UF}{YY}{MM}.dbc` | no |
-| CNES | SR | Serviço Especializado | state | monthly | 2005-08 | `/CNES/200508_/Dados/SR` | `SR{UF}{YY}{MM}.dbc` | no |
-| CNES | HB | Habilitação | state | monthly | 2005-08 | `/CNES/200508_/Dados/HB` | `HB{UF}{YY}{MM}.dbc` | no |
-| CNES | DC | Dados Complementares | state | monthly | 2005-08 | `/CNES/200508_/Dados/DC` | `DC{UF}{YY}{MM}.dbc` | no |
-| CNES | EP | Equipes | state | monthly | 2005-08 | `/CNES/200508_/Dados/EP` | `EP{UF}{YY}{MM}.dbc` | no |
-| CNES | EF | Estabelecimento Filantrópico | state | monthly | 2005-08 | `/CNES/200508_/Dados/EF` | `EF{UF}{YY}{MM}.dbc` | no |
-| CNES | GM | Gestão e Metas | state | monthly | 2005-08 | `/CNES/200508_/Dados/GM` | `GM{UF}{YY}{MM}.dbc` | no |
-| CNES | IN | Incentivos | state | monthly | 2005-08 | `/CNES/200508_/Dados/IN` | `IN{UF}{YY}{MM}.dbc` | no |
-| CNES | RC | Regra Contratual | state | monthly | 2005-08 | `/CNES/200508_/Dados/RC` | `RC{UF}{YY}{MM}.dbc` | no |
-| SIM | DO | Declarações de Óbito | state and country | yearly | 1996 | `/SIM/CID10/DORES`, preliminary in `/SIM/PRELIM/DORES` | `DO{UF}{YYYY}.dbc` | no |
-| SINASC | DN | Declarações de nascidos vivos | state and country | yearly | 1996 | `/SINASC/1996_/Dados/DNRES`, preliminary in `/SINASC/PRELIM/DNRES` | `DN{UF}{YYYY}.dbc` | no |
+In the file names, `{CODE}` is the code of the file type, `{UF}` is the two-letter abbreviation of the state, `{YY}` and `{YYYY}` are the year with two or four digits, and `{MM}` is the month with two digits.
 
 - **Official name** is the name under which DATASUS publishes the file type, in Portuguese and spelled as DATASUS spells it (`DatasusDataset.OfficialName`).
 - **From** is the first period the catalog accepts (`DatasusDataset.FirstPeriod`): the start of the folder layout in use now, not the first period with data. CNES-LT, for example, has files from 2005-10 only.
-- **Read with DbSus** is "yes" when a real file of that type was decompressed, passed its CRC-32 check and was read with DbSus, record by record. For the others, only the path was verified: files with those names are on the server, and none was read. Among them, a file of each of SIASUS AD, AM, AQ, AR and PS, SIHSUS SP, RJ and ER, CNES PF, SR and HB, SIM DO and SINASC DN was decompressed with DbSus in September 2026, with a result identical to that of a reference decoder; those files were not kept and were not read record by record, so they stay "no". No file from the `PRELIM` folders was read.
+- **Read** is "yes" when a real file of that type was decompressed, passed its CRC-32 check and was read with DbSus, record by record. For the others, only the path was verified: files with those names are on the server, and none was read. Files of 13 other types were decompressed in September 2026 with a result identical to a reference decoder, but were not read record by record. No file from the `PRELIM` folders was read.
+
+### SIASUS
+
+Folder `/SIASUS/200801_/Dados`, file name `{CODE}{UF}{YY}{MM}.dbc`.
+
+| Source | Code | Official name | Coverage | Published | From | Read |
+|---|---|---|---|---|---|---|
+| SIASUS | PA | Produção Ambulatorial | state | monthly | 2008-01 | yes |
+| SIASUS | AD | APAC de Laudos Diversos | state | monthly | 2008-01 | no |
+| SIASUS | AM | APAC de Medicamentos | state | monthly | 2008-01 | no |
+| SIASUS | AQ | APAC de Quimioterapia | state | monthly | 2008-01 | no |
+| SIASUS | AR | APAC de Radioterapia | state | monthly | 2008-01 | no |
+| SIASUS | PS | Psicossocial | state | monthly | 2008-01 | no |
+| SIASUS | ATD | APAC Tratamento Dialítico | state | monthly | 2008-01 | no |
+| SIASUS | ACF | APAC Confeção de Fístula Arteriovenosa | state | monthly | 2008-01 | no |
+
+### SIHSUS
+
+Folder `/SIHSUS/200801_/Dados`, file name `{CODE}{UF}{YY}{MM}.dbc`.
+
+| Source | Code | Official name | Coverage | Published | From | Read |
+|---|---|---|---|---|---|---|
+| SIHSUS | RD | AIH Reduzida | state | monthly | 2008-01 | yes |
+| SIHSUS | SP | Serviços Profissionais | state | monthly | 2008-01 | no |
+| SIHSUS | RJ | AIH Rejeitadas | state | monthly | 2008-01 | no |
+| SIHSUS | ER | AIH Rejeitadas com código de erro | state | monthly | 2008-01 | no |
+
+### CNES
+
+One folder per file type, `/CNES/200508_/Dados/{CODE}`, file name `{CODE}{UF}{YY}{MM}.dbc`.
+
+| Source | Code | Official name | Coverage | Published | From | Read |
+|---|---|---|---|---|---|---|
+| CNES | LT | Leitos | state | monthly | 2005-08 | yes |
+| CNES | EQ | Equipamentos | state | monthly | 2005-08 | yes |
+| CNES | ST | Estabelecimentos | state | monthly | 2005-08 | yes |
+| CNES | PF | Profissional | state | monthly | 2005-08 | no |
+| CNES | SR | Serviço Especializado | state | monthly | 2005-08 | no |
+| CNES | HB | Habilitação | state | monthly | 2005-08 | no |
+| CNES | DC | Dados Complementares | state | monthly | 2005-08 | no |
+| CNES | EP | Equipes | state | monthly | 2005-08 | no |
+| CNES | EF | Estabelecimento Filantrópico | state | monthly | 2005-08 | no |
+| CNES | GM | Gestão e Metas | state | monthly | 2005-08 | no |
+| CNES | IN | Incentivos | state | monthly | 2005-08 | no |
+| CNES | RC | Regra Contratual | state | monthly | 2005-08 | no |
+
+### SIM
+
+Folder `/SIM/CID10/DORES`, and `/SIM/PRELIM/DORES` for preliminary years; file name `DO{UF}{YYYY}.dbc`.
+
+| Source | Code | Official name | Coverage | Published | From | Read |
+|---|---|---|---|---|---|---|
+| SIM | DO | Declarações de Óbito | state and country | yearly | 1996 | no |
+
+### SINASC
+
+Folder `/SINASC/1996_/Dados/DNRES`, and `/SINASC/PRELIM/DNRES` for preliminary years; file name `DN{UF}{YYYY}.dbc`.
+
+| Source | Code | Official name | Coverage | Published | From | Read |
+|---|---|---|---|---|---|---|
+| SINASC | DN | Declarações de nascidos vivos | state and country | yearly | 1996 | no |
 
 ## What to know about these files
 
-- **Split tables.** SIASUS-PA is split into parts in the larger states (MG, PR, RJ, RS and SP, since 2011-12): `PAMG2407a.dbc`, `PAMG2407b.dbc`, up to `d`. `GetPath` gives the name without a part letter, `PAMG2407.dbc`, which `DatasusClient.FindPartsAsync` and `DatasusClient.OpenReaderAsync` accept (see [downloading with DbSus.Client](https://github.com/euclydesuchoas/dbsus/blob/main/docs/client.md)).
-- **Preliminary years.** SIM and SINASC publish the most recent years in a folder of preliminary data until they are closed; in October 2026 those were 2025 and 2026. Which years are preliminary changes, so the catalog does not know it: `GetCandidatePaths` gives the final path and then the preliminary one, to be tried in that order.
-- **Letter case.** The server lists most names in upper case with a lower-case extension, but not all: `DORR2011.DBC`, `DNRR2010.DBC`, `AQPA1001.DBC` and `sppa1001.dbc` are listed like that. The paths built here are always upper case with a lower-case extension. In October 2026 the server ignored case: a file listed as `DORR2011.DBC` answered under `dorr2011.dbc` too.
-- **Gaps.** Only SIASUS-PA, SIHSUS RD and SP, CNES LT, EQ, ST, PF, HB, DC and EP, SIM-DO and SINASC-DN had no missing period between the first and the last file of each state. The other file types miss some state-months, and SIASUS-AR has no file of Roraima.
+- **Split tables.** In the listings of October 2026, SIASUS-PA was split into lettered parts (`PAMG2407a.dbc`, `PAMG2407b.dbc`, up to `d`) in five states: São Paulo in most months since 2011-12, Minas Gerais and Rio de Janeiro in every month since 2021-01, Rio Grande do Sul in some months since 2025-09, and Paraná from 2026-03 to 2026-05. `GetPath` gives the name without a part letter, `PAMG2407.dbc`; `FindTableAsync`, `FindPartsAsync` and `OpenReaderAsync` find the parts from it (see [downloading with DbSus.Client](https://github.com/euclydesuchoas/dbsus/blob/main/docs/client.md)).
+- **Preliminary years.** SIM and SINASC publish the most recent years in a folder of preliminary data until they are closed. In the listings of October 2026, the final folders went from 1996 to 2024 and the preliminary ones held 2025 and 2026. Which years are preliminary changes, so the catalog does not know it: `GetCandidatePaths` gives the final path and then the preliminary one, and `FindTableAsync` tries them in that order.
+- **Letter case.** The server lists most names in upper case with a lower-case extension, but not all: in the listings of October 2026, `DORR2011.DBC`, `DNRR2010.DBC`, `AQPA1001.DBC` and `sppa1001.dbc` were listed like that. `GetPath` always builds the name in upper case with a lower-case extension; the listing has the real case, which is what `FindTableAsync` and `ListTablesAsync` return. In October 2026 the server ignored case: a file listed as `DORR2011.DBC` answered under `dorr2011.dbc` too.
+- **Gaps.** In the listings of October 2026, SIASUS-PA, SIHSUS RD and SP, CNES LT, EQ, ST, PF, HB, DC and EP, SIM-DO and SINASC-DN had no missing period between the first and the last file of each state. The other file types missed some state-months; SIASUS-AR had no file of Roraima, and CNES-EF none of Roraima or the Federal District. The latest months also arrive state by state: for several file types, the last month listed was not there for every state.
 - **Files that are not data.** The folders also hold a few other files, which are not part of any dataset: a placeholder named like `HBufAAmm.dbc` in five CNES folders, two `.zip` files in the SIHSUS folder and a `.DLL` in the SIASUS one.
 - **Size of the folders.** `/SIASUS/200801_/Dados` holds every SIASUS file type and listed 54,478 files; `/SIHSUS/200801_/Dados` listed 22,915; each CNES folder, up to 6,831.
 

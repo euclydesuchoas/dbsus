@@ -99,28 +99,39 @@ public class DatasusCatalogTests
     [Fact]
     public void PathsGuide_HasOneRowPerDataset_SayingWhatTheCatalogSays()
     {
-        // Rows of the table "The file types in the catalog": nine cells, the first one a source.
+        // Rows of the tables under "The file types in the catalog": seven cells, the first one a source.
+        var guide = File.ReadAllLines(Path.Combine(RepositoryPaths.Root, "docs", "datasus-paths.md"));
         var sources = DatasusCatalog.Datasets.Select(dataset => dataset.Source).Distinct().ToList();
-        var rows = File.ReadAllLines(Path.Combine(RepositoryPaths.Root, "docs", "datasus-paths.md"))
+        var rows = guide
             .Select(line => line.Split('|').Select(cell => cell.Trim()).ToArray())
-            .Where(cells => cells.Length == 11 && sources.Contains(cells[1]))
+            .Where(cells => cells.Length == 9 && sources.Contains(cells[1]))
             .ToList();
 
         Assert.Equal(DatasusCatalog.Datasets.Count, rows.Count);
         foreach (var (cells, dataset) in rows.Zip(DatasusCatalog.Datasets, (cells, dataset) => (cells, dataset)))
         {
-            var era = dataset.CurrentEra;
-            var folder = era.PreliminaryDirectory is null ? $"`{era.Directory}`" : $"`{era.Directory}`, preliminary in `{era.PreliminaryDirectory}`";
-
             Assert.Equal(dataset.Source, cells[1]);
             Assert.Equal(dataset.Code, cells[2]);
             Assert.Equal(dataset.OfficialName, cells[3]);
             Assert.Equal(dataset.Coverage == DatasusCoverage.Uf ? "state" : "state and country", cells[4]);
             Assert.Equal(dataset.Periodicity == DatasusPeriodicity.Monthly ? "monthly" : "yearly", cells[5]);
             Assert.Equal(dataset.FirstPeriod.ToString(), cells[6]);
-            Assert.Equal(folder, cells[7]);
-            Assert.Equal($"`{era.FileNamePattern}`", cells[8]);
-            Assert.True(cells[9] is "yes" or "no", cells[9]);
+            Assert.True(cells[7] is "yes" or "no", cells[7]);
+
+            // The folder and the file name are said once per source, in the line under its heading.
+            var era = dataset.CurrentEra;
+            var heading = Array.IndexOf(guide, "### " + dataset.Source);
+            Assert.True(heading >= 0, dataset.Source);
+            var layout = guide[heading + 2];
+            var folder = era.Directory.EndsWith("/" + dataset.Code, StringComparison.Ordinal) ? era.Directory.Remove(era.Directory.Length - dataset.Code.Length) + "{CODE}" : era.Directory;
+            Assert.Contains($"`{folder}`", layout, StringComparison.Ordinal);
+            if (era.PreliminaryDirectory is not null)
+            {
+                Assert.Contains($"`{era.PreliminaryDirectory}` for preliminary years", layout, StringComparison.Ordinal);
+            }
+
+            var pattern = layout.Substring(layout.LastIndexOf("file name `", StringComparison.Ordinal) + "file name `".Length).TrimEnd('.', '`');
+            Assert.Equal(era.FileNamePattern, pattern.Replace("{CODE}", dataset.Code));
         }
     }
 
