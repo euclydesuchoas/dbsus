@@ -24,7 +24,7 @@ namespace DbSus.Client;
 /// which detects corruption but not deliberate tampering.
 /// </para>
 /// </remarks>
-public sealed class DatasusClient : IDisposable, IAsyncDisposable
+public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
 {
     private const long DiskSpaceMargin = 64L * 1024 * 1024;
     private const int MaxVersionRestarts = 3;
@@ -116,7 +116,21 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     {
         Guard.NotDisposed(_disposed, this);
         var remote = RemotePath.Parse(path, Root);
-        var (baseName, extension) = PartNaming.Parse(remote.Name, nameof(path));
+        return await FindPartsOrNullAsync(remote, nameof(path), cancellationToken).ConfigureAwait(false)
+            ?? throw NoFileOrParts(remote);
+    }
+
+    private FileNotFoundException NoFileOrParts(RemotePath remote)
+    {
+        var (baseName, extension) = PartNaming.Parse(remote.Name, "path");
+        return new FileNotFoundException($"No file or parts found for '{baseName + extension}'.", remote.Sibling(Root, baseName + extension).Relative);
+    }
+
+    // The parts of a table, or null when the server has neither the file nor any part. A table
+    // with a part missing before the last one is an error, not an absent table.
+    private async Task<IReadOnlyList<DatasusFileInfo>?> FindPartsOrNullAsync(RemotePath remote, string paramName, CancellationToken cancellationToken)
+    {
+        var (baseName, extension) = PartNaming.Parse(remote.Name, paramName);
         var parent = remote.Parent(Root);
         var listing = await ListInternalAsync(parent, cancellationToken).ConfigureAwait(false);
         var prefix = parent.Relative == "/" ? "/" : parent.Relative + "/";
@@ -167,7 +181,7 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
 
         if (names.Count == 0)
         {
-            throw new FileNotFoundException($"No file or parts found for '{unsplitName}'.", prefix + unsplitName);
+            return null;
         }
 
         if (names.Count > listed)
@@ -267,11 +281,20 @@ public sealed class DatasusClient : IDisposable, IAsyncDisposable
     {
         Guard.NotDisposed(_disposed, this);
         var parts = await FindPartsAsync(path, cancellationToken).ConfigureAwait(false);
+        return await OpenPartsAsync(parts, dbfOptions, dbcOptions, cancellationToken).ConfigureAwait(false);
+    }
+
+    // Downloads the parts, one after the other, and opens them as one reader. A part that comes
+    // from a listing has no exact time: the server is asked for it, as before every download.
+    private async Task<DbfReader> OpenPartsAsync(IReadOnlyList<DatasusFileInfo> parts, DbfReadOptions? dbfOptions, DbcReadOptions? dbcOptions, CancellationToken cancellationToken)
+    {
         var locals = new List<string>();
         foreach (var part in parts)
         {
             var remote = RemotePath.Parse(part.Path, Root);
-            var info = new RemoteFileInfo(part.Size, part.LastModifiedUtc!.Value);
+            var info = part.LastModifiedUtc is { } modified
+                ? new RemoteFileInfo(part.Size, modified)
+                : await GetRemoteInfoAsync(remote, cancellationToken).ConfigureAwait(false);
             locals.Add(await DownloadVersionAsync(remote, info, cancellationToken).ConfigureAwait(false));
         }
 

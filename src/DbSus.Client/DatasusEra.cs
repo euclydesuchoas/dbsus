@@ -75,7 +75,7 @@ internal sealed class DatasusEra
         if (length is not (6 or 7)
             || !fileName.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase)
             || !fileName.EndsWith(Extension, StringComparison.OrdinalIgnoreCase)
-            || !DatasusUfNames.TryParse(fileName.Substring(Prefix.Length, 2), out uf))
+            || !DatasusUfNames.TryParse(fileName, Prefix.Length, out uf))
         {
             return false;
         }

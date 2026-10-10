@@ -147,6 +147,26 @@ internal static class DatasusUfNames
     /// <summary>Finds the state with the given abbreviation, ignoring case.</summary>
     public static bool TryParse(string name, out DatasusUf uf) => ByName.TryGetValue(name, out uf);
 
+    /// <summary>Finds the state whose abbreviation is the two letters at <paramref name="index"/>, ignoring case, without allocating.</summary>
+    public static bool TryParse(string text, int index, out DatasusUf uf)
+    {
+        var key = (Upper(text[index]) << 8) | Upper(text[index + 1]);
+        foreach (var candidate in All)
+        {
+            var name = NameOf(candidate)!;
+            if (((name[0] << 8) | name[1]) == key)
+            {
+                uf = candidate;
+                return true;
+            }
+        }
+
+        uf = default;
+        return false;
+
+        static int Upper(char c) => c is >= 'a' and <= 'z' ? c - 32 : c;
+    }
+
     /// <summary>Rejects a value that is not a state.</summary>
     public static string Require(DatasusUf uf, string paramName) =>
         NameOf(uf) ?? throw new ArgumentOutOfRangeException(

@@ -34,7 +34,7 @@ public sealed class DatasusClientOptions
     /// <c>Path.GetTempPath()/DbSus/downloads/&lt;random id&gt;/</c> (on Windows usually
     /// <c>%TEMP%\DbSus\downloads</c>; on Linux and macOS <c>$TMPDIR</c> or <c>/tmp</c>). That
     /// location cannot be changed; to keep downloaded microdata in a folder you control, set a
-    /// cache directory. Files opened by <see cref="DatasusClient.OpenReaderAsync"/> are deleted when
+    /// cache directory. Files opened by <c>OpenReaderAsync</c> are deleted when
     /// the reader is disposed; a file returned by <see cref="DatasusClient.DownloadAsync"/> is the
     /// caller's to delete. Folders left behind for more than 24 hours, whose files are not open, are
     /// removed by the first download without a cache of a later client and by

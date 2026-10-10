@@ -70,17 +70,19 @@ public sealed class DatasusDataset
     /// <remarks>
     /// <para>
     /// The path names the file without a part letter. For a table split into parts (SIA-PA in the
-    /// larger states), pass it to <see cref="DatasusClient.FindPartsAsync"/> or
-    /// <see cref="DatasusClient.OpenReaderAsync"/>, which find the parts.
+    /// larger states), pass it to <see cref="DatasusClient.FindPartsAsync"/> or to
+    /// <c>DatasusClient.OpenReaderAsync</c>, which find the parts.
     /// </para>
     /// <para>
     /// The path is where the final file is published. For the most recent years of SIM and SINASC,
-    /// the file may still be in the folder of preliminary data instead: see
-    /// <see cref="GetCandidatePaths"/>.
+    /// the file may still be in the folder of preliminary data instead: use
+    /// <see cref="DatasusClient.FindTableAsync"/>, which looks in both and tells which one it found.
     /// </para>
     /// <para>
-    /// The name is built in upper case with a lower-case extension; the server may list it in
-    /// another case, and accepts either.
+    /// The name is built in upper case with a lower-case extension. The server lists some names
+    /// in another case and, as observed in October 2026, accepts either; the name as the server
+    /// lists it is the one in <see cref="DatasusTableInfo.Path"/>, from
+    /// <see cref="DatasusClient.FindTableAsync"/>.
     /// </para>
     /// </remarks>
     /// <param name="uf">The state.</param>
@@ -107,9 +109,9 @@ public sealed class DatasusDataset
     /// its own (SIM and SINASC), the preliminary file.
     /// </summary>
     /// <remarks>
-    /// Which years are still preliminary changes as DATASUS closes them, so it is not known here:
-    /// ask the server for each candidate, in order (for example with
-    /// <see cref="DatasusClient.FindPartsAsync"/>), and use the first that exists.
+    /// Which years are still preliminary changes as DATASUS closes them, so it is not known here.
+    /// <see cref="DatasusClient.FindTableAsync"/> asks the server for each candidate, in this order,
+    /// and returns the first that exists.
     /// </remarks>
     /// <param name="uf">The state.</param>
     /// <param name="period">A month for a monthly file type, a year for a yearly one.</param>

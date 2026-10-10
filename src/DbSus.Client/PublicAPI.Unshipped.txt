@@ -12,8 +12,12 @@ DbSus.Client.DatasusClient.Dispose() -> void
 DbSus.Client.DatasusClient.DisposeAsync() -> System.Threading.Tasks.ValueTask
 DbSus.Client.DatasusClient.DownloadAsync(string! path, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<string!>!
 DbSus.Client.DatasusClient.FindPartsAsync(string! path, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<DbSus.Client.DatasusFileInfo!>!>!
+DbSus.Client.DatasusClient.FindTableAsync(DbSus.Client.DatasusDataset! dataset, DbSus.Client.DatasusUf uf, DbSus.Client.DatasusPeriod period, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Client.DatasusTableInfo!>!
 DbSus.Client.DatasusClient.GetInfoAsync(string! path, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Client.DatasusFileInfo!>!
 DbSus.Client.DatasusClient.ListAsync(string! directory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<DbSus.Client.DatasusFileInfo!>!>!
+DbSus.Client.DatasusClient.ListTablesAsync(DbSus.Client.DatasusDataset! dataset, DbSus.Client.DatasusPeriod from, DbSus.Client.DatasusPeriod to, DbSus.Client.DatasusUf? uf = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<DbSus.Client.DatasusTableInfo!>!>!
+DbSus.Client.DatasusClient.OpenReaderAsync(DbSus.Client.DatasusDataset! dataset, DbSus.Client.DatasusUf uf, DbSus.Client.DatasusPeriod period, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfReader!>!
+DbSus.Client.DatasusClient.OpenReaderAsync(DbSus.Client.DatasusTableInfo! table, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfReader!>!
 DbSus.Client.DatasusClient.OpenReaderAsync(string! path, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfReader!>!
 DbSus.Client.DatasusClient.PruneCacheAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 DbSus.Client.DatasusClient.ReadHeaderAsync(string! path, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfHeader!>!
@@ -84,6 +88,14 @@ DbSus.Client.DatasusRetryInfo.Exception.get -> System.Exception!
 DbSus.Client.DatasusRetryInfo.FtpReplyCode.get -> string?
 DbSus.Client.DatasusRetryInfo.Operation.get -> string!
 DbSus.Client.DatasusRetryInfo.RemotePath.get -> string!
+DbSus.Client.DatasusTableInfo
+DbSus.Client.DatasusTableInfo.Dataset.get -> DbSus.Client.DatasusDataset!
+DbSus.Client.DatasusTableInfo.IsPreliminary.get -> bool
+DbSus.Client.DatasusTableInfo.Parts.get -> System.Collections.Generic.IReadOnlyList<DbSus.Client.DatasusFileInfo!>!
+DbSus.Client.DatasusTableInfo.Path.get -> string!
+DbSus.Client.DatasusTableInfo.Period.get -> DbSus.Client.DatasusPeriod
+DbSus.Client.DatasusTableInfo.Size.get -> long
+DbSus.Client.DatasusTableInfo.Uf.get -> DbSus.Client.DatasusUf?
 DbSus.Client.DatasusTransferException
 DbSus.Client.DatasusTransferException.Attempts.get -> int
 DbSus.Client.DatasusTransferException.FtpReplyCode.get -> string?
@@ -125,6 +137,7 @@ override DbSus.Client.DatasusFileInfo.ToString() -> string!
 override DbSus.Client.DatasusPeriod.Equals(object? obj) -> bool
 override DbSus.Client.DatasusPeriod.GetHashCode() -> int
 override DbSus.Client.DatasusPeriod.ToString() -> string!
+override DbSus.Client.DatasusTableInfo.ToString() -> string!
 static DbSus.Client.DatasusCatalog.Cnes.DC.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Cnes.EF.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Cnes.EP.get -> DbSus.Client.DatasusDataset!
