@@ -33,7 +33,7 @@ One file (an SIH-RD month: 132,337 records of 113 fields), read as a `.dbc`, eac
 | Typed getters, text decoded with `GetChars` into a reused buffer | all 113 | 0.68 s | 205 KiB | not measured |
 | The same | 3 projected | 0.48 s | 205 KiB | not measured |
 
-On this file and this machine: when values are materialized as objects (`GetValues`, `DataTable`), a projection cut allocation from 377 MiB to about 14 MiB and the time by about 30%. With typed getters and text decoded through `GetChars`, allocation was already close to zero and a projection still saved about 30% of the time, since decoding text costs time even without allocating. With text left as raw bytes it saved less (0.57 s to 0.47 s): most of the remaining time is decompression, which a projection does not reduce. For comparison, the same file already decompressed (`.dbf`), with 3 fields read through `GetValues`, took 173 ms from disk and 63 ms from the operating system's file cache.
+On this file and this machine: when values are materialized as objects (`GetValues`, `DataTable`), a projection cut allocation from 377 MiB to about 14 MiB and the time by about 30%. With typed getters and text decoded through `GetChars`, allocation was already close to zero and a projection still saved about 30% of the time, since decoding text costs time even without allocating. With text left as raw bytes it saved less (0.57 s to 0.47 s): most of the remaining time is decompression, which a projection does not reduce. For comparison, the same file already decompressed (`.dbf`), with 3 fields read through `GetValues`, took 173 ms on the first run and 63 ms on the second (probably the operating system's file cache).
 
 ## Allocation of the reading loop
 
