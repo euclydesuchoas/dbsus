@@ -6,7 +6,7 @@ using Xunit;
 namespace DbSus.Client.Tests;
 
 // On .NET Framework the synchronous session needs FluentFTP to call its connection hooks: without
-// them, cancelling would not end a stalled operation. The session checks that each hook did its
+// them, canceling would not end a stalled operation. The session checks that each hook did its
 // part and refuses to go on otherwise. The hooks are switched off here through an internal,
 // test-only setting.
 public sealed class HookCheckTests : IDisposable

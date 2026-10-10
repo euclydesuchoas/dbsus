@@ -11,6 +11,6 @@ These two files are small, publicly distributed CNES tables with **establishment
 
 The expected DBF hashes (from the `pyreaddbc` oracle) are in `tests/data/expected.json`. The files are allowed by an explicit negation rule in `.gitignore` (`!tests/data/fixtures/*.dbc`).
 
-Decoder coverage is summarised under "Testing" in `docs/decisions.md`.
+Decoder coverage is summarized under "Testing" in `docs/decisions.md`.
 
 DbSus is an independent project, not affiliated with the Brazilian Ministry of Health or DATASUS.

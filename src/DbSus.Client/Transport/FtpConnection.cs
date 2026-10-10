@@ -226,7 +226,7 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
         session.Abort();
     }
 
-    // Runs a step so that the cancellation token is meant to end it on every runtime: cancelling
+    // Runs a step so that the cancellation token is meant to end it on every runtime: canceling
     // closes the connection, which ends any pending read even where the library does not observe
     // the token.
     private async Task<T> Guard<T>(FtpStep step, Func<int>? connectCount, Func<Task<T>> operation, CancellationToken cancellationToken)

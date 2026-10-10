@@ -1,5 +1,5 @@
 // Second process for DbSus.Client.Tests.TwoProcessLockTests: uses the client's own lock primitives
-// from another process, so the tests exercise real cross-process behaviour (share modes on Windows,
+// from another process, so the tests exercise real cross-process behavior (share modes on Windows,
 // flock on Linux and macOS).
 //
 //   lock <lock file>      take the exclusive lock, print "locked", hold it until a line arrives on stdin

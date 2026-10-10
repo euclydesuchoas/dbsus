@@ -1,4 +1,4 @@
-# Normalise line endings of text files to LF in the repository.
+# Normalize line endings of text files to LF in the repository.
 * text=auto
 
 # dBase files (compressed and plain) are binary: no EOL conversion, no textual diff.

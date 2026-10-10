@@ -5,7 +5,7 @@ using Xunit;
 
 namespace DbSus.Client.Tests;
 
-// Cancelling an operation relies on FluentFTP calling its protected virtual connection hooks, which
+// Canceling an operation relies on FluentFTP calling its protected virtual connection hooks, which
 // is how a session learns its control and data sockets. If a FluentFTP version stopped calling one
 // of them, nothing would fail to build or load: cancellation would just stop working on .NET
 // Framework. This test watches the sockets from the server's side, for both kinds of session.

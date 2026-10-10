@@ -7,7 +7,7 @@ namespace DbSus.Benchmarks;
 /// <summary>
 /// End-to-end read costs on a large, local-only DATASUS file (never committed; see
 /// tests/data/local): SIA-PA MG 2024-07 part b, 126 MB compressed, 1,173,720,147 bytes of DBF,
-/// 2,956,469 records of 60 fields. Baseline for deciding what, if anything, to optimise.
+/// 2,956,469 records of 60 fields. Baseline for deciding what, if anything, to optimize.
 /// Throughput = DBF bytes / mean time; allocation per record = allocated / records.
 /// </summary>
 [MemoryDiagnoser]

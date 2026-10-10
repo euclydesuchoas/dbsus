@@ -278,7 +278,7 @@ internal sealed class SyncFtpSession(string host, int port, FtpConfig config, So
 
     private static NotSupportedException Unsupported(string connection) => new(
         $"FluentFTP {typeof(FtpClient).Assembly.GetName().Version?.ToString(3)} did not report its {connection} connection to DbSus.Client, "
-        + $"which needs that on .NET Framework to end stalled or cancelled operations; this FluentFTP version is not supported "
+        + $"which needs that on .NET Framework to end stalled or canceled operations; this FluentFTP version is not supported "
         + $"(the client is tested with FluentFTP {TestedFluentFtpVersion}).");
 
     private sealed class TrackingClient(string host, int port, FtpConfig config, SocketHooks disabledForTest) : FtpClient(host, "anonymous", "anonymous@", port, config)

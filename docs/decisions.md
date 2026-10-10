@@ -76,7 +76,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 - **Files are republished** under the same name with different content, so anything cached or pinned must be keyed on size and modification time (or a hash), not on the name.
 - **No HTTP(S) mirror:** the FTP host does not answer on ports 80/443. The website's download page uses undocumented, form-driven endpoints that return HTML; the library does not use them.
 
-## API and behaviour
+## API and behavior
 
 ### Naming
 
