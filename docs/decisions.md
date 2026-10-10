@@ -47,7 +47,7 @@ Confirmed on every file examined:
 
 ### DBF dialect seen across sources
 
-Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggregate (no individual values recorded):
+Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggregate (no individual values recorded). Here "examined" means their headers, and counts over their data, such as which field types and which bytes occur. It does not mean "read", which in these notes is reading a file record by record with the DbSus reader: that was done for files of five types (SIA-PA, SIH-RD and CNES LT, EQ and ST; `docs/datasus-paths.md` says which).
 
 - **Header:** field descriptors end at 0x0D, at an empty name, or where the header length runs out (the CNES file above has no terminator at all). Spare bytes after the last field are tolerated; in every file examined the fields fill the record exactly.
 - **Field types:** `C` everywhere, `N` in most sources, `D` only in SINAN; no `F`, `L` or `M`.
@@ -59,7 +59,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 
 ### Language driver (LDID) and code pages
 
-- Values seen: 0x00 (no driver) in SIM, SINASC, SINAN, SIH SP/ER, SIA AM/AQ/PS and CNES SR/ST; 0x02 in SIH RD/RJ; 0x03 in SIA PA/BI; 0x57 in SIA AD/AR; 0x58 in CNES EQ/LT/PF/HB.
+- Values seen, in the headers of the files examined: 0x00 (no driver) in SIM, SINASC, SINAN, SIH SP/ER, SIA AM/AQ/PS and CNES SR/ST; 0x02 in SIH RD/RJ; 0x03 in SIA PA/BI; 0x57 in SIA AD/AR; 0x58 in CNES EQ/LT/PF/HB. For the types that were examined but not read, the value is known from the header alone: that is the case of 0x57 (SIA AD and AR) and, among the files with 0x58, of CNES PF and HB.
 - Meaning: 0x02 = code page 850 and 0x03 = 1252 (Microsoft's Visual FoxPro table); 0x58 = 1252, 0x57 = ISO-8859-1 and 0x59 = 1252 (dBASE drivers, per the MiraMon documentation and GDAL's LDID table).
 - The only accented text found (CNES) reads correctly as code page 1252, including in a file whose LDID is 0x00.
 - **To validate:** the 1252 fallback for LDID 0x00, and whether files marked 0x02 and 0x57 really hold text in those code pages.
