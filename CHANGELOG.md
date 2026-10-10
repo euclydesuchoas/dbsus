@@ -22,7 +22,7 @@ All notable changes to this project are documented in this file. The format foll
 - Retries of transient failures with exponential backoff (`MaxRetries`, `InitialRetryDelay`, `OnRetry`), and typed exceptions (`DatasusTransferException`, `DatasusRetriesExhaustedException`, `DatasusRequestRefusedException`, `InsufficientDiskSpaceException`). An exception that FluentFTP is not meant to throw (such as the `NullReferenceException` of FluentFTP 55.0.0 in a listing whose control connection the server has closed without notice) is retried as a transient failure, on another connection.
 - Read timeouts and cancellation (verified on .NET 10 and .NET Framework 4.8).
 - On .NET Framework, a `NotSupportedException` when the FluentFTP version in use does not report its connections to the client.
-- A catalog of 26 DATASUS file types, from SIASUS, SIHSUS, CNES, SIM and SINASC (`DatasusCatalog`, `DatasusDataset`, `DatasusUf`, `DatasusPeriod`): paths built from a dataset, a state and a period (`GetPath`, `GetCandidatePaths`), and tables found (`FindTableAsync`), listed (`ListTablesAsync`) and opened (`OpenReaderAsync` by dataset, state and period, or from a `DatasusTableInfo`) on the server.
+- A catalog of 26 DATASUS file types, from SIASUS, SIHSUS, CNES, SIM and SINASC (`DatasusCatalog`, `DatasusDataset`, `DatasusUf`, `DatasusPeriod`): paths built from a dataset, a state and a period (`GetPath`, `GetCandidatePaths`), and tables found (`FindTableAsync`), listed (`ListTablesAsync`) and opened (`OpenReaderAsync` by dataset, state and period, or from a `DatasusTableInfo`) on the server. `OpenReaderAsync` by dataset, state and period opens final data only; preliminary data is opened from a `DatasusTableInfo`, whose `IsPreliminary` says so.
 
 ### Notes
 
