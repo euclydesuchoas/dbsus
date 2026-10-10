@@ -41,12 +41,25 @@ DbSus.Client.DatasusClientOptions.RootPath.get -> string!
 DbSus.Client.DatasusClientOptions.RootPath.set -> void
 DbSus.Client.DatasusClientOptions.VerifyOnDownload.get -> bool
 DbSus.Client.DatasusClientOptions.VerifyOnDownload.set -> void
+DbSus.Client.DatasusCoverage
+DbSus.Client.DatasusCoverage.National = 2 -> DbSus.Client.DatasusCoverage
+DbSus.Client.DatasusCoverage.Uf = 1 -> DbSus.Client.DatasusCoverage
 DbSus.Client.DatasusFileInfo
 DbSus.Client.DatasusFileInfo.IsDirectory.get -> bool
 DbSus.Client.DatasusFileInfo.LastModifiedUtc.get -> System.DateTime?
 DbSus.Client.DatasusFileInfo.Name.get -> string!
 DbSus.Client.DatasusFileInfo.Path.get -> string!
 DbSus.Client.DatasusFileInfo.Size.get -> long
+DbSus.Client.DatasusPeriod
+DbSus.Client.DatasusPeriod.CompareTo(DbSus.Client.DatasusPeriod other) -> int
+DbSus.Client.DatasusPeriod.DatasusPeriod() -> void
+DbSus.Client.DatasusPeriod.Equals(DbSus.Client.DatasusPeriod other) -> bool
+DbSus.Client.DatasusPeriod.Month.get -> int?
+DbSus.Client.DatasusPeriod.Periodicity.get -> DbSus.Client.DatasusPeriodicity
+DbSus.Client.DatasusPeriod.Year.get -> int
+DbSus.Client.DatasusPeriodicity
+DbSus.Client.DatasusPeriodicity.Monthly = 0 -> DbSus.Client.DatasusPeriodicity
+DbSus.Client.DatasusPeriodicity.Yearly = 1 -> DbSus.Client.DatasusPeriodicity
 DbSus.Client.DatasusRequestRefusedException
 DbSus.Client.DatasusRetriesExhaustedException
 DbSus.Client.DatasusRetryInfo
@@ -60,8 +73,47 @@ DbSus.Client.DatasusTransferException
 DbSus.Client.DatasusTransferException.Attempts.get -> int
 DbSus.Client.DatasusTransferException.FtpReplyCode.get -> string?
 DbSus.Client.DatasusTransferException.RemotePath.get -> string!
+DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.AC = 12 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.AL = 27 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.AM = 13 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.AP = 16 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.BA = 29 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.CE = 23 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.DF = 53 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.ES = 32 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.GO = 52 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.MA = 21 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.MG = 31 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.MS = 50 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.MT = 51 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.PA = 15 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.PB = 25 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.PE = 26 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.PI = 22 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.PR = 41 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.RJ = 33 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.RN = 24 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.RO = 11 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.RR = 14 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.RS = 43 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.SC = 42 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.SE = 28 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.SP = 35 -> DbSus.Client.DatasusUf
+DbSus.Client.DatasusUf.TO = 17 -> DbSus.Client.DatasusUf
 DbSus.Client.InsufficientDiskSpaceException
 DbSus.Client.InsufficientDiskSpaceException.AvailableBytes.get -> long
 DbSus.Client.InsufficientDiskSpaceException.Directory.get -> string!
 DbSus.Client.InsufficientDiskSpaceException.RequiredBytes.get -> long
 override DbSus.Client.DatasusFileInfo.ToString() -> string!
+override DbSus.Client.DatasusPeriod.Equals(object? obj) -> bool
+override DbSus.Client.DatasusPeriod.GetHashCode() -> int
+override DbSus.Client.DatasusPeriod.ToString() -> string!
+static DbSus.Client.DatasusPeriod.OfMonth(int year, int month) -> DbSus.Client.DatasusPeriod
+static DbSus.Client.DatasusPeriod.OfYear(int year) -> DbSus.Client.DatasusPeriod
+static DbSus.Client.DatasusPeriod.operator !=(DbSus.Client.DatasusPeriod left, DbSus.Client.DatasusPeriod right) -> bool
+static DbSus.Client.DatasusPeriod.operator <(DbSus.Client.DatasusPeriod left, DbSus.Client.DatasusPeriod right) -> bool
+static DbSus.Client.DatasusPeriod.operator <=(DbSus.Client.DatasusPeriod left, DbSus.Client.DatasusPeriod right) -> bool
+static DbSus.Client.DatasusPeriod.operator ==(DbSus.Client.DatasusPeriod left, DbSus.Client.DatasusPeriod right) -> bool
+static DbSus.Client.DatasusPeriod.operator >(DbSus.Client.DatasusPeriod left, DbSus.Client.DatasusPeriod right) -> bool
+static DbSus.Client.DatasusPeriod.operator >=(DbSus.Client.DatasusPeriod left, DbSus.Client.DatasusPeriod right) -> bool
