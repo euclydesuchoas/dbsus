@@ -156,7 +156,7 @@ BenchmarkDotNet, Release, net10.0, AMD Ryzen 9 9950X3D, one large SIA-PA file (1
 | + 2 converted `C` fields | 293 MB/s | 0.06 B |
 | Every value of every field (`GetValues`, boxed) | 189 MB/s | 1,867 B |
 
-Decompression dominates typical use; the network will usually be slower still. No optimisation has been done yet.
+Decompression dominates typical use: it consumed the compressed file at about 33 MB/s (126 MB in about 3.8 s; see `docs/performance.md`), so a connection slower than that is the limit when files come from the DATASUS server.
 
 ## Testing
 
