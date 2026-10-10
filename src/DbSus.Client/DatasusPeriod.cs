@@ -14,7 +14,6 @@ public enum DatasusPeriodicity
 
 /// <summary>The areas that the files of one file type cover.</summary>
 [Flags]
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1008:Enums should have zero value", Justification = "Every file type covers something; a value without flags is not a coverage and must not be named.")]
 public enum DatasusCoverage
 {
     /// <summary>One file per state (see <see cref="DatasusUf"/>).</summary>

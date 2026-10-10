@@ -1,4 +1,10 @@
 #nullable enable
+DbSus.Client.DatasusCatalog
+DbSus.Client.DatasusCatalog.Cnes
+DbSus.Client.DatasusCatalog.SiaSus
+DbSus.Client.DatasusCatalog.SihSus
+DbSus.Client.DatasusCatalog.Sim
+DbSus.Client.DatasusCatalog.Sinasc
 DbSus.Client.DatasusClient
 DbSus.Client.DatasusClient.ClearCacheAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 DbSus.Client.DatasusClient.DatasusClient(DbSus.Client.DatasusClientOptions? options = null) -> void
@@ -44,6 +50,15 @@ DbSus.Client.DatasusClientOptions.VerifyOnDownload.set -> void
 DbSus.Client.DatasusCoverage
 DbSus.Client.DatasusCoverage.National = 2 -> DbSus.Client.DatasusCoverage
 DbSus.Client.DatasusCoverage.Uf = 1 -> DbSus.Client.DatasusCoverage
+DbSus.Client.DatasusDataset
+DbSus.Client.DatasusDataset.Code.get -> string!
+DbSus.Client.DatasusDataset.Coverage.get -> DbSus.Client.DatasusCoverage
+DbSus.Client.DatasusDataset.FirstPeriod.get -> DbSus.Client.DatasusPeriod
+DbSus.Client.DatasusDataset.GetCandidatePaths(DbSus.Client.DatasusUf uf, DbSus.Client.DatasusPeriod period) -> System.Collections.Generic.IReadOnlyList<string!>!
+DbSus.Client.DatasusDataset.GetPath(DbSus.Client.DatasusUf uf, DbSus.Client.DatasusPeriod period) -> string!
+DbSus.Client.DatasusDataset.OfficialName.get -> string!
+DbSus.Client.DatasusDataset.Periodicity.get -> DbSus.Client.DatasusPeriodicity
+DbSus.Client.DatasusDataset.Source.get -> string!
 DbSus.Client.DatasusFileInfo
 DbSus.Client.DatasusFileInfo.IsDirectory.get -> bool
 DbSus.Client.DatasusFileInfo.LastModifiedUtc.get -> System.DateTime?
@@ -105,10 +120,40 @@ DbSus.Client.InsufficientDiskSpaceException
 DbSus.Client.InsufficientDiskSpaceException.AvailableBytes.get -> long
 DbSus.Client.InsufficientDiskSpaceException.Directory.get -> string!
 DbSus.Client.InsufficientDiskSpaceException.RequiredBytes.get -> long
+override DbSus.Client.DatasusDataset.ToString() -> string!
 override DbSus.Client.DatasusFileInfo.ToString() -> string!
 override DbSus.Client.DatasusPeriod.Equals(object? obj) -> bool
 override DbSus.Client.DatasusPeriod.GetHashCode() -> int
 override DbSus.Client.DatasusPeriod.ToString() -> string!
+static DbSus.Client.DatasusCatalog.Cnes.DC.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Cnes.EF.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Cnes.EP.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Cnes.EQ.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Cnes.GM.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Cnes.HB.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Cnes.IN.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Cnes.LT.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Cnes.PF.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Cnes.RC.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Cnes.SR.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Cnes.ST.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Datasets.get -> System.Collections.Generic.IReadOnlyList<DbSus.Client.DatasusDataset!>!
+static DbSus.Client.DatasusCatalog.Get(string! source, string! code) -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SiaSus.ACF.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SiaSus.AD.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SiaSus.AM.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SiaSus.AQ.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SiaSus.AR.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SiaSus.ATD.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SiaSus.PA.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SiaSus.PS.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SihSus.ER.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SihSus.RD.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SihSus.RJ.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SihSus.SP.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sim.DO.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinasc.DN.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.TryGet(string! source, string! code, out DbSus.Client.DatasusDataset? dataset) -> bool
 static DbSus.Client.DatasusPeriod.OfMonth(int year, int month) -> DbSus.Client.DatasusPeriod
 static DbSus.Client.DatasusPeriod.OfYear(int year) -> DbSus.Client.DatasusPeriod
 static DbSus.Client.DatasusPeriod.operator !=(DbSus.Client.DatasusPeriod left, DbSus.Client.DatasusPeriod right) -> bool
