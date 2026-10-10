@@ -66,7 +66,8 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 
 ### Split tables (SIA-PA)
 
-- Only SIA-PA is split, into parts `a` to `d`. The headers of all 740 parts of the 307 split groups in `SIASUS/200801_/Dados` (fetched with range requests) were compared: no gaps, no group starting after `a`, never an unlettered file next to lettered parts, and all 434 part-to-part comparisons identical (names, types, widths, decimals, record and header length, LDID, version). The layout changes over time, but never within a month. The rule is therefore strict: identical schema.
+- Among the file types surveyed (the SIASUS, SIHSUS, CNES, SIM, SINASC and SINAN data folders listed on the server in October 2026), only SIA-PA is split into lettered parts, `a` to `d`. The headers of all 740 parts of the 307 split groups in `SIASUS/200801_/Dados` (fetched with range requests) were compared: no gaps, no group starting after `a`, never an unlettered file next to lettered parts, and all 434 part-to-part comparisons identical (names, types, widths, decimals, record and header length, LDID, version). The layout changes over time, but never within a month. The rule is therefore strict: identical schema.
+- SIA-BI has files with a `_1`, `_2` or `_3` suffix (in MG, RJ and SP, from 2023-05: 117 state-months), in 30 of them next to a file without a suffix. Only their names were seen, in the same listing; their content was not examined, and DbSus does not treat them as parts of one table.
 
 ### FTP server
 
