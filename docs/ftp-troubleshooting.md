@@ -35,6 +35,14 @@ These waits end at their timeouts, and canceling the token ends them at once (th
 
 In a web request or any call with a deadline, lower `MaxRetries`, `ConnectTimeout` and `ReadTimeout`, and pass a cancellation token that carries the deadline.
 
+## What to check
+
+- Logging in and changing directory (`CWD`) use only the control connection; a listing or a download also needs a data connection. If, with any FTP client, the first two work but a listing times out, look at the data connection first.
+- Try another FTP client, in passive mode, and another network.
+- A firewall or NAT has to let through the passive data connections, to the ports the server announces, not only port 21.
+- Try without a VPN, and check whether an antivirus or security suite filters FTP traffic.
+- Set `OnRetry` and log each failed attempt (see above).
+
 ## A known limit of listings
 
 A listing counts only when the server confirms its end (a `226` reply after the data); one without that confirmation is a transient failure and is not cached. But if the client's read of the listing fails while the server still answers `226`, the client cannot tell, and a partial listing can pass.
