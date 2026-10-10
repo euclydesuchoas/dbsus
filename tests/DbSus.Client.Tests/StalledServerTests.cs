@@ -4,8 +4,9 @@ using Xunit;
 
 namespace DbSus.Client.Tests;
 
-// A server that stops answering, on every runtime: the read timeout and the cancellation token both
-// end the operation, the connection is not reused, and a download cut short leaves no cache entry.
+// A server that stops answering, intended to be handled on every runtime: the read timeout and the
+// cancellation token both end the operation, the connection is not reused, and a download cut short
+// leaves no cache entry.
 // On .NET Framework, FluentFTP's asynchronous reads do not observe their timeout or the token, so
 // without the client's own handling these operations would never end.
 public sealed class StalledServerTests : IDisposable
