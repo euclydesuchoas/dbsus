@@ -17,7 +17,7 @@ Receiving the server's greeting (`220`) on port 21 shows that the control connec
 - **Time.** Each connection attempt waits up to `ConnectTimeout` (30 seconds by default) per address, and a failed step is retried `MaxRetries` times (4 by default), the connection that failed being discarded, so a server that never answers can take minutes before the exception.
 - **Settings.** The data connection mode and the address family cannot be changed through `DatasusClientOptions`; `Host`, `Port`, `ConnectTimeout` and `ReadTimeout` can.
 
-To see each failed attempt as it happens, set `OnRetry` and log its `Operation`, `RemotePath` and `Exception.Message`.
+To see each failed attempt as it happens, set `OnRetry` and log its `Operation`, `RemotePath`, `FtpReplyCode` and `Exception.Message`.
 
 ## Worst case
 
