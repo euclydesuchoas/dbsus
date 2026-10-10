@@ -14,7 +14,7 @@ Measured with BenchmarkDotNet (`benchmarks/DbSus.Benchmarks`, .NET 10) on one la
 | Plus 2 converted character fields | 293 MB/s | 0.06 B |
 | Every value of every field (`GetValues`, boxed) | 189 MB/s | 1,867 B |
 
-The small allocations of the first four rows are fixed buffers, not per-record costs. Decompression dominates; when files come from the DATASUS server, the network is usually slower still.
+The small allocations of the first four rows are fixed buffers, not per-record costs. Decompression dominates: it consumed the compressed file at about 33 MB/s (about 265 Mbit/s), 126 MB in about 3.8 s, the time the table gives for 1.17 GB at 309 MB/s. A connection slower than that is the limit when files come from the DATASUS server; on a faster one, decompression is.
 
 In a real-world test on the same machine (Windows 11, .NET SDK 10.0.401, running on .NET 10), a complete SIA-PA month split into two parts, about 8 million records, was read in about 11 seconds, with about 0 bytes allocated per record and no garbage collection. The memory peak was 34 MiB: the peak working set (`PeakWorkingSet64`) of the whole process, the .NET runtime included.
 
