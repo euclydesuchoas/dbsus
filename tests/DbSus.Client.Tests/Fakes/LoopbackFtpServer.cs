@@ -38,6 +38,8 @@ internal sealed class LoopbackFtpServer : IDisposable
     private int _controlConnections;
     private int _controlClosedByClient;
     private int _dataClosedByClient;
+    private readonly TaskCompletionSource<bool> _closedSilently = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int _silentCloses;
 
     public LoopbackFtpServer()
     {
@@ -59,6 +61,16 @@ internal sealed class LoopbackFtpServer : IDisposable
     /// connection is accepted, so FluentFTP must reopen it, and fails, during the next operation.
     /// </summary>
     public bool DropControlConnectionAfterLogin { get; set; }
+
+    /// <summary>
+    /// Gets or sets a command after whose reply the server closes the control connection without
+    /// a word, once (on the first connection that sends it), as a server that drops an idle or
+    /// unwanted connection. It goes on accepting new connections.
+    /// </summary>
+    public string? CloseControlConnectionSilentlyAfter { get; set; }
+
+    /// <summary>Gets a task that completes when the server has closed a control connection as <see cref="CloseControlConnectionSilentlyAfter"/> asks.</summary>
+    public Task ControlConnectionClosedSilently => _closedSilently.Task;
 
     /// <summary>Gets the port that the passive replies point at when there is no data to serve; nothing listens on it.</summary>
     public int PassivePort { get; } = ClosedPort();
@@ -222,16 +234,26 @@ internal sealed class LoopbackFtpServer : IDisposable
                         continue;
                     }
 
+                    if (command == "TYPE" && DropControlConnectionAfterLogin)
+                    {
+                        // The reply and the notice go out in one write, after the listener has
+                        // stopped: when the client has read the reply, the notice is already there
+                        // for it to find before its next command, and the port already refuses.
+                        _listener.Stop();
+                        await writer.WriteAsync(Reply(command, argument) + "\r\n421 Closing the control connection.\r\n").ConfigureAwait(false);
+                        return;
+                    }
+
                     await writer.WriteLineAsync(Reply(command, argument)).ConfigureAwait(false);
                     if (command == "QUIT")
                     {
                         return;
                     }
 
-                    if (command == "TYPE" && DropControlConnectionAfterLogin)
+                    if (command == CloseControlConnectionSilentlyAfter && Interlocked.Exchange(ref _silentCloses, 1) == 0)
                     {
-                        _listener.Stop();
-                        await writer.WriteLineAsync("421 Closing the control connection.").ConfigureAwait(false);
+                        client.Close();
+                        _closedSilently.TrySetResult(true);
                         return;
                     }
                 }
