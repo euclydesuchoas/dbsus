@@ -66,7 +66,7 @@ In the file names, `{CODE}` is the code of the file type, `{UF}` is the two-lett
 
 - **Official name** is the name under which DATASUS publishes the file type, in Portuguese and spelled as DATASUS spells it (`DatasusDataset.OfficialName`).
 - **From** is the first period the catalog accepts (`DatasusDataset.FirstPeriod`): the start of the folder layout in use now, not the first period with data. CNES-LT, for example, has files from 2005-10 only.
-- **Read** is "yes" when a real file of that type was decompressed, passed its CRC-32 check and was read with DbSus, record by record. For the others, only the path was verified: files with those names are on the server, and none was read. Files of 13 other types were decompressed in September 2026 with a result identical to a reference decoder, but were not read record by record. No file from the `PRELIM` folders was read.
+- **Read** is "yes" when a real file of that type, with at least one record, was decompressed, passed its CRC-32 check and was read with DbSus, record by record, every field of every record. Read means one file of that type was read, usually a small and old one; layouts can differ in other periods. No file from the `PRELIM` folders was read.
 
 ### SIASUS
 
@@ -75,13 +75,13 @@ Folder `/SIASUS/200801_/Dados`, file name `{CODE}{UF}{YY}{MM}.dbc`.
 | Source | Code | Official name | Coverage | Published | From | Read |
 |---|---|---|---|---|---|---|
 | SIASUS | PA | Produção Ambulatorial | state | monthly | 2008-01 | yes |
-| SIASUS | AD | APAC de Laudos Diversos | state | monthly | 2008-01 | no |
-| SIASUS | AM | APAC de Medicamentos | state | monthly | 2008-01 | no |
-| SIASUS | AQ | APAC de Quimioterapia | state | monthly | 2008-01 | no |
-| SIASUS | AR | APAC de Radioterapia | state | monthly | 2008-01 | no |
-| SIASUS | PS | Psicossocial | state | monthly | 2008-01 | no |
-| SIASUS | ATD | APAC Tratamento Dialítico | state | monthly | 2008-01 | no |
-| SIASUS | ACF | APAC Confeção de Fístula Arteriovenosa | state | monthly | 2008-01 | no |
+| SIASUS | AD | APAC de Laudos Diversos | state | monthly | 2008-01 | yes |
+| SIASUS | AM | APAC de Medicamentos | state | monthly | 2008-01 | yes |
+| SIASUS | AQ | APAC de Quimioterapia | state | monthly | 2008-01 | yes |
+| SIASUS | AR | APAC de Radioterapia | state | monthly | 2008-01 | yes |
+| SIASUS | PS | Psicossocial | state | monthly | 2008-01 | yes |
+| SIASUS | ATD | APAC Tratamento Dialítico | state | monthly | 2008-01 | yes |
+| SIASUS | ACF | APAC Confeção de Fístula Arteriovenosa | state | monthly | 2008-01 | yes |
 
 ### SIHSUS
 
@@ -90,9 +90,9 @@ Folder `/SIHSUS/200801_/Dados`, file name `{CODE}{UF}{YY}{MM}.dbc`.
 | Source | Code | Official name | Coverage | Published | From | Read |
 |---|---|---|---|---|---|---|
 | SIHSUS | RD | AIH Reduzida | state | monthly | 2008-01 | yes |
-| SIHSUS | SP | Serviços Profissionais | state | monthly | 2008-01 | no |
-| SIHSUS | RJ | AIH Rejeitadas | state | monthly | 2008-01 | no |
-| SIHSUS | ER | AIH Rejeitadas com código de erro | state | monthly | 2008-01 | no |
+| SIHSUS | SP | Serviços Profissionais | state | monthly | 2008-01 | yes |
+| SIHSUS | RJ | AIH Rejeitadas | state | monthly | 2008-01 | yes |
+| SIHSUS | ER | AIH Rejeitadas com código de erro | state | monthly | 2008-01 | yes |
 
 ### CNES
 
@@ -103,15 +103,15 @@ One folder per file type, `/CNES/200508_/Dados/{CODE}`, file name `{CODE}{UF}{YY
 | CNES | LT | Leitos | state | monthly | 2005-08 | yes |
 | CNES | EQ | Equipamentos | state | monthly | 2005-08 | yes |
 | CNES | ST | Estabelecimentos | state | monthly | 2005-08 | yes |
-| CNES | PF | Profissional | state | monthly | 2005-08 | no |
-| CNES | SR | Serviço Especializado | state | monthly | 2005-08 | no |
-| CNES | HB | Habilitação | state | monthly | 2005-08 | no |
-| CNES | DC | Dados Complementares | state | monthly | 2005-08 | no |
-| CNES | EP | Equipes | state | monthly | 2005-08 | no |
-| CNES | EF | Estabelecimento Filantrópico | state | monthly | 2005-08 | no |
-| CNES | GM | Gestão e Metas | state | monthly | 2005-08 | no |
-| CNES | IN | Incentivos | state | monthly | 2005-08 | no |
-| CNES | RC | Regra Contratual | state | monthly | 2005-08 | no |
+| CNES | PF | Profissional | state | monthly | 2005-08 | yes |
+| CNES | SR | Serviço Especializado | state | monthly | 2005-08 | yes |
+| CNES | HB | Habilitação | state | monthly | 2005-08 | yes |
+| CNES | DC | Dados Complementares | state | monthly | 2005-08 | yes |
+| CNES | EP | Equipes | state | monthly | 2005-08 | yes |
+| CNES | EF | Estabelecimento Filantrópico | state | monthly | 2005-08 | yes |
+| CNES | GM | Gestão e Metas | state | monthly | 2005-08 | yes |
+| CNES | IN | Incentivos | state | monthly | 2005-08 | yes |
+| CNES | RC | Regra Contratual | state | monthly | 2005-08 | yes |
 
 ### SIM
 
@@ -119,7 +119,7 @@ Folder `/SIM/CID10/DORES`, and `/SIM/PRELIM/DORES` for preliminary years; file n
 
 | Source | Code | Official name | Coverage | Published | From | Read |
 |---|---|---|---|---|---|---|
-| SIM | DO | Declarações de Óbito | state and country | yearly | 1996 | no |
+| SIM | DO | Declarações de Óbito | state and country | yearly | 1996 | yes |
 
 ### SINASC
 
@@ -127,7 +127,7 @@ Folder `/SINASC/1996_/Dados/DNRES`, and `/SINASC/PRELIM/DNRES` for preliminary y
 
 | Source | Code | Official name | Coverage | Published | From | Read |
 |---|---|---|---|---|---|---|
-| SINASC | DN | Declarações de nascidos vivos | state and country | yearly | 1996 | no |
+| SINASC | DN | Declarações de nascidos vivos | state and country | yearly | 1996 | yes |
 
 ## What to know about these files
 
@@ -135,6 +135,7 @@ Folder `/SINASC/1996_/Dados/DNRES`, and `/SINASC/PRELIM/DNRES` for preliminary y
 - **Preliminary years.** SIM and SINASC publish the most recent years in a folder of preliminary data until they are closed. In the listings of October 2026, the final folders went from 1996 to 2024 and the preliminary ones held 2025 and 2026. Which years are preliminary changes, so the catalog does not know it: `GetCandidatePaths` gives the final path and then the preliminary one, and `FindTableAsync` tries them in that order.
 - **Letter case.** The server lists most names in upper case with a lower-case extension, but not all: in the listings of October 2026, `DORR2011.DBC`, `DNRR2010.DBC`, `AQPA1001.DBC` and `sppa1001.dbc` were listed like that. `GetPath` always builds the name in upper case with a lower-case extension; the listing has the real case, which is what `FindTableAsync` and `ListTablesAsync` return. In October 2026 the server ignored case: a file listed as `DORR2011.DBC` answered under `dorr2011.dbc` too.
 - **Gaps.** In the listings of October 2026, SIASUS-PA, SIHSUS RD and SP, CNES LT, EQ, ST, PF, HB, DC and EP, SIM-DO and SINASC-DN had no missing period between the first and the last file of each state. The other file types missed some state-months; SIASUS-AR had no file of Roraima, and CNES-EF none of Roraima or the Federal District. The latest months also arrive state by state: for several file types, the last month listed was not there for every state.
+- **Files with no records.** Some files hold a header and no record at all, as two SIHSUS files of Acre in 2009-09 did in October 2026 (`SPAC0909.dbc`, `RJAC0909.dbc`). They open as an empty table.
 - **Files that are not data.** The folders also hold a few other files, which are not part of any dataset: a placeholder named like `HBufAAmm.dbc` in five CNES folders, and two `.zip` files in the SIHSUS folder.
 - **Size of the folders.** `/SIASUS/200801_/Dados` holds every SIASUS file type and listed 54,478 files; `/SIHSUS/200801_/Dados` listed 22,915; each CNES folder, up to 6,831.
 
