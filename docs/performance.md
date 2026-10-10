@@ -1,6 +1,6 @@
 # Performance
 
-The throughput and field-projection figures come from one machine: AMD Ryzen 9 9950X3D, Windows 11, Release builds, .NET SDK 10.0.401. Other files, machines and runtimes will differ.
+Every figure in this guide comes from one machine: AMD Ryzen 9 9950X3D, Windows 11, Release builds, .NET SDK 10.0.401. Other files, machines and runtimes will differ.
 
 ## Throughput
 
