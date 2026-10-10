@@ -33,6 +33,35 @@ string local = await client.DownloadAsync("/SIHSUS/200801_/Dados/RDRR2206.dbc", 
 using var reader = await client.OpenReaderAsync("/SIASUS/200801_/Dados/PAMG2407.dbc", cancellationToken: token);
 ```
 
+## By dataset, state and period
+
+For 26 file types, `DatasusCatalog` builds the path, and the client finds, lists and opens the table, from a dataset, a state and a period:
+
+```csharp
+using System;
+using DbSus.Client;
+
+await using var client = new DatasusClient(new DatasusClientOptions { CacheDirectory = "datasus-cache" });
+
+// The path, built without reaching the server: /SIHSUS/200801_/Dados/RDRR2206.dbc
+string path = DatasusCatalog.SihSus.RD.GetPath(DatasusUf.RR, DatasusPeriod.OfMonth(2022, 6));
+
+// The table on the server: its files with exact sizes and times, and whether it is preliminary.
+DatasusTableInfo table = await client.FindTableAsync(DatasusCatalog.Sim.DO, DatasusUf.RR, DatasusPeriod.OfYear(2025));
+
+// What the folder lists, one entry per table.
+var year = await client.ListTablesAsync(DatasusCatalog.Cnes.LT, DatasusPeriod.OfMonth(2024, 1), DatasusPeriod.OfMonth(2024, 12), DatasusUf.RR);
+
+// Final data only; preliminary data is opened from a table found first: client.OpenReaderAsync(table).
+using var reader = await client.OpenReaderAsync(DatasusCatalog.SiaSus.PA, DatasusUf.MG, DatasusPeriod.OfMonth(2024, 7));
+```
+
+- The catalog checks the shape of a request (a month for a monthly dataset, a real state), never whether the file exists.
+- `OpenReaderAsync(dataset, uf, period)` opens final data only; `FindTableAsync` looks in the folder of final data and then in the folder of preliminary data, and says which.
+- `ListTablesAsync` shows what the directory listing shows, which can be incomplete or out of date; `FindTableAsync` asks the server for the file itself.
+
+The file types, their folders and names, and what the catalog leaves out are in [DATASUS paths and file names](https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md).
+
 ## Behavior
 
 - **Paths** are relative to `/dissemin/publicos` (`RootPath`). URLs, `..`, backslashes and names that are invalid on Windows or Linux are rejected.
@@ -49,8 +78,9 @@ When a connection fails or takes long, see [FTP troubleshooting](https://github.
 
 | Exception | When |
 |---|---|
-| `ArgumentException` | The path is not acceptable (the message says why). |
-| `FileNotFoundException` | The file does not exist (FTP 550), or a part before the last one is missing. |
+| `ArgumentException` | The path is not acceptable (the message says why), or a request to the catalog is malformed: a year where a month is needed, a period that is not set, a dataset the catalog does not have. |
+| `ArgumentOutOfRangeException` | In the catalog: a value that is not a state, or a period before the folder layout it builds (the message says to use the path as a string). |
+| `FileNotFoundException` | The file does not exist (FTP 550), a part before the last one is missing, or the server has no table for a dataset, state and period (the message says when only a preliminary one exists). |
 | `DatasusTransferException` | The base of the next two: a transfer with the server failed. Catch it to handle both; `Attempts`, `FtpReplyCode` and `RemotePath` are defined here. |
 | `DatasusRetriesExhaustedException` | Transient failures persisted after every retry. `Attempts`, `FtpReplyCode` (e.g. `421`) and `RemotePath` tell the details. |
 | `DatasusRequestRefusedException` | The server refused the request with a permanent reply other than 550 (e.g. `530`); not retried. Same properties. |

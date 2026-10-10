@@ -119,7 +119,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 
 ### Client
 
-- **Paths** are strings relative to a configurable root (`/dissemin/publicos`). URLs, `..`, `.`, empty segments, `\`, control characters and names invalid on Windows or Linux are rejected. A structured catalogue (source, modality, year, month, state) is a later phase.
+- **Paths** are strings relative to a configurable root (`/dissemin/publicos`). URLs, `..`, `.`, empty segments, `\`, control characters and names invalid on Windows or Linux are rejected. For 26 file types the catalog builds them from a dataset, a state and a period (see Catalog, below).
 - **FTP:** FluentFTP behind an internal interface; explicit `EncryptionMode = None`, raw `SIZE`/`MDTM`, `LIST` forced.
 - **Concurrency:** the client is thread-safe; a pool lends at most `MaxConnections` connections (default 2, maximum 4).
 - **Retries:** transient failures only (socket errors, timeouts, FTP 4xx, truncated transfers), exponential backoff with jitter capped at 30 s; `550` is `FileNotFoundException`. `OnRetry` reports each retry (a description of the operation for people to read, the remote path, the attempt, the wait, the failure); its exceptions are ignored.
@@ -128,6 +128,20 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 - **Transport messages** name the step (connecting, listing, reading the size and date, opening for reading) with the host and port. FluentFTP reports a failed TCP connect the same way for the control and the data connection, so the message does not say which one failed: it says whether FluentFTP reopened the control connection during the step and, when the step opens a passive data connection, gives a blocked passive connection as a possible cause only.
 - **Cache:** `<cache>/<remote path>/<file>/<size>-<MDTM>/`, one folder per server version, so a new version never overwrites a file a reader has open. Interrupted downloads resume with `REST` only when size and time are unchanged. With `VerifyOnDownload` (default) the file is fully decompressed and its CRC checked before entering the cache. Per-entry lock files (`FileShare.None`; `flock` on Linux/macOS) coordinate processes. Old partial files are removed only when older than 24 hours and unlocked; with a size limit, least recently used entries are evicted, never one in use.
 - **Without a cache:** downloads go to a temporary folder and are deleted when the reader is done.
+
+### Catalog
+
+- **Scope:** 26 file types of SIASUS, SIHSUS, CNES, SIM and SINASC, by state. A file type is in the catalog when the server's listings (October 2026) showed one regular folder and name pattern for it. The catalog follows the server, not the DATASUS website: the two disagree on when some file types start (`docs/datasus-paths.md` has the table).
+- **Shape, never availability.** A dataset checks that a period is a month for a monthly file type and a year for a yearly one, and that the state is one. It never checks whether the file exists: DATASUS publishes late, leaves gaps and does not have every state in every period, and constants about that would go out of date.
+- **Eras.** A dataset is a list of eras: a range of periods with one folder and one name pattern, because DATASUS changed folders, prefixes and the digits of the year over time. This version holds only the era in use now; a period before it is an `ArgumentOutOfRangeException` that says to use the path as a string. Older eras can be added later without changing the API, and the eras themselves are not public.
+- **Final and preliminary data.** Which years SIM and SINASC still publish as preliminary changes, so nothing about it is constant in the code: a dataset gives the candidate paths in order, final first, and the client asks the server. `OpenReaderAsync(dataset, uf, period)` opens final data only, so that preliminary data is never read by accident; preliminary data is opened from a `DatasusTableInfo`, where `IsPreliminary` is in plain sight.
+- **Listing or asking.** `ListTablesAsync` is one directory listing per folder and inherits its limits (a partial listing omits files without any error; listings are cached). `FindTableAsync` asks the server for the file itself, as `FindPartsAsync` does, and is the reliable way to know whether a table exists.
+- **Letter case.** Paths are built in upper case with a lower-case extension, while the server lists some names otherwise. The server ignored case in October 2026: for a file listed as `DORR2011.DBC`, `SIZE` answered `213` with the same size under that name and under `dorr2011.dbc`. Tables are nevertheless opened under the name the server lists, because the cache is keyed by the remote path and one file must not be cached under two spellings.
+- **Names.** `DatasusDataset` and `DatasusCatalog`, not `Dataset`: one capital letter away from `System.Data.DataSet`, in a library whose reader is a `DbDataReader`; and the prefix matches `DatasusClient` and `DatasusFileInfo`.
+- **`DatasusUf`** members are named by the abbreviation that file names carry, and their values are the IBGE codes of the states. There is no zero member: `default(DatasusUf)` is rejected rather than named.
+- **`DatasusPeriod`** is a month or a year. A year is never equal to a month, and a year sorts before its own months.
+- **`OfficialName` is in Portuguese,** a deliberate exception to the rule that everything in the code is in English: it is the name under which DATASUS publishes the file type, a proper name, kept as DATASUS spells it (including `Confeção`).
+- **"Read with DbSus"** in the paths guide means that a real file of the type was decompressed, passed its CRC-32 check and was read record by record. It is "yes" for 5 of the 26 file types; for the others only the path was verified.
 
 ## Performance
 

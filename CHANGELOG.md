@@ -22,6 +22,7 @@ All notable changes to this project are documented in this file. The format foll
 - Retries of transient failures with exponential backoff (`MaxRetries`, `InitialRetryDelay`, `OnRetry`), and typed exceptions (`DatasusTransferException`, `DatasusRetriesExhaustedException`, `DatasusRequestRefusedException`, `InsufficientDiskSpaceException`).
 - Read timeouts and cancellation (verified on .NET 10 and .NET Framework 4.8).
 - On .NET Framework, a `NotSupportedException` when the FluentFTP version in use does not report its connections to the client.
+- A catalog of 26 DATASUS file types, from SIASUS, SIHSUS, CNES, SIM and SINASC (`DatasusCatalog`, `DatasusDataset`, `DatasusUf`, `DatasusPeriod`): paths built from a dataset, a state and a period (`GetPath`, `GetCandidatePaths`), and tables found (`FindTableAsync`), listed (`ListTablesAsync`) and opened (`OpenReaderAsync` by dataset, state and period, or from a `DatasusTableInfo`) on the server.
 
 ### Notes
 
@@ -33,4 +34,5 @@ All notable changes to this project are documented in this file. The format foll
 - The handling of stalled reads was verified on .NET 10 and .NET Framework 4.8; .NET 8 and 9, Mono, Unity and Xamarin were not checked.
 - On .NET Framework and .NET 8, `GetFieldValue<T>` with a nullable type (e.g. `GetFieldValue<int?>`) allocates on every call: about 24 bytes on .NET Framework 4.8.1, and 24 bytes (32 for `decimal?`) on .NET 8. The non-nullable forms do not, nor do the nullable forms on .NET 9 and .NET 10 (measured).
 - On .NET Framework without long path support, a deep `CacheDirectory` can make a cache entry's path longer than 260 characters; the download then fails with an `IOException` before the file's data is requested. Keep `CacheDirectory` short (see the compatibility guide). The failure was not observed on .NET 10.
-- A listing can be partial if the client's read of it fails while the server still answers `226`. `FindPartsAsync` reduces the risk for split tables but does not remove it; `ListAsync` returns the listing as received.
+- A listing can be partial if the client's read of it fails while the server still answers `226`. `FindPartsAsync` reduces the risk for split tables but does not remove it; `ListAsync` and `ListTablesAsync` return the listing as received, so a partial one omits files without any error. `FindTableAsync` asks the server for the file itself.
+- The catalog covers the folder layout that DATASUS uses now, for 26 file types and for files of a state. Older periods, files for the whole country, SINAN and SIASUS-BI are reached with paths as strings (see the DATASUS paths guide). It checks the shape of a request, never whether the file exists. A real file was read with DbSus for 5 of the 26 file types; for the others, only the path was verified.

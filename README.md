@@ -63,6 +63,21 @@ while (reader.Read())
 }
 ```
 
+Or name the table by dataset, state and period, and let the client find its file or parts (26 file types, listed in the [paths guide](https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md)):
+
+```csharp
+using System;
+using DbSus.Client;
+
+await using var client = new DatasusClient(new DatasusClientOptions { CacheDirectory = "datasus-cache" });
+using var reader = await client.OpenReaderAsync(DatasusCatalog.Cnes.LT, DatasusUf.RR, DatasusPeriod.OfMonth(2006, 10));
+int cnes = reader.GetOrdinal("CNES");
+while (reader.Read())
+{
+    Console.WriteLine(reader.GetString(cnes));
+}
+```
+
 ## Features
 
 - DBC decompressed while you read: no temporary file, no full copy in memory.
@@ -74,11 +89,13 @@ while (reader.Read())
 - Tables split into parts read as one table, from paths or streams.
 - The CRC-32 stored in each `.dbc` is verified.
 - `DbSus.Client`: listing, file size and date, split-table discovery, headers without a full download, resumable and verified downloads, an optional cache shared safely between threads and processes, retries with backoff, typed exceptions, read timeouts and cancellation.
+- `DatasusCatalog`: 26 DATASUS file types by name, to build paths and to find, list and open tables by dataset, state and period.
 
 ## Guides
 
 - [Reading DBC and DBF files](https://github.com/euclydesuchoas/dbsus/blob/main/docs/reading.md): value types, who closes what, split tables, conversions, encodings, ADO.NET, integrity, reading without allocation.
 - [Downloading with DbSus.Client](https://github.com/euclydesuchoas/dbsus/blob/main/docs/client.md): paths, retries, downloads, the cache, exceptions.
+- [DATASUS paths and file names](https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md): the 26 file types of the catalog, their folders and file names, finding and opening tables, what is outside the catalog.
 - [FTP troubleshooting](https://github.com/euclydesuchoas/dbsus/blob/main/docs/ftp-troubleshooting.md): failed or stalled connections, worst-case times, a known limit of listings.
 - [Performance](https://github.com/euclydesuchoas/dbsus/blob/main/docs/performance.md): throughput, field projection, allocation.
 - [Compatibility](https://github.com/euclydesuchoas/dbsus/blob/main/docs/compatibility.md): target frameworks, runtimes, dependencies, FluentFTP versions.
