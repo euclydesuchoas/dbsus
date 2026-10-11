@@ -19,7 +19,7 @@ public enum DatasusCoverage
     /// <summary>One file per state (see <see cref="DatasusUf"/>).</summary>
     Uf = 1,
 
-    /// <summary>One file for the whole country.</summary>
+    /// <summary>One file for the whole country. This version does not build its path; use the path as a string.</summary>
     National = 2,
 }
 

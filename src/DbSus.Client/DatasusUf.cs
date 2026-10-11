@@ -8,8 +8,14 @@ namespace DbSus.Client;
 /// what file names carry, and its value is the state's IBGE code.
 /// </summary>
 /// <remarks>
+/// <para>
 /// <c>default(DatasusUf)</c> (zero) is not a state: no member has that value, and the methods that
 /// take a <see cref="DatasusUf"/> reject it with an <see cref="ArgumentOutOfRangeException"/>.
+/// </para>
+/// <para>
+/// There is no member for the whole country: files named with <c>BR</c> are outside the catalog of
+/// this version.
+/// </para>
 /// </remarks>
 [SuppressMessage("Design", "CA1008:Enums should have zero value", Justification = "The values are the IBGE codes of the states; there is no state zero, and an unset value must be rejected rather than named.")]
 public enum DatasusUf

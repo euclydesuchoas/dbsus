@@ -3,14 +3,22 @@ using System.Diagnostics.CodeAnalysis;
 namespace DbSus.Client;
 
 /// <summary>
-/// The DATASUS file types this version knows: 26 of them, from SIASUS, SIHSUS, CNES, SIM and
-/// SINASC, each as a <see cref="DatasusDataset"/>. Use a property, e.g.
+/// A partial catalog of the file types DATASUS lists: 26 of SIASUS, SIHSUS, CNES, SIM and SINASC,
+/// by state, each as a <see cref="DatasusDataset"/>. Use a property, e.g.
 /// <c>DatasusCatalog.SihSus.RD</c>, or look one up by text with <see cref="Get"/>.
 /// </summary>
 /// <remarks>
-/// The catalog is not everything DATASUS publishes. What is outside it (other sources, files for
-/// the whole country, periods in older folder layouts) is still reached with the path as a
-/// string, as before.
+/// <para>
+/// Most of the file types DATASUS lists are not here: those of other sources (SINAN, for one) and
+/// other file types of these five sources. Nor are the files for the whole country, those of SIM
+/// and SINASC included, or the periods in older folder layouts. A file type that is missing here
+/// may still be on the server.
+/// </para>
+/// <para>
+/// What is outside the catalog can be reached with the path as a string, when you know it. The
+/// <see href="https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md">paths guide</see>
+/// says what is left out and, for what was seen on the server, where it is.
+/// </para>
 /// </remarks>
 public static class DatasusCatalog
 {
