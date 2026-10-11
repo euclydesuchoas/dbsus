@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using DbSus.Tests.TestSupport;
 using Xunit;
 
@@ -94,6 +96,26 @@ public class DatasusCatalogTests
             Assert.Same(dataset, DatasusCatalog.Get(dataset.Source, dataset.Code));
             Assert.Contains(dataset, DatasusCatalog.Datasets);
         }
+    }
+
+    // The texts that say how many file types the catalog has. CHANGELOG.md is left out on purpose:
+    // the entry of a released version keeps its number when a later version adds file types.
+    [Theory]
+    [InlineData("README.md")]
+    [InlineData("docs/client.md")]
+    [InlineData("docs/datasus-paths.md")]
+    [InlineData("docs/decisions.md")]
+    [InlineData("src/DbSus.Client/DatasusCatalog.cs")]
+    public void TextsThatCountTheFileTypes_GiveTheNumberOfDatasets(string file)
+    {
+        var text = File.ReadAllText(Path.Combine(RepositoryPaths.Root, file.Replace('/', Path.DirectorySeparatorChar)));
+        var counts = Regex.Matches(text, @"\b(\d+) (?:file types\b|of SIASUS\b)")
+            .Cast<Match>()
+            .Select(match => int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture))
+            .ToList();
+
+        Assert.NotEmpty(counts);   // each of these files states the number at least once
+        Assert.All(counts, count => Assert.Equal(DatasusCatalog.Datasets.Count, count));
     }
 
     [Fact]
