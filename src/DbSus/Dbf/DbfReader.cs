@@ -80,7 +80,7 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
         TotalRecordCount = parts.Sum(part => part.Header!.RecordCount);
         _fields = Project(ApplyConversions([.. first.Header.Fields], options.Conversions), options.Columns);
         Fields = new ReadOnlyCollection<DbfField>(_fields);
-        // Backwards, so that with duplicate names the first field wins.
+        // Backward, so that with duplicate names the first field wins.
         _ordinals = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (var i = _fields.Length - 1; i >= 0; i--)
         {

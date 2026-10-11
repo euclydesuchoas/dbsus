@@ -35,7 +35,7 @@
 
   <!--
     Versions are set by hand while publishing is manual. During 0.x the AssemblyVersion carries
-    Major.Minor (0.1.0.0, 0.2.0.0, ...) because every 0.x minor may break; from 1.0 onwards it
+    Major.Minor (0.1.0.0, 0.2.0.0, ...) because every 0.x minor may break; from 1.0 onward it
     carries the major only (1.0.0.0, 2.0.0.0, ...).
   -->
   <PropertyGroup Label="Versioning">

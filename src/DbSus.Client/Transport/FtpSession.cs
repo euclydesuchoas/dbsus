@@ -36,7 +36,7 @@ internal abstract class FtpSession : IDisposable
 
     public abstract Task<Stream> OpenReadAsync(string path, long offset, CancellationToken cancellationToken);
 
-    /// <summary>Closes the control and data sockets now; the session cannot be used afterwards.</summary>
+    /// <summary>Closes the control and data sockets now; the session cannot be used afterward.</summary>
     public abstract void Abort();
 
     public abstract void Dispose();
@@ -122,7 +122,7 @@ internal sealed class SocketTracker
             }
         }
 
-        // Aborted already: a connection opened afterwards is closed as well.
+        // Aborted already: a connection opened afterward is closed as well.
         Close(stream);
     }
 
