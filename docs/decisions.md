@@ -142,7 +142,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 - **`DatasusUf`** members are named by the abbreviation that file names carry, and their values are the IBGE codes of the states. There is no zero member: `default(DatasusUf)` is rejected rather than named.
 - **`DatasusPeriod`** is a month or a year. A year is never equal to a month, and a year sorts before its own months.
 - **`OfficialName` is in Portuguese,** a deliberate exception to the rule that everything in the code is in English: it is the name under which DATASUS publishes the file type, a proper name, kept as DATASUS spells it (including `Confeção`).
-- **Files read.** By October 2026 one real file of each of the 26 file types, with at least one record, was read with DbSus: decompressed, its CRC-32 checked, and every field of every record read. It was usually a small and old file, and some held a single record. That says nothing about other periods, and nothing about the folders of preliminary data, from which no file was read. The paths guide says it in one paragraph, with no column per file type.
+- **Files read.** By October 2026 one real file of each of the 26 file types, with at least one record, was read with DbSus: decompressed, its CRC-32 checked, and every field of every record read. It was usually a small and old file, and some held a single record. From the folders of preliminary data, two files were read in the same way in October 2026, found and opened through the catalog on the server: SIM-DO and SINASC-DN of Roraima, both of 2026. That says nothing about other periods or other files. The paths guide says it in one paragraph, with no column per file type.
 
 ## Performance
 

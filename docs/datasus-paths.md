@@ -67,7 +67,7 @@ In the file names, `{CODE}` is the code of the file type, `{UF}` is the two-lett
 - **Official name** is the name under which DATASUS publishes the file type, in Portuguese and spelled as DATASUS spells it (`DatasusDataset.OfficialName`).
 - **From** is the first period the catalog accepts (`DatasusDataset.FirstPeriod`): the start of the folder layout in use now, not the first period with data. CNES-LT, for example, has files from 2005-10 only.
 
-One real file of each of the 26 file types was read with DbSus: decompressed, its CRC-32 checked, and every field of every record read. It was usually a small and old file, and some held a single record. That says nothing about other periods, and nothing about the `PRELIM` folders.
+One real file of each of the 26 file types was read with DbSus: decompressed, its CRC-32 checked, and every field of every record read. It was usually a small and old file, and some held a single record. From the `PRELIM` folders, two files were read in the same way in October 2026: SIM-DO and SINASC-DN of Roraima, both of 2026. That says nothing about other periods, or about other files of those folders.
 
 ### SIASUS
 
