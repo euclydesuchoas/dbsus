@@ -198,6 +198,30 @@ public sealed class DbSusFileTests : IDisposable
         Assert.Equal(["ABC", "DEF"], ReadCodes(reader));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void OpenDbcReader_DbcWithNoRecords_IsAnEmptyTable(bool withEndOfFileMarker)
+    {
+        var dbf = new DbfBuilder { EndOfFileMarker = withEndOfFileMarker }.Field("CODE", 'C', 3).Field("QTY", 'N', 4).Build();
+        using var reader = DbSusFile.OpenDbcReader(new MemoryStream(SyntheticDbc.BuildDbc(dbf)));
+
+        Assert.Equal(0, reader.Header.RecordCount);
+        Assert.Equal(["CODE", "QTY"], reader.Fields.Select(field => field.Name));
+        Assert.False(reader.HasRows);
+        Assert.False(reader.Read());
+    }
+
+    [Fact]
+    public void Read_DbcWithNoRecordsAndChecksumMismatch_Throws()
+    {
+        var dbf = new DbfBuilder().Field("CODE", 'C', 3).Build();
+        using var reader = DbSusFile.OpenDbcReader(new MemoryStream(SyntheticDbc.BuildDbc(dbf, checksum: 0)));
+
+        var exception = Assert.Throws<InvalidDataException>(() => reader.Read());
+        Assert.Contains("checksum mismatch", exception.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Dispose_BeforeTheEnd_DoesNotVerifyTheChecksum()
     {
