@@ -96,11 +96,11 @@ public class DatasusUfTests
     }
 
     [Theory]
-    [InlineData("RŐ")]    // read as SP while the two characters were packed into one number
-    [InlineData("SŐ")]
-    [InlineData("œP")]
-    [InlineData("ĀC")]
-    [InlineData("MŇ")]
+    [InlineData("R\u0150")]    // O with double acute; read as SP while the two characters were packed into one number
+    [InlineData("S\u0150")]
+    [InlineData("\u0153P")]    // the ligature oe
+    [InlineData("\u0100C")]    // A with macron
+    [InlineData("M\u0147")]    // N with caron; read as MG
     [InlineData("BR")]
     [InlineData("XX")]
     [InlineData("S ")]

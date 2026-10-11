@@ -76,14 +76,14 @@ public class DatasusFileNameTests
     [InlineData("SIASUS", "PA", "PAMG2400.dbc")]       // month 0
     [InlineData("SIASUS", "PA", "PAXX2407.dbc")]       // two letters that are not a state
     [InlineData("SIASUS", "PA", "PABR2407.dbc")]       // the whole country is not a state
-    [InlineData("SIASUS", "PA", "PARŐ2407.dbc")]  // a letter above U+00FF must not complete a state (it read as SP)
+    [InlineData("SIASUS", "PA", "PAR\u01502407.dbc")]  // R and O with double acute: a letter above U+00FF must not complete a state (it read as SP)
     [InlineData("SIASUS", "PA", "ABOAC1502.dbc")]
     [InlineData("SIASUS", "PA", "IMPBORL.DLL")]
     [InlineData("SIASUS", "PA", "PA.dbc")]
     [InlineData("SIASUS", "PA", "")]
     [InlineData("SIHSUS", "RD", "RDAC2017.zip")]
     [InlineData("SIHSUS", "RD", "CHBR1901.dbc")]
-    [InlineData("SIHSUS", "SP", "SPRR٢٤٠٧.dbc")]       // digits that are not ASCII
+    [InlineData("SIHSUS", "SP", "SPRR\u0662\u0664\u0660\u0667.dbc")]   // the Arabic-Indic digits 2, 4, 0, 7: digits that are not ASCII
     [InlineData("CNES", "HB", "HBufAAmm.dbc")]         // a placeholder file in the CNES folders
     [InlineData("CNES", "LT", "LTSP0507.dbc")]         // the month before the folder layout starts
     [InlineData("SIM", "DO", "DOBR2011.dbc")]
