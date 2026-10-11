@@ -163,6 +163,8 @@ These are on the server and are reached with the path as a string. Only their na
 - **Other file types of the same folders.** SIASUS AB, ABO, AN, SAD and AMP, and CNES EE: few states, many gaps, or series that have ended.
 - **Folders that look like leftovers.** `/SINASC/NOV` and `/SINASC/ANT` repeat names of the folders above, some with other sizes, and `/SIM/1996_` and `/SIM/1997_1995` are empty.
 
+The file transfer page of the DATASUS website also lists CIH, CIHA, SISCOLO, SISMAMA, SISPRENATAL, RESP, PCE, PO, IBGE and e-SUS Notifica. The listings made in October 2026 were of SIASUS, SIHSUS, CNES, SIM, SINASC and SINAN, and showed no file of those other sources.
+
 ## Where the file transfer page and the server differ
 
 The file transfer page of the DATASUS website states when some file types start or end. For these, the server had files outside those dates (observed in October 2026). The catalog follows the server, which is one more reason why it never checks availability.
