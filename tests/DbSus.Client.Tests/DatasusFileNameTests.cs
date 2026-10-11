@@ -76,6 +76,7 @@ public class DatasusFileNameTests
     [InlineData("SIASUS", "PA", "PAMG2400.dbc")]       // month 0
     [InlineData("SIASUS", "PA", "PAXX2407.dbc")]       // two letters that are not a state
     [InlineData("SIASUS", "PA", "PABR2407.dbc")]       // the whole country is not a state
+    [InlineData("SIASUS", "PA", "PARŐ2407.dbc")]  // a letter above U+00FF must not complete a state (it read as SP)
     [InlineData("SIASUS", "PA", "ABOAC1502.dbc")]
     [InlineData("SIASUS", "PA", "IMPBORL.DLL")]
     [InlineData("SIASUS", "PA", "PA.dbc")]

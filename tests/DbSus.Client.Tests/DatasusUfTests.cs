@@ -77,4 +77,59 @@ public class DatasusUfTests
     {
         Assert.False(DatasusUfNames.TryParse(name, out _));
     }
+
+    [Fact]
+    public void TryParseAt_EveryState_InAnyLetterCase_AtAnyIndex()
+    {
+        foreach (var uf in DatasusUfNames.All)
+        {
+            var name = DatasusUfNames.NameOf(uf)!;
+            var lower = name.ToLowerInvariant();
+            foreach (var text in new[] { name, lower, $"{name[0]}{lower[1]}", $"{lower[0]}{name[1]}" })
+            {
+                Assert.True(DatasusUfNames.TryParse(text, 0, out var atStart), text);
+                Assert.Equal(uf, atStart);
+                Assert.True(DatasusUfNames.TryParse("PA" + text + "2407.dbc", 2, out var inside), text);
+                Assert.Equal(uf, inside);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("RŐ")]    // read as SP while the two characters were packed into one number
+    [InlineData("SŐ")]
+    [InlineData("œP")]
+    [InlineData("ĀC")]
+    [InlineData("MŇ")]
+    [InlineData("BR")]
+    [InlineData("XX")]
+    [InlineData("S ")]
+    [InlineData("24")]
+    public void TryParseAt_TwoCharactersThatAreNotAState_ReturnsFalse(string text)
+    {
+        Assert.False(DatasusUfNames.TryParse(text, 0, out var uf), $"U+{(int)text[0]:X4} U+{(int)text[1]:X4} read as {uf}");
+        Assert.Equal(default, uf);
+    }
+
+    // A character above U+00FF must never be taken for a letter of a state: for every state, each
+    // letter is replaced by the characters that share its low byte, and the first letter also by
+    // the ones that would complete it if the two were packed into one number.
+    [Fact]
+    public void TryParseAt_CharactersThatShareTheLowByteOfALetter_AreNotAState()
+    {
+        foreach (var uf in DatasusUfNames.All)
+        {
+            var name = DatasusUfNames.NameOf(uf)!;
+            for (var high = 1; high <= 0xFF; high++)
+            {
+                var second = (char)(name[1] | (high << 8));
+                var first = (char)(name[0] | (high << 8));
+                var firstWithout = (char)(name[0] & ~high);
+                foreach (var text in new[] { $"{name[0]}{second}", $"{firstWithout}{second}", $"{first}{name[1]}", $"{first}{second}" })
+                {
+                    Assert.False(DatasusUfNames.TryParse(text, 0, out var parsed), $"U+{(int)text[0]:X4} U+{(int)text[1]:X4} read as {parsed}");
+                }
+            }
+        }
+    }
 }

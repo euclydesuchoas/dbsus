@@ -156,11 +156,14 @@ internal static class DatasusUfNames
     /// <summary>Finds the state whose abbreviation is the two letters at <paramref name="index"/>, ignoring case, without allocating.</summary>
     public static bool TryParse(string text, int index, out DatasusUf uf)
     {
-        var key = (Upper(text[index]) << 8) | Upper(text[index + 1]);
+        // Each character is compared by itself: packed into one number, a character above U+00FF
+        // in the second place would spill into the first and could complete another state.
+        var first = Upper(text[index]);
+        var second = Upper(text[index + 1]);
         foreach (var candidate in All)
         {
             var name = NameOf(candidate)!;
-            if (((name[0] << 8) | name[1]) == key)
+            if (name[0] == first && name[1] == second)
             {
                 uf = candidate;
                 return true;
@@ -170,7 +173,7 @@ internal static class DatasusUfNames
         uf = default;
         return false;
 
-        static int Upper(char c) => c is >= 'a' and <= 'z' ? c - 32 : c;
+        static char Upper(char c) => c is >= 'a' and <= 'z' ? (char)(c - 32) : c;
     }
 
     /// <summary>Rejects a value that is not a state.</summary>
