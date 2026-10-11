@@ -125,6 +125,22 @@ The code page of character fields comes from the header's language driver ID (LD
 
 LDID 0x00 (no driver) is therefore read as code page 1252. This was validated on a single CNES file, whose LDID is 0x00 and whose accented text reads correctly as code page 1252. Whether files marked 0x02 (code page 850) and 0x57 (ISO-8859-1) really hold text in those code pages is still to be validated.
 
+`DbfReader.EncodingSource` tells where the encoding of a reader came from: `Option` (`DbfReadOptions.Encoding` was set), `LanguageDriver` (a known LDID) or `Fallback`. `Fallback` covers LDID 0x00, an LDID that is not in the library's map (such as 0x35) and an LDID whose code page the runtime does not have; `Header.LanguageDriverId` shows which.
+
+```csharp
+using System;
+using DbSus;
+using DbSus.Dbf;
+
+using var reader = DbSusFile.OpenReader("LTRR0610.dbc");
+if (reader.EncodingSource == DbfEncodingSource.Fallback)
+{
+    Console.WriteLine($"LDID 0x{reader.Header.LanguageDriverId:X2} gives no code page: text is read as {reader.Encoding.WebName}");
+}
+```
+
+When certainty is needed, set `DbfReadOptions.Encoding`.
+
 On .NET 5 or later and .NET Core, take the encoding from the provider, without registering anything process-wide:
 
 ```csharp net-only
