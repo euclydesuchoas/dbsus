@@ -61,6 +61,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 
 - Values seen, in the headers of the files examined: 0x00 (no driver) in SIM, SINASC, SINAN, SIH SP/ER, SIA AM/AQ/PS and CNES SR/ST; 0x02 in SIH RD/RJ; 0x03 in SIA PA/BI; 0x57 in SIA AD/AR; 0x58 in CNES EQ/LT/PF/HB. The files read later, one of each file type of the catalog, had the same values, and added 0x00 in SIA ATD/ACF and 0x58 in CNES DC/EP/EF/GM/IN/RC. Reading a file record by record does not check its text: for 0x57 (SIA AD and AR) and for CNES PF and HB the value says which code page is declared, and no text was looked at.
 - Meaning: 0x02 = code page 850 and 0x03 = 1252 (Microsoft's Visual FoxPro table); 0x58 = 1252, 0x57 = ISO-8859-1 and 0x59 = 1252 (dBASE drivers, per the MiraMon documentation and GDAL's LDID table).
+- 0x35 was seen in two SIM files: one of 2024, in a real-world test in early October 2026, whose record names neither the file nor its folder; and the preliminary SIM-DO file of Roraima for 2026, read in October 2026. It is in neither table, so the text is read with the fallback, code page 1252, as with 0x00. No text was looked at.
 - The only accented text found (CNES) reads correctly as code page 1252, including in a file whose LDID is 0x00.
 - **To validate:** the 1252 fallback for LDID 0x00, and whether files marked 0x02 and 0x57 really hold text in those code pages.
 
