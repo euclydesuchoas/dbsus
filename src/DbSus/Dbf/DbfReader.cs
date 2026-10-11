@@ -71,7 +71,8 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             part.Header = ReadHeader(part);
         }
 
-        Encoding = DbfEncodings.Resolve(first.Header!.LanguageDriverId, options);
+        Encoding = DbfEncodings.Resolve(first.Header!.LanguageDriverId, options, out var encodingSource);
+        EncodingSource = encodingSource;
         for (var i = 1; i < parts.Length; i++)
         {
             EnsureSameSchema(first, parts[i], options, Encoding);
@@ -113,6 +114,21 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
 
     /// <summary>Gets the encoding used for character fields.</summary>
     public Encoding Encoding { get; }
+
+    /// <summary>
+    /// Gets where <see cref="Encoding"/> came from: <see cref="DbfReadOptions.Encoding"/>, the
+    /// header's language driver ID (LDID), or the fallback used when the header gives no encoding.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="DbfEncodingSource.Fallback"/> means that the file did not say which code page it
+    /// uses, or said it in a way that this library or this runtime does not know, and that the
+    /// text is read with the fallback code page: 1252, unless
+    /// <see cref="DbfReadOptions.FallbackEncoding"/> is set. Code page 1252 was the correct one in
+    /// the CNES files in which this was checked. When certainty is needed, set
+    /// <see cref="DbfReadOptions.Encoding"/>. For a table in parts, the first part decides; every
+    /// other part must select the same code page.
+    /// </remarks>
+    public DbfEncodingSource EncodingSource { get; }
 
     /// <summary>
     /// Gets the 1-based physical number of the current record, counted across all parts (deleted
@@ -919,7 +935,7 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
         }
 
         if (difference is null && options.Encoding is null
-            && DbfEncodings.Resolve(actual.LanguageDriverId, options).CodePage != encoding.CodePage)
+            && DbfEncodings.Resolve(actual.LanguageDriverId, options, out _).CodePage != encoding.CodePage)
         {
             difference = $"its language driver ID 0x{actual.LanguageDriverId:X2} selects another code page than the first part's 0x{expected.LanguageDriverId:X2}";
         }

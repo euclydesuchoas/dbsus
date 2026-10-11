@@ -42,19 +42,26 @@ internal static class DbfEncodings
         [0xCB] = 1253,
     };
 
-    public static Encoding Resolve(byte languageDriverId, DbfReadOptions options)
+    public static Encoding Resolve(byte languageDriverId, DbfReadOptions options, out DbfEncodingSource source) =>
+        Resolve(languageDriverId, options, TryGet, out source);
+
+    // The lookup is a parameter so that a test can stand for a runtime without a code page.
+    internal static Encoding Resolve(byte languageDriverId, DbfReadOptions options, Func<int, Encoding?> lookup, out DbfEncodingSource source)
     {
         if (options.Encoding is not null)
         {
+            source = DbfEncodingSource.Option;
             return options.Encoding;
         }
 
-        if (CodePageByLanguageDriver.TryGetValue(languageDriverId, out var codePage) && TryGet(codePage) is { } encoding)
+        if (CodePageByLanguageDriver.TryGetValue(languageDriverId, out var codePage) && lookup(codePage) is { } encoding)
         {
+            source = DbfEncodingSource.LanguageDriver;
             return encoding;
         }
 
-        return options.FallbackEncoding ?? TryGet(DefaultCodePage)!;
+        source = DbfEncodingSource.Fallback;
+        return options.FallbackEncoding ?? lookup(DefaultCodePage)!;
     }
 
     // On .NET Framework every Windows code page is built in. Elsewhere, code-page encodings come

@@ -16,6 +16,10 @@ DbSus.Dbc.DbcReadOptions.ChecksumMismatch.set -> void
 DbSus.Dbc.DbcReadOptions.DbcReadOptions() -> void
 DbSus.Dbc.DbcReadOptions.VerifyChecksum.get -> bool
 DbSus.Dbc.DbcReadOptions.VerifyChecksum.set -> void
+DbSus.Dbf.DbfEncodingSource
+DbSus.Dbf.DbfEncodingSource.Fallback = 2 -> DbSus.Dbf.DbfEncodingSource
+DbSus.Dbf.DbfEncodingSource.LanguageDriver = 1 -> DbSus.Dbf.DbfEncodingSource
+DbSus.Dbf.DbfEncodingSource.Option = 0 -> DbSus.Dbf.DbfEncodingSource
 DbSus.Dbf.DbfField
 DbSus.Dbf.DbfField.DecimalCount.get -> int
 DbSus.Dbf.DbfField.FieldType.get -> System.Type!
@@ -35,6 +39,7 @@ DbSus.Dbf.DbfHeader.RecordLength.get -> int
 DbSus.Dbf.DbfHeader.Version.get -> byte
 DbSus.Dbf.DbfReader
 DbSus.Dbf.DbfReader.Encoding.get -> System.Text.Encoding!
+DbSus.Dbf.DbfReader.EncodingSource.get -> DbSus.Dbf.DbfEncodingSource
 DbSus.Dbf.DbfReader.Fields.get -> System.Collections.Generic.IReadOnlyList<DbSus.Dbf.DbfField!>!
 DbSus.Dbf.DbfReader.GetBoolean(string! name) -> bool
 DbSus.Dbf.DbfReader.GetColumnSchema() -> System.Collections.ObjectModel.ReadOnlyCollection<System.Data.Common.DbColumn!>!
