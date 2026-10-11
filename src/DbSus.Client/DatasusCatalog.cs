@@ -39,7 +39,10 @@ public static class DatasusCatalog
     /// <param name="source">The source, e.g. <c>SIHSUS</c>.</param>
     /// <param name="code">The code of the file type, e.g. <c>RD</c>.</param>
     /// <returns>The dataset.</returns>
-    /// <exception cref="ArgumentException">The catalog has no such dataset; the message lists the ones it has.</exception>
+    /// <exception cref="ArgumentException">
+    /// The catalog has no such dataset. The message lists the ones it has and says how other files
+    /// are reached.
+    /// </exception>
     public static DatasusDataset Get(string source, string code)
     {
         if (TryGet(source, code, out var dataset))
@@ -49,7 +52,9 @@ public static class DatasusCatalog
 
         var known = string.Join("; ", Datasets.GroupBy(item => item.Source).Select(group => group.Key + ": " + string.Join(", ", group.Select(item => item.Code))));
         throw new ArgumentException(
-            $"The catalog has no dataset '{source}-{code}'. It has {known}. Other files are reached with the path as a string.",
+            $"The catalog has no dataset '{source}-{code}'. The catalog is partial; it has {known}. "
+            + "A file type that is not in it may still be on the server: use its path as a string. "
+            + $"What the catalog leaves out is described in {DatasusDataset.PathsGuide}",
             nameof(code));
     }
 

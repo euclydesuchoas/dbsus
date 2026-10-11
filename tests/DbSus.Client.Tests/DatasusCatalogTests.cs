@@ -168,6 +168,11 @@ public class DatasusCatalogTests
         Assert.Contains("SIM: DO", exception.Message, StringComparison.Ordinal);
         Assert.Contains("SINASC: DN", exception.Message, StringComparison.Ordinal);
         Assert.Contains("path as a string", exception.Message, StringComparison.Ordinal);
+
+        // The catalog is partial, and the message says so without claiming that the file exists.
+        Assert.Contains("The catalog is partial", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("may still be on the server", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("docs/datasus-paths.md", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

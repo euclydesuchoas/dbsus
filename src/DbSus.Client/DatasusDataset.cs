@@ -19,7 +19,7 @@ namespace DbSus.Client;
 /// </remarks>
 public sealed class DatasusDataset
 {
-    private const string PathsGuide = "https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md";
+    internal const string PathsGuide = "https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md";
 
     internal DatasusDataset(string source, string code, string officialName, DatasusCoverage coverage, params DatasusEra[] eras)
     {
