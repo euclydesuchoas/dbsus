@@ -99,12 +99,12 @@ public class DatasusCatalogTests
     [Fact]
     public void PathsGuide_HasOneRowPerDataset_SayingWhatTheCatalogSays()
     {
-        // Rows of the tables under "The file types in the catalog": seven cells, the first one a source.
+        // Rows of the tables under "The file types in the catalog": six cells, the first one a source.
         var guide = File.ReadAllLines(Path.Combine(RepositoryPaths.Root, "docs", "datasus-paths.md"));
         var sources = DatasusCatalog.Datasets.Select(dataset => dataset.Source).Distinct().ToList();
         var rows = guide
             .Select(line => line.Split('|').Select(cell => cell.Trim()).ToArray())
-            .Where(cells => cells.Length == 9 && sources.Contains(cells[1]))
+            .Where(cells => cells.Length == 8 && sources.Contains(cells[1]))
             .ToList();
 
         Assert.Equal(DatasusCatalog.Datasets.Count, rows.Count);
@@ -116,7 +116,6 @@ public class DatasusCatalogTests
             Assert.Equal(dataset.Coverage == DatasusCoverage.Uf ? "state" : "state and country", cells[4]);
             Assert.Equal(dataset.Periodicity == DatasusPeriodicity.Monthly ? "monthly" : "yearly", cells[5]);
             Assert.Equal(dataset.FirstPeriod.ToString(), cells[6]);
-            Assert.True(cells[7] is "yes" or "no", cells[7]);
 
             // The folder and the file name are said once per source, in the line under its heading.
             var era = dataset.CurrentEra;

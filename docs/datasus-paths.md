@@ -66,68 +66,69 @@ In the file names, `{CODE}` is the code of the file type, `{UF}` is the two-lett
 
 - **Official name** is the name under which DATASUS publishes the file type, in Portuguese and spelled as DATASUS spells it (`DatasusDataset.OfficialName`).
 - **From** is the first period the catalog accepts (`DatasusDataset.FirstPeriod`): the start of the folder layout in use now, not the first period with data. CNES-LT, for example, has files from 2005-10 only.
-- **Read** is "yes" when a real file of that type, with at least one record, was decompressed, passed its CRC-32 check and was read with DbSus, record by record, every field of every record. Read means one file of that type was read, usually a small and old one; layouts can differ in other periods. No file from the `PRELIM` folders was read.
+
+One real file of each of the 26 file types was read with DbSus: decompressed, its CRC-32 checked, and every field of every record read. It was usually a small and old file, and some held a single record. That says nothing about other periods, and nothing about the `PRELIM` folders.
 
 ### SIASUS
 
 Folder `/SIASUS/200801_/Dados`, file name `{CODE}{UF}{YY}{MM}.dbc`.
 
-| Source | Code | Official name | Coverage | Published | From | Read |
-|---|---|---|---|---|---|---|
-| SIASUS | PA | Produção Ambulatorial | state | monthly | 2008-01 | yes |
-| SIASUS | AD | APAC de Laudos Diversos | state | monthly | 2008-01 | yes |
-| SIASUS | AM | APAC de Medicamentos | state | monthly | 2008-01 | yes |
-| SIASUS | AQ | APAC de Quimioterapia | state | monthly | 2008-01 | yes |
-| SIASUS | AR | APAC de Radioterapia | state | monthly | 2008-01 | yes |
-| SIASUS | PS | Psicossocial | state | monthly | 2008-01 | yes |
-| SIASUS | ATD | APAC Tratamento Dialítico | state | monthly | 2008-01 | yes |
-| SIASUS | ACF | APAC Confeção de Fístula Arteriovenosa | state | monthly | 2008-01 | yes |
+| Source | Code | Official name | Coverage | Published | From |
+|---|---|---|---|---|---|
+| SIASUS | PA | Produção Ambulatorial | state | monthly | 2008-01 |
+| SIASUS | AD | APAC de Laudos Diversos | state | monthly | 2008-01 |
+| SIASUS | AM | APAC de Medicamentos | state | monthly | 2008-01 |
+| SIASUS | AQ | APAC de Quimioterapia | state | monthly | 2008-01 |
+| SIASUS | AR | APAC de Radioterapia | state | monthly | 2008-01 |
+| SIASUS | PS | Psicossocial | state | monthly | 2008-01 |
+| SIASUS | ATD | APAC Tratamento Dialítico | state | monthly | 2008-01 |
+| SIASUS | ACF | APAC Confeção de Fístula Arteriovenosa | state | monthly | 2008-01 |
 
 ### SIHSUS
 
 Folder `/SIHSUS/200801_/Dados`, file name `{CODE}{UF}{YY}{MM}.dbc`.
 
-| Source | Code | Official name | Coverage | Published | From | Read |
-|---|---|---|---|---|---|---|
-| SIHSUS | RD | AIH Reduzida | state | monthly | 2008-01 | yes |
-| SIHSUS | SP | Serviços Profissionais | state | monthly | 2008-01 | yes |
-| SIHSUS | RJ | AIH Rejeitadas | state | monthly | 2008-01 | yes |
-| SIHSUS | ER | AIH Rejeitadas com código de erro | state | monthly | 2008-01 | yes |
+| Source | Code | Official name | Coverage | Published | From |
+|---|---|---|---|---|---|
+| SIHSUS | RD | AIH Reduzida | state | monthly | 2008-01 |
+| SIHSUS | SP | Serviços Profissionais | state | monthly | 2008-01 |
+| SIHSUS | RJ | AIH Rejeitadas | state | monthly | 2008-01 |
+| SIHSUS | ER | AIH Rejeitadas com código de erro | state | monthly | 2008-01 |
 
 ### CNES
 
 One folder per file type, `/CNES/200508_/Dados/{CODE}`, file name `{CODE}{UF}{YY}{MM}.dbc`.
 
-| Source | Code | Official name | Coverage | Published | From | Read |
-|---|---|---|---|---|---|---|
-| CNES | LT | Leitos | state | monthly | 2005-08 | yes |
-| CNES | EQ | Equipamentos | state | monthly | 2005-08 | yes |
-| CNES | ST | Estabelecimentos | state | monthly | 2005-08 | yes |
-| CNES | PF | Profissional | state | monthly | 2005-08 | yes |
-| CNES | SR | Serviço Especializado | state | monthly | 2005-08 | yes |
-| CNES | HB | Habilitação | state | monthly | 2005-08 | yes |
-| CNES | DC | Dados Complementares | state | monthly | 2005-08 | yes |
-| CNES | EP | Equipes | state | monthly | 2005-08 | yes |
-| CNES | EF | Estabelecimento Filantrópico | state | monthly | 2005-08 | yes |
-| CNES | GM | Gestão e Metas | state | monthly | 2005-08 | yes |
-| CNES | IN | Incentivos | state | monthly | 2005-08 | yes |
-| CNES | RC | Regra Contratual | state | monthly | 2005-08 | yes |
+| Source | Code | Official name | Coverage | Published | From |
+|---|---|---|---|---|---|
+| CNES | LT | Leitos | state | monthly | 2005-08 |
+| CNES | EQ | Equipamentos | state | monthly | 2005-08 |
+| CNES | ST | Estabelecimentos | state | monthly | 2005-08 |
+| CNES | PF | Profissional | state | monthly | 2005-08 |
+| CNES | SR | Serviço Especializado | state | monthly | 2005-08 |
+| CNES | HB | Habilitação | state | monthly | 2005-08 |
+| CNES | DC | Dados Complementares | state | monthly | 2005-08 |
+| CNES | EP | Equipes | state | monthly | 2005-08 |
+| CNES | EF | Estabelecimento Filantrópico | state | monthly | 2005-08 |
+| CNES | GM | Gestão e Metas | state | monthly | 2005-08 |
+| CNES | IN | Incentivos | state | monthly | 2005-08 |
+| CNES | RC | Regra Contratual | state | monthly | 2005-08 |
 
 ### SIM
 
 Folder `/SIM/CID10/DORES`, and `/SIM/PRELIM/DORES` for preliminary years; file name `DO{UF}{YYYY}.dbc`.
 
-| Source | Code | Official name | Coverage | Published | From | Read |
-|---|---|---|---|---|---|---|
-| SIM | DO | Declarações de Óbito | state and country | yearly | 1996 | yes |
+| Source | Code | Official name | Coverage | Published | From |
+|---|---|---|---|---|---|
+| SIM | DO | Declarações de Óbito | state and country | yearly | 1996 |
 
 ### SINASC
 
 Folder `/SINASC/1996_/Dados/DNRES`, and `/SINASC/PRELIM/DNRES` for preliminary years; file name `DN{UF}{YYYY}.dbc`.
 
-| Source | Code | Official name | Coverage | Published | From | Read |
-|---|---|---|---|---|---|---|
-| SINASC | DN | Declarações de nascidos vivos | state and country | yearly | 1996 | yes |
+| Source | Code | Official name | Coverage | Published | From |
+|---|---|---|---|---|---|
+| SINASC | DN | Declarações de nascidos vivos | state and country | yearly | 1996 |
 
 ## What to know about these files
 
