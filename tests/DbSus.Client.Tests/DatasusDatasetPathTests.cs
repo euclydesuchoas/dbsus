@@ -271,4 +271,25 @@ public class DatasusDatasetPathTests
         Assert.Equal("/SIM/CID10/DORES/DOSP2096.dbc", dataset.GetPath(DatasusUf.SP, DatasusPeriod.OfYear(2096)));
         Assert.Equal("/SIM/CID10/DORES/DOSP9999.dbc", dataset.GetPath(DatasusUf.SP, DatasusPeriod.OfYear(9999)));
     }
+
+    // A year where a month is needed is refused for its shape, also beyond the years two digits
+    // can name: the name it would get is worked out with the month, which a year does not have.
+    [Theory]
+    [InlineData("SIHSUS", "RD", 2108)]
+    [InlineData("SIHSUS", "RD", 9999)]
+    [InlineData("SIASUS", "PA", 2108)]
+    [InlineData("CNES", "LT", 2105)]
+    public void GetPath_YearGivenToAMonthlyDataset_BeyondTheYearsTwoDigitsCanName_ThrowsSayingAMonthIsNeeded(string source, string code, int year)
+    {
+        var dataset = DatasusCatalog.Get(source, code);
+        var period = DatasusPeriod.OfYear(year);
+
+        // Assert.Throws takes the exact type: not ArgumentOutOfRangeException, InvalidOperationException or NullReferenceException.
+        var exception = Assert.Throws<ArgumentException>(() => dataset.GetPath(DatasusUf.SP, period));
+
+        Assert.Equal("period", exception.ParamName);
+        Assert.Contains($"{dataset} is published monthly", exception.Message, StringComparison.Ordinal);
+        Assert.Contains($"DatasusPeriod.OfMonth({year}, 1)", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("period", Assert.Throws<ArgumentException>(() => dataset.GetCandidatePaths(DatasusUf.SP, period)).ParamName);
+    }
 }

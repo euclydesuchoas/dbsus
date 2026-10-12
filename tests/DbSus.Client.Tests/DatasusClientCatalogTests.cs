@@ -296,6 +296,24 @@ public sealed class DatasusClientCatalogTests : IDisposable
         Assert.Equal(0, _fixture.Server.ListCalls + _fixture.Server.InfoCalls);
     }
 
+    // A year given to a monthly dataset, beyond those years, is refused for its shape, as any
+    // other year is: with ArgumentException itself, and before anything is asked.
+    [Fact]
+    public async Task CatalogMethods_YearGivenToAMonthlyDataset_BeyondTheYearsTwoDigitsCanName_IsRefusedForItsShape_AndTheServerIsNotAsked()
+    {
+        _fixture.Server.Add(Sih + "/RDSP0807.dbc", ClientFixture.Dbc("A1"));
+        var client = _fixture.Client();
+        var rd = DatasusCatalog.SihSus.RD;
+        var year = DatasusPeriod.OfYear(2108);
+
+        var find = await Assert.ThrowsAsync<ArgumentException>(() => client.FindTableAsync(rd, DatasusUf.SP, year, Ct));
+        Assert.Equal("period", find.ParamName);
+        Assert.Contains("SIHSUS-RD is published monthly", find.Message, StringComparison.Ordinal);
+        Assert.Equal("period", (await Assert.ThrowsAsync<ArgumentException>(() => client.OpenReaderAsync(rd, DatasusUf.SP, year, cancellationToken: Ct))).ParamName);
+        Assert.Equal("to", (await Assert.ThrowsAsync<ArgumentException>(() => client.ListTablesAsync(rd, July2024, year, cancellationToken: Ct))).ParamName);
+        Assert.Equal(0, _fixture.Server.ListCalls + _fixture.Server.InfoCalls);
+    }
+
     [Fact]
     public async Task OpenReaderAsync_ByCriteria_ReadsEveryPartAsOneTable()
     {
