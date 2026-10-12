@@ -24,6 +24,7 @@ All notable changes to this project are documented in this file. The format foll
 - Read timeouts and cancellation (verified on .NET 10 and .NET Framework 4.8).
 - On .NET Framework, a `NotSupportedException` when the FluentFTP version in use does not report its connections to the client.
 - A catalog of 33 DATASUS file types, from SIASUS, SIHSUS, CNES, SIM, SINASC and CIHA (`DatasusCatalog`, `DatasusDataset`, `DatasusUf`, `DatasusPeriod`): paths built from a dataset, a state and a period (`GetPath`, `GetCandidatePaths`), and tables found (`FindTableAsync`), listed (`ListTablesAsync`) and opened (`OpenReaderAsync` by dataset, state and period, or from a `DatasusTableInfo`) on the server. `OpenReaderAsync` by dataset, state and period opens final data only; preliminary data is opened from a `DatasusTableInfo`, whose `IsPreliminary` says so.
+- For a monthly dataset, the catalog builds paths up to ninety-nine years after the start of the folder layout; a later month, whose two-digit year would give it the name of an earlier one, fails with `ArgumentOutOfRangeException`.
 
 ### Notes
 
