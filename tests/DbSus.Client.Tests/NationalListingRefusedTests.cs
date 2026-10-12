@@ -127,7 +127,7 @@ public sealed class NationalListingRefusedTests : IDisposable
     private static void AssertSaysThePreliminaryFolderWasNotListed(FileNotFoundException exception, string reply)
     {
         Assert.Equal(SimFinal + "/DOBR2025.dbc", exception.FileName);
-        Assert.Contains("The server has no final SIM-DO table for 2025: " + SimFinal + "/DOBR2025.dbc does not exist, whole or in parts.", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("The server has no final SIM-DO table of the whole country for 2025: " + SimFinal + "/DOBR2025.dbc does not exist, whole or in parts.", exception.Message, StringComparison.Ordinal);
         Assert.Contains("The folder of preliminary data, " + SimPreliminary + ", was not searched, because it could not be listed", exception.Message, StringComparison.Ordinal);
         Assert.Contains($"the server refused the listing ('{reply}')", exception.Message, StringComparison.Ordinal);
         Assert.Contains("FTP uses 550 both for a folder that does not exist and for one that may not be read.", exception.Message, StringComparison.Ordinal);

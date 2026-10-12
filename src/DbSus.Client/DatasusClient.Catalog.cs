@@ -541,8 +541,8 @@ public sealed partial class DatasusClient
         }
     }
 
-    // " of RR" for the table of a state, and nothing for the table for the whole country.
-    private static string OfState(string? ufName) => ufName is null ? string.Empty : " of " + ufName;
+    // " of RR" for the table of a state, and " of the whole country" for the one that has no state.
+    private static string OfState(string? ufName) => " of " + (ufName ?? "the whole country");
 
     private static FileNotFoundException NoTable(DatasusDataset dataset, DatasusEra era, string? ufName, DatasusPeriod period, string fileName, DatasusRequestRefusedException? preliminaryNotListed)
     {

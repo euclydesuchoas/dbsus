@@ -96,9 +96,9 @@ public sealed class DatasusClientNationalTests : IDisposable
         var withPreliminary = await Assert.ThrowsAsync<FileNotFoundException>(() => client.FindNationalTableAsync(DatasusCatalog.Sim.DO, DatasusPeriod.OfYear(2031), Ct));
         var withoutPreliminary = await Assert.ThrowsAsync<FileNotFoundException>(() => client.FindNationalTableAsync(DatasusCatalog.Pce.PCE, DatasusPeriod.OfYear(1999), Ct));
 
-        Assert.Equal("The server has no SIM-DO table for 2031, final or preliminary: neither /SIM/CID10/DORES/DOBR2031.dbc nor /SIM/PRELIM/DORES/DOBR2031.dbc exists.", withPreliminary.Message);
+        Assert.Equal("The server has no SIM-DO table of the whole country for 2031, final or preliminary: neither /SIM/CID10/DORES/DOBR2031.dbc nor /SIM/PRELIM/DORES/DOBR2031.dbc exists.", withPreliminary.Message);
         Assert.Equal(SimFinal + "/DOBR2031.dbc", withPreliminary.FileName);
-        Assert.Equal("The server has no PCE-PCE table for 1999: /PCE/Dados/PCEBR99.dbc does not exist, whole or in parts.", withoutPreliminary.Message);
+        Assert.Equal("The server has no PCE-PCE table of the whole country for 1999: /PCE/Dados/PCEBR99.dbc does not exist, whole or in parts.", withoutPreliminary.Message);
         Assert.Equal(PceFolder + "/PCEBR99.dbc", withoutPreliminary.FileName);
     }
 
@@ -138,11 +138,11 @@ public sealed class DatasusClientNationalTests : IDisposable
         var none = await Assert.ThrowsAsync<FileNotFoundException>(() => client.OpenNationalReaderAsync(DatasusCatalog.Sim.DO, DatasusPeriod.OfYear(2030), cancellationToken: Ct));
 
         Assert.Equal(
-            "SIM-DO for 2026 is not published as final data: only the preliminary table /SIM/PRELIM/DORES/DOBR2026.dbc exists, and this method opens final data only. "
+            "SIM-DO of the whole country for 2026 is not published as final data: only the preliminary table /SIM/PRELIM/DORES/DOBR2026.dbc exists, and this method opens final data only. "
             + "To read preliminary data, find the table with FindNationalTableAsync and pass it to OpenReaderAsync(DatasusTableInfo).",
             onlyPreliminary.Message);
         Assert.Equal(SimFinal + "/DOBR2026.dbc", onlyPreliminary.FileName);
-        Assert.Equal("The server has no SIM-DO table for 2030, final or preliminary: neither /SIM/CID10/DORES/DOBR2030.dbc nor /SIM/PRELIM/DORES/DOBR2030.dbc exists.", none.Message);
+        Assert.Equal("The server has no SIM-DO table of the whole country for 2030, final or preliminary: neither /SIM/CID10/DORES/DOBR2030.dbc nor /SIM/PRELIM/DORES/DOBR2030.dbc exists.", none.Message);
         Assert.Equal(transfers, _fixture.Server.Transfers);
     }
 
