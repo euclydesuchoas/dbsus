@@ -54,6 +54,8 @@ public class DatasusCatalogTests
     [InlineData("SISMAMA", "CM", "Citopatológico de Mama", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2009-01", "/SISCAN/SISMAMA/Dados", null, "CM{UF}{YY}{MM}.dbc")]
     [InlineData("SISMAMA", "HM", "Histopatológico de Mama", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2009-01", "/SISCAN/SISMAMA/Dados", null, "HM{UF}{YY}{MM}.dbc")]
     [InlineData("SISMAMA", "MM", "Exame Mamografia", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2009-01", "/SISCAN/SISMAMA/Dados", null, "MM{UF}{YY}{MM}.dbc")]
+    [InlineData("PCE", "PCE", "Programa de Controle da Esquistossomose", UfAndNational, DatasusPeriodicity.Yearly, "1995", "/PCE/Dados", null, "PCE{UF}{YY}.dbc")]
+    [InlineData("RESP", "RESP", "Notificações de casos suspeitos de SCZ", UfAndNational, DatasusPeriodicity.Yearly, "2015", "/RESP/DADOS", null, "RESP{UF}{YY}.dbc")]
     public void Dataset_IsAsTheCatalogTableSays(
         string source, string code, string officialName, DatasusCoverage coverage, DatasusPeriodicity periodicity, string firstPeriod, string directory, string? preliminaryDirectory, string fileNamePattern)
     {
@@ -80,15 +82,15 @@ public class DatasusCatalogTests
     }
 
     [Fact]
-    public void Datasets_Are40_EachOnce_GroupedBySource()
+    public void Datasets_Are42_EachOnce_GroupedBySource()
     {
         var datasets = DatasusCatalog.Datasets;
 
-        Assert.Equal(40, datasets.Count);
-        Assert.Equal(40, datasets.Select(dataset => dataset.ToString()).Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        Assert.Equal(["SIASUS", "SIHSUS", "CNES", "SIM", "SINASC", "CIHA", "CIH", "SISPRENATAL", "SISCOLO", "SISMAMA"], datasets.Select(dataset => dataset.Source).Distinct());
+        Assert.Equal(42, datasets.Count);
+        Assert.Equal(42, datasets.Select(dataset => dataset.ToString()).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(["SIASUS", "SIHSUS", "CNES", "SIM", "SINASC", "CIHA", "CIH", "SISPRENATAL", "SISCOLO", "SISMAMA", "PCE", "RESP"], datasets.Select(dataset => dataset.Source).Distinct());
         Assert.Equal(
-            [13, 4, 13, 1, 1, 1, 1, 1, 2, 3],
+            [13, 4, 13, 1, 1, 1, 1, 1, 2, 3, 1, 1],
             datasets.GroupBy(dataset => dataset.Source).Select(group => group.Count()));
         Assert.All(datasets, dataset => Assert.True(dataset.Coverage.HasFlag(DatasusCoverage.Uf), dataset.ToString()));
         Assert.All(datasets, dataset => Assert.False(string.IsNullOrWhiteSpace(dataset.OfficialName), dataset.ToString()));
@@ -100,8 +102,8 @@ public class DatasusCatalogTests
         var groups = typeof(DatasusCatalog).GetNestedTypes(BindingFlags.Public);
         var properties = groups.SelectMany(group => group.GetProperties(BindingFlags.Public | BindingFlags.Static).Select(property => (Group: group, Property: property))).ToList();
 
-        Assert.Equal(["Cih", "Ciha", "Cnes", "SiaSus", "SihSus", "Sim", "Sinasc", "SisColo", "SisMama", "SisPrenatal"], groups.Select(group => group.Name).OrderBy(name => name, StringComparer.Ordinal));
-        Assert.Equal(40, properties.Count);
+        Assert.Equal(["Cih", "Ciha", "Cnes", "Pce", "Resp", "SiaSus", "SihSus", "Sim", "Sinasc", "SisColo", "SisMama", "SisPrenatal"], groups.Select(group => group.Name).OrderBy(name => name, StringComparer.Ordinal));
+        Assert.Equal(42, properties.Count);
         foreach (var (group, property) in properties)
         {
             var dataset = Assert.IsType<DatasusDataset>(property.GetValue(null));
@@ -208,7 +210,7 @@ public class DatasusCatalogTests
         Assert.Contains("SIHSUS: RD, SP, RJ, ER", exception.Message, StringComparison.Ordinal);
         Assert.Contains("CNES: LT, EQ, ST, PF, SR, HB, DC, EP, EF, GM, IN, RC, EE;", exception.Message, StringComparison.Ordinal);
         Assert.Contains("SIM: DO", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("SINASC: DN; CIHA: CIHA; CIH: CR; SISPRENATAL: PN; SISCOLO: CC, HC; SISMAMA: CM, HM, MM.", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("SINASC: DN; CIHA: CIHA; CIH: CR; SISPRENATAL: PN; SISCOLO: CC, HC; SISMAMA: CM, HM, MM; PCE: PCE; RESP: RESP.", exception.Message, StringComparison.Ordinal);
         Assert.Contains("path as a string", exception.Message, StringComparison.Ordinal);
 
         // The catalog is partial, and the message says so without claiming that the file exists.

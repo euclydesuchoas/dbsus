@@ -50,8 +50,8 @@ public sealed partial class DatasusClient
     /// </returns>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="uf"/> is not a state; a period is before
-    /// <see cref="DatasusDataset.FirstPeriod"/>; or, for a monthly dataset, a period is more than
-    /// ninety-nine years after the start of the folder layout in use now (see
+    /// <see cref="DatasusDataset.FirstPeriod"/>; or, for a dataset whose file names carry two
+    /// digits of the year, a period is more than ninety-nine years after the start of the folder layout in use now (see
     /// <see cref="DatasusDataset.GetPath"/>).
     /// </exception>
     /// <exception cref="ArgumentException">
@@ -164,8 +164,8 @@ public sealed partial class DatasusClient
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="uf"/> is not a state; <paramref name="period"/> is before
-    /// <see cref="DatasusDataset.FirstPeriod"/>; or, for a monthly dataset, it is more than
-    /// ninety-nine years after the start of the folder layout in use now (see
+    /// <see cref="DatasusDataset.FirstPeriod"/>; or, for a dataset whose file names carry two
+    /// digits of the year, it is more than ninety-nine years after the start of the folder layout in use now (see
     /// <see cref="DatasusDataset.GetPath"/>).
     /// </exception>
     /// <exception cref="ArgumentException"><paramref name="period"/> is not set or is not of the dataset's periodicity.</exception>
@@ -219,8 +219,8 @@ public sealed partial class DatasusClient
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="uf"/> is not a state; <paramref name="period"/> is before
-    /// <see cref="DatasusDataset.FirstPeriod"/>; or, for a monthly dataset, it is more than
-    /// ninety-nine years after the start of the folder layout in use now (see
+    /// <see cref="DatasusDataset.FirstPeriod"/>; or, for a dataset whose file names carry two
+    /// digits of the year, it is more than ninety-nine years after the start of the folder layout in use now (see
     /// <see cref="DatasusDataset.GetPath"/>).
     /// </exception>
     /// <exception cref="ArgumentException"><paramref name="period"/> is not set or is not of the dataset's periodicity.</exception>

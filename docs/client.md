@@ -35,7 +35,7 @@ using var reader = await client.OpenReaderAsync("/SIASUS/200801_/Dados/PAMG2407.
 
 ## By dataset, state and period
 
-For 40 file types, `DatasusCatalog` builds the path, and the client finds, lists and opens the table, from a dataset, a state and a period:
+For 42 file types, `DatasusCatalog` builds the path, and the client finds, lists and opens the table, from a dataset, a state and a period:
 
 ```csharp
 using System;
@@ -83,7 +83,7 @@ When a connection fails or takes long, see [FTP troubleshooting](https://github.
 | Exception | When |
 |---|---|
 | `ArgumentException` | The path is not acceptable (the message says why), or a request to the catalog is malformed: a year where a month is needed, a period that is not set, a dataset the catalog does not have. |
-| `ArgumentOutOfRangeException` | In the catalog: a value that is not a state; a period before the oldest folder layout the catalog knows for the file type; or, for a monthly dataset, a period more than ninety-nine years after the start of the layout in use now, whose file name would be the one of an earlier month. |
+| `ArgumentOutOfRangeException` | In the catalog: a value that is not a state; a period before the oldest folder layout the catalog knows for the file type; or, for a dataset whose file names carry two digits of the year (every monthly one, and PCE and RESP), a period more than ninety-nine years after the start of the layout in use now, whose file name would be the one of an earlier period. |
 | `FileNotFoundException` | The file does not exist (FTP 550 to a request for a file), a part before the last one is missing, or the server has no table for a dataset, state and period (the message says when only a preliminary one exists, and when the folder of preliminary data could not be listed). |
 | `DatasusTransferException` | The base of the next two: a transfer with the server failed. Catch it to handle both; `Attempts`, `FtpReplyCode` and `RemotePath` are defined here. |
 | `DatasusRetriesExhaustedException` | Transient failures persisted after every retry. `Attempts`, `FtpReplyCode` (e.g. `421`) and `RemotePath` tell the details. |

@@ -3,6 +3,8 @@ DbSus.Client.DatasusCatalog
 DbSus.Client.DatasusCatalog.Cih
 DbSus.Client.DatasusCatalog.Ciha
 DbSus.Client.DatasusCatalog.Cnes
+DbSus.Client.DatasusCatalog.Pce
+DbSus.Client.DatasusCatalog.Resp
 DbSus.Client.DatasusCatalog.SiaSus
 DbSus.Client.DatasusCatalog.SihSus
 DbSus.Client.DatasusCatalog.Sim
@@ -160,6 +162,8 @@ static DbSus.Client.DatasusCatalog.Cnes.SR.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Cnes.ST.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Datasets.get -> System.Collections.Generic.IReadOnlyList<DbSus.Client.DatasusDataset!>!
 static DbSus.Client.DatasusCatalog.Get(string! source, string! code) -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Pce.PCE.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Resp.RESP.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.AB.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.ABO.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.ACF.get -> DbSus.Client.DatasusDataset!

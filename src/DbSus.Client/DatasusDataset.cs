@@ -94,9 +94,9 @@ public sealed class DatasusDataset
     /// <returns>The path, starting with <c>/</c>. The file may not exist on the server.</returns>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="uf"/> is not a state; <paramref name="period"/> is before
-    /// <see cref="FirstPeriod"/>; or, for a monthly file type, it is more than ninety-nine years
-    /// after the start of the folder layout in use now: the file name carries two digits of the
-    /// year and would be the one of an earlier month.
+    /// <see cref="FirstPeriod"/>; or, for a file type whose file names carry two digits of the
+    /// year (every monthly one, and PCE and RESP), it is more than ninety-nine years after the
+    /// start of the folder layout in use now: the name would be the one of an earlier period.
     /// </exception>
     /// <exception cref="ArgumentException">
     /// <paramref name="period"/> is not set, is a year where a month is needed, or is a month where
@@ -127,9 +127,9 @@ public sealed class DatasusDataset
     /// </returns>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="uf"/> is not a state; <paramref name="period"/> is before
-    /// <see cref="FirstPeriod"/>; or, for a monthly file type, it is more than ninety-nine years
-    /// after the start of the folder layout in use now: the file name carries two digits of the
-    /// year and would be the one of an earlier month.
+    /// <see cref="FirstPeriod"/>; or, for a file type whose file names carry two digits of the
+    /// year (every monthly one, and PCE and RESP), it is more than ninety-nine years after the
+    /// start of the folder layout in use now: the name would be the one of an earlier period.
     /// </exception>
     /// <exception cref="ArgumentException">
     /// <paramref name="period"/> is not set, is a year where a month is needed, or is a month where
@@ -151,8 +151,8 @@ public sealed class DatasusDataset
     internal static DatasusDataset Monthly(string source, string code, string officialName, string directory, int firstYear, int firstMonth) =>
         new(source, code, officialName, DatasusCoverage.Uf, new DatasusEra(DatasusPeriod.OfMonth(firstYear, firstMonth), null, directory, null, code, null, 2));
 
-    internal static DatasusDataset Yearly(string source, string code, string officialName, DatasusCoverage coverage, string directory, string? preliminaryDirectory, int firstYear) =>
-        new(source, code, officialName, coverage, new DatasusEra(DatasusPeriod.OfYear(firstYear), null, directory, preliminaryDirectory, code, null, 4));
+    internal static DatasusDataset Yearly(string source, string code, string officialName, DatasusCoverage coverage, string directory, string? preliminaryDirectory, int firstYear, int yearDigits = 4) =>
+        new(source, code, officialName, coverage, new DatasusEra(DatasusPeriod.OfYear(firstYear), null, directory, preliminaryDirectory, code, null, yearDigits));
 
     // A monthly file type with an older folder layout: the same file name in another folder, up to
     // the month before the layout in use now starts.

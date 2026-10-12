@@ -3,15 +3,15 @@ using System.Diagnostics.CodeAnalysis;
 namespace DbSus.Client;
 
 /// <summary>
-/// A partial catalog of the file types DATASUS lists: 40 of SIASUS, SIHSUS, CNES, SIM, SINASC,
-/// CIHA, CIH, SISPRENATAL, SISCOLO and SISMAMA, by state, each as a <see cref="DatasusDataset"/>.
+/// A partial catalog of the file types DATASUS lists: 42 of SIASUS, SIHSUS, CNES, SIM, SINASC,
+/// CIHA, CIH, SISPRENATAL, SISCOLO, SISMAMA, PCE and RESP, by state, each as a <see cref="DatasusDataset"/>.
 /// Use a property, e.g. <c>DatasusCatalog.SihSus.RD</c>, or look one up by text with <see cref="Get"/>.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Most of the file types DATASUS lists are not here: those of other sources (SINAN, for one) and
-/// other file types of these sources. Nor are the files for the whole country, those of SIM
-/// and SINASC included. A file type that is missing here may still be on the server.
+/// other file types of these sources. Nor are the files for the whole country, those of SIM,
+/// SINASC, PCE and RESP included. A file type that is missing here may still be on the server.
 /// </para>
 /// <para>
 /// Six of the file types also have the folder layout that came before the one in use now:
@@ -40,6 +40,8 @@ public static class DatasusCatalog
         SisPrenatal.PN,
         SisColo.CC, SisColo.HC,
         SisMama.CM, SisMama.HM, SisMama.MM,
+        Pce.PCE,
+        Resp.RESP,
     ];
 
     // Declared after Datasets: static fields are initialized in the order they are written.
@@ -294,5 +296,27 @@ public static class DatasusCatalog
 
         /// <summary>Gets SISMAMA-MM, <i>Exame Mamografia</i>.</summary>
         public static DatasusDataset MM { get; } = DatasusDataset.Monthly("SISMAMA", "MM", "Exame Mamografia", Directory, 2009, 1);
+    }
+
+    /// <summary>
+    /// PCE (<i>Programa de Controle da Esquistossomose</i>). Yearly files, one per state and one for
+    /// the whole country; the name carries two digits of the year.
+    /// </summary>
+    public static class Pce
+    {
+        /// <summary>Gets PCE-PCE, <i>Programa de Controle da Esquistossomose</i>, from 1995 on.</summary>
+        public static DatasusDataset PCE { get; } = DatasusDataset.Yearly(
+            "PCE", "PCE", "Programa de Controle da Esquistossomose", DatasusCoverage.Uf | DatasusCoverage.National, "/PCE/Dados", null, 1995, yearDigits: 2);
+    }
+
+    /// <summary>
+    /// RESP (<i>Notificações de casos suspeitos de SCZ</i>). Yearly files, one per state and one for
+    /// the whole country; the name carries two digits of the year.
+    /// </summary>
+    public static class Resp
+    {
+        /// <summary>Gets RESP-RESP, <i>Notificações de casos suspeitos de SCZ</i>, from 2015 on.</summary>
+        public static DatasusDataset RESP { get; } = DatasusDataset.Yearly(
+            "RESP", "RESP", "Notificações de casos suspeitos de SCZ", DatasusCoverage.Uf | DatasusCoverage.National, "/RESP/DADOS", null, 2015, yearDigits: 2);
     }
 }
