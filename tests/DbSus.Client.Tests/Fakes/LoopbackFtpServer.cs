@@ -84,6 +84,24 @@ internal sealed class LoopbackFtpServer : IDisposable
     /// <summary>Gets or sets how a listing ends.</summary>
     public ListingEnd ListingEnd { get; set; }
 
+    /// <summary>
+    /// Gets or sets a reply that LIST gets in place of a listing, for example
+    /// <c>550 Access is denied.</c>; <see langword="null"/> for none.
+    /// </summary>
+    public string? ListRefusal { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether <see cref="ListRefusal"/> comes after the 150 reply and an empty data
+    /// connection, in place of the 226, and not in place of the 150.
+    /// </summary>
+    public bool RefuseListAfterOpening { get; set; }
+
+    /// <summary>
+    /// Gets or sets the folder whose listing gets <see cref="ListRefusal"/> (the end of the path
+    /// sent with LIST); <see langword="null"/> for every folder.
+    /// </summary>
+    public string? RefusedFolder { get; set; }
+
     /// <summary>Gets the files served by SIZE, MDTM and RETR, by full path on the server.</summary>
     public ConcurrentDictionary<string, byte[]> Files { get; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -120,7 +138,7 @@ internal sealed class LoopbackFtpServer : IDisposable
     /// <summary>Gets the commands received, in order, without arguments.</summary>
     public ConcurrentQueue<string> Commands { get; } = new();
 
-    private bool ServesData => Listing is not null || !Files.IsEmpty;
+    private bool ServesData => Listing is not null || ListRefusal is not null || !Files.IsEmpty;
 
     public static int ClosedPort()
     {
@@ -200,6 +218,22 @@ internal sealed class LoopbackFtpServer : IDisposable
                         await writer.WriteLineAsync(command == "EPSV"
                             ? $"229 Entering Extended Passive Mode (|||{port}|)"
                             : $"227 Entering Passive Mode ({PassiveAddress},{port >> 8},{port & 0xFF})").ConfigureAwait(false);
+                        continue;
+                    }
+
+                    if (command == "LIST" && ListRefusal is not null && data is not null
+                        && (RefusedFolder is null || argument.EndsWith(RefusedFolder, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        if (RefuseListAfterOpening)
+                        {
+                            await writer.WriteLineAsync("150 Opening ASCII mode data connection.").ConfigureAwait(false);
+                            using var connection = await data.AcceptTcpClientAsync().ConfigureAwait(false);
+                            connection.Close();
+                        }
+
+                        data.Stop();
+                        data = null;
+                        await writer.WriteLineAsync(ListRefusal).ConfigureAwait(false);
                         continue;
                     }
 
