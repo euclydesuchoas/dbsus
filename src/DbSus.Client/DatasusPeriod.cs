@@ -19,7 +19,10 @@ public enum DatasusCoverage
     /// <summary>One file per state (see <see cref="DatasusUf"/>).</summary>
     Uf = 1,
 
-    /// <summary>One file for the whole country. This version does not build its path; use the path as a string.</summary>
+    /// <summary>
+    /// One file for the whole country. Its path comes from <see cref="DatasusDataset.GetNationalPath"/>,
+    /// and the client reaches it with the methods that have National in their names.
+    /// </summary>
     National = 2,
 }
 

@@ -10,16 +10,17 @@ public class DatasusOlderErasTests
     private const DatasusCoverage UfAndNational = DatasusCoverage.Uf | DatasusCoverage.National;
 
     // The older folder layouts, one row per dataset that has one: its periods, its folder (which
-    // has no folder of preliminary data), its name pattern, and the first period of the layout in
-    // use now. The first period is the start of the folder, not the first period with data.
+    // has no folder of preliminary data), its name pattern, the first period of the layout in use
+    // now, and the name pattern of its file for the whole country, for the datasets that have one.
+    // The first period is the start of the folder, not the first period with data.
     [Theory]
-    [InlineData("SIASUS", "PA", "1994-07", "2007-12", "/SIASUS/199407_200712/Dados", "PA{UF}{YY}{MM}.dbc", "2008-01")]
-    [InlineData("SIHSUS", "RD", "1992-01", "2007-12", "/SIHSUS/199201_200712/Dados", "RD{UF}{YY}{MM}.dbc", "2008-01")]
-    [InlineData("SIHSUS", "SP", "1992-01", "2007-12", "/SIHSUS/199201_200712/Dados", "SP{UF}{YY}{MM}.dbc", "2008-01")]
-    [InlineData("SIHSUS", "RJ", "1992-01", "2007-12", "/SIHSUS/199201_200712/Dados", "RJ{UF}{YY}{MM}.dbc", "2008-01")]
-    [InlineData("SIM", "DO", "1979", "1995", "/SIM/CID9/DORES", "DOR{UF}{YY}.dbc", "1996")]
-    [InlineData("SINASC", "DN", "1994", "1995", "/SINASC/1994_1995/Dados/DNRES", "DNR{UF}{YYYY}.dbc", "1996")]
-    public void Dataset_OlderEra_IsAsTheCatalogTableSays(string source, string code, string firstPeriod, string lastPeriod, string directory, string fileNamePattern, string firstOfTheCurrentEra)
+    [InlineData("SIASUS", "PA", "1994-07", "2007-12", "/SIASUS/199407_200712/Dados", "PA{UF}{YY}{MM}.dbc", "2008-01", null)]
+    [InlineData("SIHSUS", "RD", "1992-01", "2007-12", "/SIHSUS/199201_200712/Dados", "RD{UF}{YY}{MM}.dbc", "2008-01", null)]
+    [InlineData("SIHSUS", "SP", "1992-01", "2007-12", "/SIHSUS/199201_200712/Dados", "SP{UF}{YY}{MM}.dbc", "2008-01", null)]
+    [InlineData("SIHSUS", "RJ", "1992-01", "2007-12", "/SIHSUS/199201_200712/Dados", "RJ{UF}{YY}{MM}.dbc", "2008-01", null)]
+    [InlineData("SIM", "DO", "1979", "1995", "/SIM/CID9/DORES", "DOR{UF}{YY}.dbc", "1996", "DORBR{YY}.dbc")]
+    [InlineData("SINASC", "DN", "1994", "1995", "/SINASC/1994_1995/Dados/DNRES", "DNR{UF}{YYYY}.dbc", "1996", "DNBR{YYYY}.dbc")]
+    public void Dataset_OlderEra_IsAsTheCatalogTableSays(string source, string code, string firstPeriod, string lastPeriod, string directory, string fileNamePattern, string firstOfTheCurrentEra, string? nationalFileNamePattern)
     {
         var dataset = DatasusCatalog.Get(source, code);
 
@@ -29,8 +30,9 @@ public class DatasusOlderErasTests
         Assert.Equal(lastPeriod, older.LastPeriod.ToString());
         Assert.Equal(directory, older.Directory);
         Assert.Null(older.PreliminaryDirectory);
-        Assert.Null(older.NationalStem);
+        Assert.Equal(nationalFileNamePattern, older.NationalFileNamePattern);
         Assert.Equal(fileNamePattern, older.FileNamePattern);
+        Assert.Equal(fileNamePattern, older.StateFileNamePattern);
         Assert.Equal(firstOfTheCurrentEra, dataset.CurrentEra.FirstPeriod.ToString());
         Assert.Equal(firstPeriod, dataset.FirstPeriod.ToString());
     }

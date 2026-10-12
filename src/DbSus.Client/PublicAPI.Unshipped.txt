@@ -18,11 +18,14 @@ DbSus.Client.DatasusClient.DatasusClient(DbSus.Client.DatasusClientOptions? opti
 DbSus.Client.DatasusClient.Dispose() -> void
 DbSus.Client.DatasusClient.DisposeAsync() -> System.Threading.Tasks.ValueTask
 DbSus.Client.DatasusClient.DownloadAsync(string! path, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<string!>!
+DbSus.Client.DatasusClient.FindNationalTableAsync(DbSus.Client.DatasusDataset! dataset, DbSus.Client.DatasusPeriod period, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Client.DatasusTableInfo!>!
 DbSus.Client.DatasusClient.FindPartsAsync(string! path, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<DbSus.Client.DatasusFileInfo!>!>!
 DbSus.Client.DatasusClient.FindTableAsync(DbSus.Client.DatasusDataset! dataset, DbSus.Client.DatasusUf uf, DbSus.Client.DatasusPeriod period, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Client.DatasusTableInfo!>!
 DbSus.Client.DatasusClient.GetInfoAsync(string! path, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Client.DatasusFileInfo!>!
 DbSus.Client.DatasusClient.ListAsync(string! directory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<DbSus.Client.DatasusFileInfo!>!>!
+DbSus.Client.DatasusClient.ListNationalTablesAsync(DbSus.Client.DatasusDataset! dataset, DbSus.Client.DatasusPeriod from, DbSus.Client.DatasusPeriod to, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<DbSus.Client.DatasusTableInfo!>!>!
 DbSus.Client.DatasusClient.ListTablesAsync(DbSus.Client.DatasusDataset! dataset, DbSus.Client.DatasusPeriod from, DbSus.Client.DatasusPeriod to, DbSus.Client.DatasusUf? uf = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<DbSus.Client.DatasusTableInfo!>!>!
+DbSus.Client.DatasusClient.OpenNationalReaderAsync(DbSus.Client.DatasusDataset! dataset, DbSus.Client.DatasusPeriod period, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfReader!>!
 DbSus.Client.DatasusClient.OpenReaderAsync(DbSus.Client.DatasusDataset! dataset, DbSus.Client.DatasusUf uf, DbSus.Client.DatasusPeriod period, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfReader!>!
 DbSus.Client.DatasusClient.OpenReaderAsync(DbSus.Client.DatasusTableInfo! table, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfReader!>!
 DbSus.Client.DatasusClient.OpenReaderAsync(string! path, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfReader!>!
@@ -66,6 +69,8 @@ DbSus.Client.DatasusDataset.Code.get -> string!
 DbSus.Client.DatasusDataset.Coverage.get -> DbSus.Client.DatasusCoverage
 DbSus.Client.DatasusDataset.FirstPeriod.get -> DbSus.Client.DatasusPeriod
 DbSus.Client.DatasusDataset.GetCandidatePaths(DbSus.Client.DatasusUf uf, DbSus.Client.DatasusPeriod period) -> System.Collections.Generic.IReadOnlyList<string!>!
+DbSus.Client.DatasusDataset.GetNationalCandidatePaths(DbSus.Client.DatasusPeriod period) -> System.Collections.Generic.IReadOnlyList<string!>!
+DbSus.Client.DatasusDataset.GetNationalPath(DbSus.Client.DatasusPeriod period) -> string!
 DbSus.Client.DatasusDataset.GetPath(DbSus.Client.DatasusUf uf, DbSus.Client.DatasusPeriod period) -> string!
 DbSus.Client.DatasusDataset.OfficialName.get -> string!
 DbSus.Client.DatasusDataset.Periodicity.get -> DbSus.Client.DatasusPeriodicity

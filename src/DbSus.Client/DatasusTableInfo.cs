@@ -2,7 +2,10 @@ namespace DbSus.Client;
 
 /// <summary>
 /// A table on the DATASUS server, found by <see cref="DatasusClient.ListTablesAsync"/> or
-/// <see cref="DatasusClient.FindTableAsync"/>: one file, or the parts of a table split into several.
+/// <see cref="DatasusClient.FindTableAsync"/>, or, for the whole country, by
+/// <see cref="DatasusClient.ListNationalTablesAsync"/> or
+/// <see cref="DatasusClient.FindNationalTableAsync"/>: one file, or the parts of a table split
+/// into several.
 /// </summary>
 public sealed class DatasusTableInfo
 {
@@ -27,8 +30,7 @@ public sealed class DatasusTableInfo
     public DatasusDataset Dataset { get; }
 
     /// <summary>
-    /// Gets the state of the table, or <see langword="null"/> for a table of the whole country
-    /// (this version finds none).
+    /// Gets the state of the table, or <see langword="null"/> for a table for the whole country.
     /// </summary>
     public DatasusUf? Uf { get; }
 
@@ -50,8 +52,11 @@ public sealed class DatasusTableInfo
 
     /// <summary>
     /// Gets the files of the table, in order: one for a table that is not split, otherwise its
-    /// parts. From <see cref="DatasusClient.FindTableAsync"/> each has its exact size and time; from
-    /// <see cref="DatasusClient.ListTablesAsync"/> they are as the listing shows them, with no time.
+    /// parts. From <see cref="DatasusClient.FindTableAsync"/> and
+    /// <see cref="DatasusClient.FindNationalTableAsync"/> each has its exact size and time; from
+    /// <see cref="DatasusClient.ListTablesAsync"/> and
+    /// <see cref="DatasusClient.ListNationalTablesAsync"/> they are as the listing shows them, with
+    /// no time.
     /// </summary>
     public IReadOnlyList<DatasusFileInfo> Parts { get; }
 

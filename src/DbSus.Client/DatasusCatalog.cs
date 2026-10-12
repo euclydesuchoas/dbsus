@@ -10,8 +10,12 @@ namespace DbSus.Client;
 /// <remarks>
 /// <para>
 /// Most of the file types DATASUS lists are not here: those of other sources (SINAN, for one) and
-/// other file types of these sources. Nor are the files for the whole country, those of SIM,
-/// SINASC, PCE and RESP included. A file type that is missing here may still be on the server.
+/// other file types of these sources, the ones that only have a file for the whole country
+/// included. A file type that is missing here may still be on the server.
+/// </para>
+/// <para>
+/// Four of the file types also have a file for the whole country: SIM-DO, SINASC-DN, PCE and
+/// RESP (see <see cref="DatasusDataset.GetNationalPath"/>).
 /// </para>
 /// <para>
 /// Six of the file types also have the folder layout that came before the one in use now:
@@ -213,7 +217,7 @@ public static class DatasusCatalog
             DatasusDataset.Monthly("CNES", code, officialName, "/CNES/200508_/Dados/" + code, 2005, 8);
     }
 
-    /// <summary>SIM, the mortality information system (<i>Sistema de informações de Mortalidade</i>). Yearly files.</summary>
+    /// <summary>SIM, the mortality information system (<i>Sistema de informações de Mortalidade</i>). Yearly files, one per state and one for the whole country.</summary>
     public static class Sim
     {
         /// <summary>
@@ -222,10 +226,10 @@ public static class DatasusCatalog
         /// in a folder of preliminary data until DATASUS closes them.
         /// </summary>
         public static DatasusDataset DO { get; } = DatasusDataset.Yearly(
-            "SIM", "DO", "Declarações de Óbito", DatasusCoverage.Uf | DatasusCoverage.National, "/SIM/CID10/DORES", "/SIM/PRELIM/DORES", 1996, "/SIM/CID9/DORES", "DOR", 2, 1979);
+            "SIM", "DO", "Declarações de Óbito", DatasusCoverage.Uf | DatasusCoverage.National, "/SIM/CID10/DORES", "/SIM/PRELIM/DORES", 1996, "/SIM/CID9/DORES", "DOR", 2, 1979, "DORBR");
     }
 
-    /// <summary>SINASC, the live births information system (<i>Sistema de informação de Nascidos Vivos</i>). Yearly files.</summary>
+    /// <summary>SINASC, the live births information system (<i>Sistema de informação de Nascidos Vivos</i>). Yearly files, one per state and one for the whole country.</summary>
     public static class Sinasc
     {
         /// <summary>
@@ -234,7 +238,7 @@ public static class DatasusCatalog
         /// are published in a folder of preliminary data until DATASUS closes them.
         /// </summary>
         public static DatasusDataset DN { get; } = DatasusDataset.Yearly(
-            "SINASC", "DN", "Declarações de nascidos vivos", DatasusCoverage.Uf | DatasusCoverage.National, "/SINASC/1996_/Dados/DNRES", "/SINASC/PRELIM/DNRES", 1996, "/SINASC/1994_1995/Dados/DNRES", "DNR", 4, 1994);
+            "SINASC", "DN", "Declarações de nascidos vivos", DatasusCoverage.Uf | DatasusCoverage.National, "/SINASC/1996_/Dados/DNRES", "/SINASC/PRELIM/DNRES", 1996, "/SINASC/1994_1995/Dados/DNRES", "DNR", 4, 1994, "DNBR");
     }
 
     /// <summary>CIHA (<i>Comunicação de Internação Hospitalar e Ambulatorial</i>). Monthly files, one per state.</summary>
