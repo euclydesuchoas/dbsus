@@ -29,7 +29,10 @@ public sealed class DbfHeader
         UnusedRecordBytes = unusedRecordBytes;
     }
 
-    /// <summary>Gets the version byte (0x03 for dBase III without memo, as used by DATASUS).</summary>
+    /// <summary>
+    /// Gets the version byte: 0x03 (dBase III without memo) in the DATASUS files seen, except one
+    /// SIASUS-ABO file, which has 0x30 and was read without error.
+    /// </summary>
     public byte Version { get; }
 
     /// <summary>
