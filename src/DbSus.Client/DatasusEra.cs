@@ -44,8 +44,24 @@ internal sealed class DatasusEra
     /// <summary>Gets the file name pattern, e.g. <c>PA{UF}{YY}{MM}.dbc</c> or <c>DO{UF}{YYYY}.dbc</c>.</summary>
     public string FileNamePattern => Prefix + (Periodicity == DatasusPeriodicity.Monthly ? "{UF}{YY}{MM}" : "{UF}{YYYY}") + Extension;
 
+    /// <summary>
+    /// Gets the last year a file name of the era can tell apart, or <see langword="null"/> when
+    /// the name carries the four digits of the year. A monthly name carries two.
+    /// </summary>
+    public int? LastNameableYear => Periodicity == DatasusPeriodicity.Monthly ? FirstPeriod.Year + 99 : null;
+
     /// <summary>Whether the period belongs to the era.</summary>
     public bool Contains(DatasusPeriod period) => period >= FirstPeriod && (LastPeriod is not { } last || period <= last);
+
+    /// <summary>
+    /// Gets the year that two digits name in a file name of the era: the one within the hundred
+    /// years that start with the era.
+    /// </summary>
+    public int YearNamedBy(int twoDigits)
+    {
+        var year = FirstPeriod.Year - (FirstPeriod.Year % 100) + twoDigits;
+        return year < FirstPeriod.Year ? year + 100 : year;
+    }
 
     /// <summary>
     /// Builds the name of the file of one state and period, without a part letter: upper-case
@@ -110,9 +126,7 @@ internal sealed class DatasusEra
                 return false;
             }
 
-            // Two digits name a year only within the hundred years that start with the era.
-            var year = FirstPeriod.Year - (FirstPeriod.Year % 100) + (digits / 100);
-            period = DatasusPeriod.OfMonth(year < FirstPeriod.Year ? year + 100 : year, month);
+            period = DatasusPeriod.OfMonth(YearNamedBy(digits / 100), month);
         }
         else
         {

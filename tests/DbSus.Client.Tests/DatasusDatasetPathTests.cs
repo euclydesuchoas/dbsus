@@ -229,4 +229,46 @@ public class DatasusDatasetPathTests
         Assert.Equal(first, dataset.FirstPeriod);
         Assert.NotNull(dataset.GetPath(DatasusUf.SP, first));
     }
+
+    // A monthly file name carries two digits of the year, so it can name the hundred years that
+    // start with the folder layout and no other: a later month would get the name of the month one
+    // hundred years before it.
+    [Theory]
+    [InlineData("SIHSUS", "RD", 2108, 7, 2107, "2008-07")]
+    [InlineData("SIHSUS", "RD", 2208, 7, 2107, "2008-07")]
+    [InlineData("SIASUS", "PA", 2108, 1, 2107, "2008-01")]
+    [InlineData("CNES", "LT", 2105, 8, 2104, "2005-08")]
+    [InlineData("CIHA", "CIHA", 2111, 1, 2110, "2011-01")]
+    public void GetPath_MonthBeyondTheYearsTwoDigitsCanName_ThrowsSayingWhoseNameItWouldGet(string source, string code, int year, int month, int lastYear, string namesake)
+    {
+        var dataset = DatasusCatalog.Get(source, code);
+        var period = DatasusPeriod.OfMonth(year, month);
+
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => dataset.GetPath(DatasusUf.SP, period));
+
+        Assert.Equal("period", exception.ParamName);
+        Assert.Equal(period, exception.ActualValue);
+        Assert.Contains($"{dataset} file names carry two digits of the year, so the catalog builds them only up to {lastYear}: {period} would get the name of {namesake}.", exception.Message, StringComparison.Ordinal);
+        Assert.Throws<ArgumentOutOfRangeException>(() => dataset.GetCandidatePaths(DatasusUf.SP, period));
+    }
+
+    [Fact]
+    public void GetPath_LastYearTwoDigitsCanName_IsBuilt_AndItsNameReadsBackAsItself()
+    {
+        var dataset = DatasusCatalog.SihSus.RD;
+        var last = DatasusPeriod.OfMonth(2107, 12);
+
+        Assert.Equal("/SIHSUS/200801_/Dados/RDSP0712.dbc", dataset.GetPath(DatasusUf.SP, last));
+        Assert.True(dataset.CurrentEra.TryParseFileName("RDSP0712.dbc", out _, out var readBack, out _));
+        Assert.Equal(last, readBack);
+    }
+
+    [Fact]
+    public void GetPath_YearlyDataset_HasNoSuchLimit_BecauseItsNamesCarryFourDigits()
+    {
+        var dataset = DatasusCatalog.Sim.DO;
+
+        Assert.Equal("/SIM/CID10/DORES/DOSP2096.dbc", dataset.GetPath(DatasusUf.SP, DatasusPeriod.OfYear(2096)));
+        Assert.Equal("/SIM/CID10/DORES/DOSP9999.dbc", dataset.GetPath(DatasusUf.SP, DatasusPeriod.OfYear(9999)));
+    }
 }

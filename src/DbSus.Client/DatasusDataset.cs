@@ -89,8 +89,10 @@ public sealed class DatasusDataset
     /// <param name="period">A month for a monthly file type, a year for a yearly one.</param>
     /// <returns>The path, starting with <c>/</c>. The file may not exist on the server.</returns>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="uf"/> is not a state, or <paramref name="period"/> is before
-    /// <see cref="FirstPeriod"/> (use the path as a string for older periods).
+    /// <paramref name="uf"/> is not a state; <paramref name="period"/> is before
+    /// <see cref="FirstPeriod"/> (use the path as a string for older periods); or, for a monthly file
+    /// type, it is more than ninety-nine years after the year of <see cref="FirstPeriod"/>: the file
+    /// name carries two digits of the year and would be the one of an earlier month.
     /// </exception>
     /// <exception cref="ArgumentException">
     /// <paramref name="period"/> is not set, is a year where a month is needed, or is a month where
@@ -117,8 +119,10 @@ public sealed class DatasusDataset
     /// <param name="period">A month for a monthly file type, a year for a yearly one.</param>
     /// <returns>One path, or two for a source with a folder of preliminary data; the first is <see cref="GetPath"/>.</returns>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="uf"/> is not a state, or <paramref name="period"/> is before
-    /// <see cref="FirstPeriod"/> (use the path as a string for older periods).
+    /// <paramref name="uf"/> is not a state; <paramref name="period"/> is before
+    /// <see cref="FirstPeriod"/> (use the path as a string for older periods); or, for a monthly file
+    /// type, it is more than ninety-nine years after the year of <see cref="FirstPeriod"/>: the file
+    /// name carries two digits of the year and would be the one of an earlier month.
     /// </exception>
     /// <exception cref="ArgumentException">
     /// <paramref name="period"/> is not set, is a year where a month is needed, or is a month where
@@ -164,6 +168,17 @@ public sealed class DatasusDataset
         {
             if (era.Contains(period))
             {
+                // Beyond the hundred years that two digits can name, the file name would be the
+                // one of an earlier period, and the wrong table would be found without any error.
+                if (era.LastNameableYear is { } lastYear && period.Year > lastYear)
+                {
+                    var namesake = DatasusPeriod.OfMonth(era.YearNamedBy(period.Year % 100), period.Month!.Value);
+                    throw new ArgumentOutOfRangeException(
+                        paramName,
+                        period,
+                        $"{this} file names carry two digits of the year, so the catalog builds them only up to {lastYear}: {period} would get the name of {namesake}.");
+                }
+
                 return era;
             }
         }

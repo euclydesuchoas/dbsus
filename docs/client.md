@@ -83,7 +83,7 @@ When a connection fails or takes long, see [FTP troubleshooting](https://github.
 | Exception | When |
 |---|---|
 | `ArgumentException` | The path is not acceptable (the message says why), or a request to the catalog is malformed: a year where a month is needed, a period that is not set, a dataset the catalog does not have. |
-| `ArgumentOutOfRangeException` | In the catalog: a value that is not a state, or a period before the folder layout it builds (the message says to use the path as a string). |
+| `ArgumentOutOfRangeException` | In the catalog: a value that is not a state; a period before the folder layout it builds (the message says to use the path as a string); or, for a monthly dataset, a period more than ninety-nine years after the start of that layout, whose file name would be the one of an earlier month. |
 | `FileNotFoundException` | The file does not exist (FTP 550 to a request for a file), a part before the last one is missing, or the server has no table for a dataset, state and period (the message says when only a preliminary one exists, and when the folder of preliminary data could not be listed). |
 | `DatasusTransferException` | The base of the next two: a transfer with the server failed. Catch it to handle both; `Attempts`, `FtpReplyCode` and `RemotePath` are defined here. |
 | `DatasusRetriesExhaustedException` | Transient failures persisted after every retry. `Attempts`, `FtpReplyCode` (e.g. `421`) and `RemotePath` tell the details. |

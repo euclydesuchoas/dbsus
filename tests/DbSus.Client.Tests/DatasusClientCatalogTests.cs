@@ -280,6 +280,22 @@ public sealed class DatasusClientCatalogTests : IDisposable
         Assert.Equal(0, _fixture.Server.ListCalls + _fixture.Server.InfoCalls);
     }
 
+    // A month whose two digits of the year would name the month one hundred years before it is
+    // refused before anything is asked: the table of 2008-07 is there, and is not the one of 2108-07.
+    [Fact]
+    public async Task CatalogMethods_MonthBeyondTheYearsTwoDigitsCanName_IsRefused_AndTheServerIsNotAsked()
+    {
+        _fixture.Server.Add(Sih + "/RDSP0807.dbc", ClientFixture.Dbc("A1"));
+        var client = _fixture.Client();
+        var rd = DatasusCatalog.SihSus.RD;
+        var beyond = DatasusPeriod.OfMonth(2108, 7);
+
+        Assert.Equal("period", (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => client.FindTableAsync(rd, DatasusUf.SP, beyond, Ct))).ParamName);
+        Assert.Equal("period", (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => client.OpenReaderAsync(rd, DatasusUf.SP, beyond, cancellationToken: Ct))).ParamName);
+        Assert.Equal("to", (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => client.ListTablesAsync(rd, July2024, beyond, cancellationToken: Ct))).ParamName);
+        Assert.Equal(0, _fixture.Server.ListCalls + _fixture.Server.InfoCalls);
+    }
+
     [Fact]
     public async Task OpenReaderAsync_ByCriteria_ReadsEveryPartAsOneTable()
     {

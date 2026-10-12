@@ -48,8 +48,10 @@ public sealed partial class DatasusClient
     /// table is in both folders, the final one is returned.
     /// </returns>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="uf"/> is not a state, or a period is before
-    /// <see cref="DatasusDataset.FirstPeriod"/> (use paths as strings for older periods).
+    /// <paramref name="uf"/> is not a state; a period is before
+    /// <see cref="DatasusDataset.FirstPeriod"/> (use paths as strings for older periods); or, for a
+    /// monthly dataset, a period is more than ninety-nine years after the year of
+    /// <see cref="DatasusDataset.FirstPeriod"/> (see <see cref="DatasusDataset.GetPath"/>).
     /// </exception>
     /// <exception cref="ArgumentException">
     /// A period is not set or is not of the dataset's periodicity, or <paramref name="from"/> is
@@ -159,8 +161,10 @@ public sealed partial class DatasusClient
     /// reply, and the refusal is the <see cref="Exception.InnerException"/>.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="uf"/> is not a state, or <paramref name="period"/> is before
-    /// <see cref="DatasusDataset.FirstPeriod"/> (use the path as a string for older periods).
+    /// <paramref name="uf"/> is not a state; <paramref name="period"/> is before
+    /// <see cref="DatasusDataset.FirstPeriod"/> (use the path as a string for older periods); or, for a
+    /// monthly dataset, it is more than ninety-nine years after the year of
+    /// <see cref="DatasusDataset.FirstPeriod"/> (see <see cref="DatasusDataset.GetPath"/>).
     /// </exception>
     /// <exception cref="ArgumentException"><paramref name="period"/> is not set or is not of the dataset's periodicity.</exception>
     /// <exception cref="DatasusRequestRefusedException">
@@ -212,8 +216,10 @@ public sealed partial class DatasusClient
     /// the server answered 550 to its listing.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="uf"/> is not a state, or <paramref name="period"/> is before
-    /// <see cref="DatasusDataset.FirstPeriod"/> (use the path as a string for older periods).
+    /// <paramref name="uf"/> is not a state; <paramref name="period"/> is before
+    /// <see cref="DatasusDataset.FirstPeriod"/> (use the path as a string for older periods); or, for a
+    /// monthly dataset, it is more than ninety-nine years after the year of
+    /// <see cref="DatasusDataset.FirstPeriod"/> (see <see cref="DatasusDataset.GetPath"/>).
     /// </exception>
     /// <exception cref="ArgumentException"><paramref name="period"/> is not set or is not of the dataset's periodicity.</exception>
     /// <exception cref="DatasusRequestRefusedException">
