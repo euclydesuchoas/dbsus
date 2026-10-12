@@ -67,27 +67,27 @@ In the file names, `{CODE}` is the code of the file type, `{UF}` is the two-lett
 - **Official name** is the name under which DATASUS publishes the file type, in Portuguese and spelled as DATASUS spells it (`DatasusDataset.OfficialName`).
 - **From** is the first period the catalog accepts (`DatasusDataset.FirstPeriod`): the start of the folder layout in use now, not the first period with data. CNES-LT, for example, has files from 2005-10 only, SIASUS-ABO from 2014-01 and SIASUS-AMP from 2016-03.
 
-One real file of each of the 33 file types was read with DbSus: decompressed, its CRC-32 checked, and every field of every record read. It was usually a small and old file, and some held a single record. From the `PRELIM` folders, two files were read in the same way in October 2026: SIM-DO and SINASC-DN of Roraima, both of 2026. That says nothing about other periods, or about other files of those folders.
+The tables below say, for each of the 33 file types, what was checked in October 2026: `read` means that one real file was read whole with DbSus (decompressed, its CRC-32 checked, every field of every record), usually a small and old one, and some held a single record; `header`, that a header alone was read, or that the file read had no record; `names`, that only the names were seen in a listing. From the `PRELIM` folders, two files were read in the same way in October 2026: SIM-DO and SINASC-DN of Roraima, both of 2026. That says nothing about other periods, or about other files of those folders.
 
 ### SIASUS
 
 Folder `/SIASUS/200801_/Dados`, file name `{CODE}{UF}{YY}{MM}.dbc`.
 
-| Source | Code | Official name | Coverage | Published | From |
-|---|---|---|---|---|---|
-| SIASUS | PA | Produção Ambulatorial | state | monthly | 2008-01 |
-| SIASUS | AD | APAC de Laudos Diversos | state | monthly | 2008-01 |
-| SIASUS | AM | APAC de Medicamentos | state | monthly | 2008-01 |
-| SIASUS | AQ | APAC de Quimioterapia | state | monthly | 2008-01 |
-| SIASUS | AR | APAC de Radioterapia | state | monthly | 2008-01 |
-| SIASUS | PS | Psicossocial | state | monthly | 2008-01 |
-| SIASUS | ATD | APAC Tratamento Dialítico | state | monthly | 2008-01 |
-| SIASUS | ACF | APAC Confeção de Fístula Arteriovenosa | state | monthly | 2008-01 |
-| SIASUS | AB | APAC de Acompanhamento a Cirurgia Bariátrica | state | monthly | 2008-01 |
-| SIASUS | ABO | APAC Acompanhamento Pós Cirurgia Bariátrica | state | monthly | 2008-01 |
-| SIASUS | AN | APAC de Nefrologia | state | monthly | 2008-01 |
-| SIASUS | SAD | Atenção Domiciliar | state | monthly | 2008-01 |
-| SIASUS | AMP | Laudo de Acompanhamento Multiprofissional | state | monthly | 2008-01 |
+| Source | Code | Official name | Coverage | Published | From | Checked |
+|---|---|---|---|---|---|---|
+| SIASUS | PA | Produção Ambulatorial | state | monthly | 2008-01 | read |
+| SIASUS | AD | APAC de Laudos Diversos | state | monthly | 2008-01 | read |
+| SIASUS | AM | APAC de Medicamentos | state | monthly | 2008-01 | read |
+| SIASUS | AQ | APAC de Quimioterapia | state | monthly | 2008-01 | read |
+| SIASUS | AR | APAC de Radioterapia | state | monthly | 2008-01 | read |
+| SIASUS | PS | Psicossocial | state | monthly | 2008-01 | read |
+| SIASUS | ATD | APAC Tratamento Dialítico | state | monthly | 2008-01 | read |
+| SIASUS | ACF | APAC Confeção de Fístula Arteriovenosa | state | monthly | 2008-01 | read |
+| SIASUS | AB | APAC de Acompanhamento a Cirurgia Bariátrica | state | monthly | 2008-01 | read |
+| SIASUS | ABO | APAC Acompanhamento Pós Cirurgia Bariátrica | state | monthly | 2008-01 | read |
+| SIASUS | AN | APAC de Nefrologia | state | monthly | 2008-01 | read |
+| SIASUS | SAD | Atenção Domiciliar | state | monthly | 2008-01 | read |
+| SIASUS | AMP | Laudo de Acompanhamento Multiprofissional | state | monthly | 2008-01 | read |
 
 The name of SIASUS-AMP comes from a document in the SIASUS folder of the server; the file transfer page of the DATASUS website does not list this file type.
 
@@ -95,56 +95,56 @@ The name of SIASUS-AMP comes from a document in the SIASUS folder of the server;
 
 Folder `/SIHSUS/200801_/Dados`, file name `{CODE}{UF}{YY}{MM}.dbc`.
 
-| Source | Code | Official name | Coverage | Published | From |
-|---|---|---|---|---|---|
-| SIHSUS | RD | AIH Reduzida | state | monthly | 2008-01 |
-| SIHSUS | SP | Serviços Profissionais | state | monthly | 2008-01 |
-| SIHSUS | RJ | AIH Rejeitadas | state | monthly | 2008-01 |
-| SIHSUS | ER | AIH Rejeitadas com código de erro | state | monthly | 2008-01 |
+| Source | Code | Official name | Coverage | Published | From | Checked |
+|---|---|---|---|---|---|---|
+| SIHSUS | RD | AIH Reduzida | state | monthly | 2008-01 | read |
+| SIHSUS | SP | Serviços Profissionais | state | monthly | 2008-01 | read |
+| SIHSUS | RJ | AIH Rejeitadas | state | monthly | 2008-01 | read |
+| SIHSUS | ER | AIH Rejeitadas com código de erro | state | monthly | 2008-01 | read |
 
 ### CNES
 
 One folder per file type, `/CNES/200508_/Dados/{CODE}`, file name `{CODE}{UF}{YY}{MM}.dbc`.
 
-| Source | Code | Official name | Coverage | Published | From |
-|---|---|---|---|---|---|
-| CNES | LT | Leitos | state | monthly | 2005-08 |
-| CNES | EQ | Equipamentos | state | monthly | 2005-08 |
-| CNES | ST | Estabelecimentos | state | monthly | 2005-08 |
-| CNES | PF | Profissional | state | monthly | 2005-08 |
-| CNES | SR | Serviço Especializado | state | monthly | 2005-08 |
-| CNES | HB | Habilitação | state | monthly | 2005-08 |
-| CNES | DC | Dados Complementares | state | monthly | 2005-08 |
-| CNES | EP | Equipes | state | monthly | 2005-08 |
-| CNES | EF | Estabelecimento Filantrópico | state | monthly | 2005-08 |
-| CNES | GM | Gestão e Metas | state | monthly | 2005-08 |
-| CNES | IN | Incentivos | state | monthly | 2005-08 |
-| CNES | RC | Regra Contratual | state | monthly | 2005-08 |
-| CNES | EE | Estabelecimento de Ensino | state | monthly | 2005-08 |
+| Source | Code | Official name | Coverage | Published | From | Checked |
+|---|---|---|---|---|---|---|
+| CNES | LT | Leitos | state | monthly | 2005-08 | read |
+| CNES | EQ | Equipamentos | state | monthly | 2005-08 | read |
+| CNES | ST | Estabelecimentos | state | monthly | 2005-08 | read |
+| CNES | PF | Profissional | state | monthly | 2005-08 | read |
+| CNES | SR | Serviço Especializado | state | monthly | 2005-08 | read |
+| CNES | HB | Habilitação | state | monthly | 2005-08 | read |
+| CNES | DC | Dados Complementares | state | monthly | 2005-08 | read |
+| CNES | EP | Equipes | state | monthly | 2005-08 | read |
+| CNES | EF | Estabelecimento Filantrópico | state | monthly | 2005-08 | read |
+| CNES | GM | Gestão e Metas | state | monthly | 2005-08 | read |
+| CNES | IN | Incentivos | state | monthly | 2005-08 | read |
+| CNES | RC | Regra Contratual | state | monthly | 2005-08 | read |
+| CNES | EE | Estabelecimento de Ensino | state | monthly | 2005-08 | read |
 
 ### SIM
 
 Folder `/SIM/CID10/DORES`, and `/SIM/PRELIM/DORES` for preliminary years; file name `DO{UF}{YYYY}.dbc`.
 
-| Source | Code | Official name | Coverage | Published | From |
-|---|---|---|---|---|---|
-| SIM | DO | Declarações de Óbito | state and country | yearly | 1996 |
+| Source | Code | Official name | Coverage | Published | From | Checked |
+|---|---|---|---|---|---|---|
+| SIM | DO | Declarações de Óbito | state and country | yearly | 1996 | read |
 
 ### SINASC
 
 Folder `/SINASC/1996_/Dados/DNRES`, and `/SINASC/PRELIM/DNRES` for preliminary years; file name `DN{UF}{YYYY}.dbc`.
 
-| Source | Code | Official name | Coverage | Published | From |
-|---|---|---|---|---|---|
-| SINASC | DN | Declarações de nascidos vivos | state and country | yearly | 1996 |
+| Source | Code | Official name | Coverage | Published | From | Checked |
+|---|---|---|---|---|---|---|
+| SINASC | DN | Declarações de nascidos vivos | state and country | yearly | 1996 | read |
 
 ### CIHA
 
 Folder `/CIHA/201101_/Dados`, file name `CIHA{UF}{YY}{MM}.dbc`.
 
-| Source | Code | Official name | Coverage | Published | From |
-|---|---|---|---|---|---|
-| CIHA | CIHA | Comunicação de Internação Hospitalar e Ambulatorial | state | monthly | 2011-01 |
+| Source | Code | Official name | Coverage | Published | From | Checked |
+|---|---|---|---|---|---|---|
+| CIHA | CIHA | Comunicação de Internação Hospitalar e Ambulatorial | state | monthly | 2011-01 | read |
 
 ## What to know about these files
 
