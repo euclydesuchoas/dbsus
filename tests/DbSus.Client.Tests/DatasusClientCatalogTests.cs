@@ -134,7 +134,7 @@ public sealed class DatasusClientCatalogTests : IDisposable
         Assert.Contains("2024-07 is after 2024-06", empty.Message, StringComparison.Ordinal);
         Assert.Equal("from", (await Assert.ThrowsAsync<ArgumentException>(() => client.ListTablesAsync(pa, default, July2024, cancellationToken: Ct))).ParamName);
         Assert.Equal("to", (await Assert.ThrowsAsync<ArgumentException>(() => client.ListTablesAsync(pa, July2024, DatasusPeriod.OfYear(2024), cancellationToken: Ct))).ParamName);
-        Assert.Equal("from", (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => client.ListTablesAsync(pa, DatasusPeriod.OfMonth(2007, 12), July2024, cancellationToken: Ct))).ParamName);
+        Assert.Equal("from", (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => client.ListTablesAsync(pa, DatasusPeriod.OfMonth(1994, 6), July2024, cancellationToken: Ct))).ParamName);
         Assert.Equal("uf", (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => client.ListTablesAsync(pa, July2024, July2024, (DatasusUf)34, Ct))).ParamName);
         Assert.Equal(0, _fixture.Server.ListCalls);
     }
@@ -276,7 +276,7 @@ public sealed class DatasusClientCatalogTests : IDisposable
         await Assert.ThrowsAsync<ArgumentNullException>(() => client.FindTableAsync(null!, DatasusUf.SP, July2024, Ct));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => client.FindTableAsync(DatasusCatalog.SiaSus.PA, default, July2024, Ct));
         await Assert.ThrowsAsync<ArgumentException>(() => client.FindTableAsync(DatasusCatalog.SiaSus.PA, DatasusUf.SP, DatasusPeriod.OfYear(2024), Ct));
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => client.FindTableAsync(DatasusCatalog.SiaSus.PA, DatasusUf.SP, DatasusPeriod.OfMonth(2007, 12), Ct));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => client.FindTableAsync(DatasusCatalog.SiaSus.PA, DatasusUf.SP, DatasusPeriod.OfMonth(1994, 6), Ct));
         Assert.Equal(0, _fixture.Server.ListCalls + _fixture.Server.InfoCalls);
     }
 

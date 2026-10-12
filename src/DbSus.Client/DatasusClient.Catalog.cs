@@ -13,8 +13,9 @@ public sealed partial class DatasusClient
     /// </summary>
     /// <remarks>
     /// <para>
-    /// It costs one directory listing per folder (the folder of the dataset and, for SIM and
-    /// SINASC, the folder of preliminary data) and no other request. Some folders are large: the
+    /// It costs one directory listing per folder and no other request: the folder of each layout
+    /// that the range reaches (two, for a range that starts in an older layout and ends in the one
+    /// in use now) and, for SIM and SINASC from 1996 on, the folder of preliminary data. Some folders are large: the
     /// SIASUS one lists more than 50,000 files, whatever the range asked for. Listings are reused
     /// for <see cref="DatasusClientOptions.ListingCacheDuration"/> (10 minutes by default), so a
     /// table published in the meantime does not show until then.
@@ -49,9 +50,9 @@ public sealed partial class DatasusClient
     /// </returns>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="uf"/> is not a state; a period is before
-    /// <see cref="DatasusDataset.FirstPeriod"/> (use paths as strings for older periods); or, for a
-    /// monthly dataset, a period is more than ninety-nine years after the year of
-    /// <see cref="DatasusDataset.FirstPeriod"/> (see <see cref="DatasusDataset.GetPath"/>).
+    /// <see cref="DatasusDataset.FirstPeriod"/>; or, for a monthly dataset, a period is more than
+    /// ninety-nine years after the start of the folder layout in use now (see
+    /// <see cref="DatasusDataset.GetPath"/>).
     /// </exception>
     /// <exception cref="ArgumentException">
     /// A period is not set or is not of the dataset's periodicity, or <paramref name="from"/> is
@@ -136,7 +137,8 @@ public sealed partial class DatasusClient
 
     /// <summary>
     /// Finds the table of one state and period, asking the server: the final file first and then,
-    /// for a source with a folder of preliminary data (SIM and SINASC), the preliminary one.
+    /// when the layout of the period has a folder of preliminary data (SIM and SINASC, from 1996
+    /// on), the preliminary one.
     /// </summary>
     /// <remarks>
     /// Each candidate is looked for as <see cref="FindPartsAsync"/> does: in the folder's listing,
@@ -162,9 +164,9 @@ public sealed partial class DatasusClient
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="uf"/> is not a state; <paramref name="period"/> is before
-    /// <see cref="DatasusDataset.FirstPeriod"/> (use the path as a string for older periods); or, for a
-    /// monthly dataset, it is more than ninety-nine years after the year of
-    /// <see cref="DatasusDataset.FirstPeriod"/> (see <see cref="DatasusDataset.GetPath"/>).
+    /// <see cref="DatasusDataset.FirstPeriod"/>; or, for a monthly dataset, it is more than
+    /// ninety-nine years after the start of the folder layout in use now (see
+    /// <see cref="DatasusDataset.GetPath"/>).
     /// </exception>
     /// <exception cref="ArgumentException"><paramref name="period"/> is not set or is not of the dataset's periodicity.</exception>
     /// <exception cref="DatasusRequestRefusedException">
@@ -217,9 +219,9 @@ public sealed partial class DatasusClient
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="uf"/> is not a state; <paramref name="period"/> is before
-    /// <see cref="DatasusDataset.FirstPeriod"/> (use the path as a string for older periods); or, for a
-    /// monthly dataset, it is more than ninety-nine years after the year of
-    /// <see cref="DatasusDataset.FirstPeriod"/> (see <see cref="DatasusDataset.GetPath"/>).
+    /// <see cref="DatasusDataset.FirstPeriod"/>; or, for a monthly dataset, it is more than
+    /// ninety-nine years after the start of the folder layout in use now (see
+    /// <see cref="DatasusDataset.GetPath"/>).
     /// </exception>
     /// <exception cref="ArgumentException"><paramref name="period"/> is not set or is not of the dataset's periodicity.</exception>
     /// <exception cref="DatasusRequestRefusedException">

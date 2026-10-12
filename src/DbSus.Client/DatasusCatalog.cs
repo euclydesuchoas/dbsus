@@ -11,8 +11,12 @@ namespace DbSus.Client;
 /// <para>
 /// Most of the file types DATASUS lists are not here: those of other sources (SINAN, for one) and
 /// other file types of these six sources. Nor are the files for the whole country, those of SIM
-/// and SINASC included, or the periods in older folder layouts. A file type that is missing here
-/// may still be on the server.
+/// and SINASC included. A file type that is missing here may still be on the server.
+/// </para>
+/// <para>
+/// Six of the file types also have the folder layout that came before the one in use now:
+/// SIASUS-PA from 1994-07, SIHSUS RD, SP and RJ from 1992-01, SIM-DO from 1979 and SINASC-DN from
+/// 1994.
 /// </para>
 /// <para>
 /// What is outside the catalog can be reached with the path as a string, when you know it. The
@@ -87,9 +91,13 @@ public static class DatasusCatalog
     public static class SiaSus
     {
         private const string Directory = "/SIASUS/200801_/Dados";
+        private const string OlderDirectory = "/SIASUS/199407_200712/Dados";
 
-        /// <summary>Gets SIASUS-PA, <i>Produção Ambulatorial</i>. Split into lettered parts in the larger states.</summary>
-        public static DatasusDataset PA { get; } = DatasusDataset.Monthly("SIASUS", "PA", "Produção Ambulatorial", Directory, 2008, 1);
+        /// <summary>
+        /// Gets SIASUS-PA, <i>Produção Ambulatorial</i>, from 1994-07 on; up to 2007-12 its files are in
+        /// an older folder. Split into lettered parts in the larger states.
+        /// </summary>
+        public static DatasusDataset PA { get; } = DatasusDataset.Monthly("SIASUS", "PA", "Produção Ambulatorial", Directory, 2008, 1, OlderDirectory, 1994, 7);
 
         /// <summary>Gets SIASUS-AD, <i>APAC de Laudos Diversos</i>.</summary>
         public static DatasusDataset AD { get; } = DatasusDataset.Monthly("SIASUS", "AD", "APAC de Laudos Diversos", Directory, 2008, 1);
@@ -132,15 +140,22 @@ public static class DatasusCatalog
     public static class SihSus
     {
         private const string Directory = "/SIHSUS/200801_/Dados";
+        private const string OlderDirectory = "/SIHSUS/199201_200712/Dados";
 
-        /// <summary>Gets SIHSUS-RD, <i>AIH Reduzida</i>.</summary>
-        public static DatasusDataset RD { get; } = DatasusDataset.Monthly("SIHSUS", "RD", "AIH Reduzida", Directory, 2008, 1);
+        /// <summary>Gets SIHSUS-RD, <i>AIH Reduzida</i>, from 1992-01 on; up to 2007-12 its files are in an older folder.</summary>
+        public static DatasusDataset RD { get; } = DatasusDataset.Monthly("SIHSUS", "RD", "AIH Reduzida", Directory, 2008, 1, OlderDirectory, 1992, 1);
 
-        /// <summary>Gets SIHSUS-SP, <i>Serviços Profissionais</i>.</summary>
-        public static DatasusDataset SP { get; } = DatasusDataset.Monthly("SIHSUS", "SP", "Serviços Profissionais", Directory, 2008, 1);
+        /// <summary>
+        /// Gets SIHSUS-SP, <i>Serviços Profissionais</i>; up to 2007-12 its files are in an older folder,
+        /// which starts in 1992-01.
+        /// </summary>
+        public static DatasusDataset SP { get; } = DatasusDataset.Monthly("SIHSUS", "SP", "Serviços Profissionais", Directory, 2008, 1, OlderDirectory, 1992, 1);
 
-        /// <summary>Gets SIHSUS-RJ, <i>AIH Rejeitadas</i>.</summary>
-        public static DatasusDataset RJ { get; } = DatasusDataset.Monthly("SIHSUS", "RJ", "AIH Rejeitadas", Directory, 2008, 1);
+        /// <summary>
+        /// Gets SIHSUS-RJ, <i>AIH Rejeitadas</i>; up to 2007-12 its files are in an older folder, which
+        /// starts in 1992-01.
+        /// </summary>
+        public static DatasusDataset RJ { get; } = DatasusDataset.Monthly("SIHSUS", "RJ", "AIH Rejeitadas", Directory, 2008, 1, OlderDirectory, 1992, 1);
 
         /// <summary>Gets SIHSUS-ER, <i>AIH Rejeitadas com código de erro</i>.</summary>
         public static DatasusDataset ER { get; } = DatasusDataset.Monthly("SIHSUS", "ER", "AIH Rejeitadas com código de erro", Directory, 2008, 1);
@@ -196,22 +211,24 @@ public static class DatasusCatalog
     public static class Sim
     {
         /// <summary>
-        /// Gets SIM-DO, <i>Declarações de Óbito</i>, from 1996 on. The most recent years are published
+        /// Gets SIM-DO, <i>Declarações de Óbito</i>, from 1979 on; up to 1995 its files are in an older
+        /// folder, with another name (<c>DOR{UF}{YY}.dbc</c>). The most recent years are published
         /// in a folder of preliminary data until DATASUS closes them.
         /// </summary>
         public static DatasusDataset DO { get; } = DatasusDataset.Yearly(
-            "SIM", "DO", "Declarações de Óbito", DatasusCoverage.Uf | DatasusCoverage.National, "/SIM/CID10/DORES", "/SIM/PRELIM/DORES", 1996);
+            "SIM", "DO", "Declarações de Óbito", DatasusCoverage.Uf | DatasusCoverage.National, "/SIM/CID10/DORES", "/SIM/PRELIM/DORES", 1996, "/SIM/CID9/DORES", "DOR", 2, 1979);
     }
 
     /// <summary>SINASC, the live births information system (<i>Sistema de informação de Nascidos Vivos</i>). Yearly files.</summary>
     public static class Sinasc
     {
         /// <summary>
-        /// Gets SINASC-DN, <i>Declarações de nascidos vivos</i>, from 1996 on. The most recent years
+        /// Gets SINASC-DN, <i>Declarações de nascidos vivos</i>, from 1994 on; those of 1994 and 1995
+        /// are in an older folder, with another name (<c>DNR{UF}{YYYY}.dbc</c>). The most recent years
         /// are published in a folder of preliminary data until DATASUS closes them.
         /// </summary>
         public static DatasusDataset DN { get; } = DatasusDataset.Yearly(
-            "SINASC", "DN", "Declarações de nascidos vivos", DatasusCoverage.Uf | DatasusCoverage.National, "/SINASC/1996_/Dados/DNRES", "/SINASC/PRELIM/DNRES", 1996);
+            "SINASC", "DN", "Declarações de nascidos vivos", DatasusCoverage.Uf | DatasusCoverage.National, "/SINASC/1996_/Dados/DNRES", "/SINASC/PRELIM/DNRES", 1996, "/SINASC/1994_1995/Dados/DNRES", "DNR", 4, 1994);
     }
 
     /// <summary>CIHA (<i>Comunicação de Internação Hospitalar e Ambulatorial</i>). Monthly files, one per state.</summary>

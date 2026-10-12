@@ -11,9 +11,10 @@ public class DatasusCatalogTests
     private const DatasusCoverage UfAndNational = DatasusCoverage.Uf | DatasusCoverage.National;
 
     // The whole catalog, one row per dataset: source, code, official name (as DATASUS spells it),
-    // coverage, periodicity, first period accepted, folder, folder of preliminary data, name pattern.
+    // coverage, periodicity, first period accepted, and, of the folder layout in use now, the
+    // folder, the folder of preliminary data and the name pattern.
     [Theory]
-    [InlineData("SIASUS", "PA", "Produção Ambulatorial", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "PA{UF}{YY}{MM}.dbc")]
+    [InlineData("SIASUS", "PA", "Produção Ambulatorial", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "1994-07", "/SIASUS/200801_/Dados", null, "PA{UF}{YY}{MM}.dbc")]
     [InlineData("SIASUS", "AD", "APAC de Laudos Diversos", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "AD{UF}{YY}{MM}.dbc")]
     [InlineData("SIASUS", "AM", "APAC de Medicamentos", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "AM{UF}{YY}{MM}.dbc")]
     [InlineData("SIASUS", "AQ", "APAC de Quimioterapia", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "AQ{UF}{YY}{MM}.dbc")]
@@ -26,9 +27,9 @@ public class DatasusCatalogTests
     [InlineData("SIASUS", "AN", "APAC de Nefrologia", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "AN{UF}{YY}{MM}.dbc")]
     [InlineData("SIASUS", "SAD", "Atenção Domiciliar", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "SAD{UF}{YY}{MM}.dbc")]
     [InlineData("SIASUS", "AMP", "Laudo de Acompanhamento Multiprofissional", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "AMP{UF}{YY}{MM}.dbc")]
-    [InlineData("SIHSUS", "RD", "AIH Reduzida", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIHSUS/200801_/Dados", null, "RD{UF}{YY}{MM}.dbc")]
-    [InlineData("SIHSUS", "SP", "Serviços Profissionais", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIHSUS/200801_/Dados", null, "SP{UF}{YY}{MM}.dbc")]
-    [InlineData("SIHSUS", "RJ", "AIH Rejeitadas", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIHSUS/200801_/Dados", null, "RJ{UF}{YY}{MM}.dbc")]
+    [InlineData("SIHSUS", "RD", "AIH Reduzida", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "1992-01", "/SIHSUS/200801_/Dados", null, "RD{UF}{YY}{MM}.dbc")]
+    [InlineData("SIHSUS", "SP", "Serviços Profissionais", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "1992-01", "/SIHSUS/200801_/Dados", null, "SP{UF}{YY}{MM}.dbc")]
+    [InlineData("SIHSUS", "RJ", "AIH Rejeitadas", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "1992-01", "/SIHSUS/200801_/Dados", null, "RJ{UF}{YY}{MM}.dbc")]
     [InlineData("SIHSUS", "ER", "AIH Rejeitadas com código de erro", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIHSUS/200801_/Dados", null, "ER{UF}{YY}{MM}.dbc")]
     [InlineData("CNES", "LT", "Leitos", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2005-08", "/CNES/200508_/Dados/LT", null, "LT{UF}{YY}{MM}.dbc")]
     [InlineData("CNES", "EQ", "Equipamentos", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2005-08", "/CNES/200508_/Dados/EQ", null, "EQ{UF}{YY}{MM}.dbc")]
@@ -43,8 +44,8 @@ public class DatasusCatalogTests
     [InlineData("CNES", "IN", "Incentivos", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2005-08", "/CNES/200508_/Dados/IN", null, "IN{UF}{YY}{MM}.dbc")]
     [InlineData("CNES", "RC", "Regra Contratual", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2005-08", "/CNES/200508_/Dados/RC", null, "RC{UF}{YY}{MM}.dbc")]
     [InlineData("CNES", "EE", "Estabelecimento de Ensino", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2005-08", "/CNES/200508_/Dados/EE", null, "EE{UF}{YY}{MM}.dbc")]
-    [InlineData("SIM", "DO", "Declarações de Óbito", UfAndNational, DatasusPeriodicity.Yearly, "1996", "/SIM/CID10/DORES", "/SIM/PRELIM/DORES", "DO{UF}{YYYY}.dbc")]
-    [InlineData("SINASC", "DN", "Declarações de nascidos vivos", UfAndNational, DatasusPeriodicity.Yearly, "1996", "/SINASC/1996_/Dados/DNRES", "/SINASC/PRELIM/DNRES", "DN{UF}{YYYY}.dbc")]
+    [InlineData("SIM", "DO", "Declarações de Óbito", UfAndNational, DatasusPeriodicity.Yearly, "1979", "/SIM/CID10/DORES", "/SIM/PRELIM/DORES", "DO{UF}{YYYY}.dbc")]
+    [InlineData("SINASC", "DN", "Declarações de nascidos vivos", UfAndNational, DatasusPeriodicity.Yearly, "1994", "/SINASC/1996_/Dados/DNRES", "/SINASC/PRELIM/DNRES", "DN{UF}{YYYY}.dbc")]
     [InlineData("CIHA", "CIHA", "Comunicação de Internação Hospitalar e Ambulatorial", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2011-01", "/CIHA/201101_/Dados", null, "CIHA{UF}{YY}{MM}.dbc")]
     public void Dataset_IsAsTheCatalogTableSays(
         string source, string code, string officialName, DatasusCoverage coverage, DatasusPeriodicity periodicity, string firstPeriod, string directory, string? preliminaryDirectory, string fileNamePattern)
@@ -61,10 +62,11 @@ public class DatasusCatalogTests
         Assert.Equal(source + "-" + code, dataset.ToString());
         Assert.Contains(dataset, DatasusCatalog.Datasets);
 
-        // This version describes only the folder layout in use now.
-        var era = Assert.Single(dataset.Eras);
+        // The folder layout in use now is the last era, and has no end.
+        var era = dataset.Eras[dataset.Eras.Count - 1];
         Assert.Same(era, dataset.CurrentEra);
         Assert.Null(era.LastPeriod);
+        Assert.Equal(dataset.FirstPeriod, dataset.Eras[0].FirstPeriod);
         Assert.Equal(directory, era.Directory);
         Assert.Equal(preliminaryDirectory, era.PreliminaryDirectory);
         Assert.Equal(fileNamePattern, era.FileNamePattern);

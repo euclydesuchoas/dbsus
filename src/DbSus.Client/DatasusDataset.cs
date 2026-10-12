@@ -12,9 +12,9 @@ namespace DbSus.Client;
 /// period. A path built here may therefore name a file that is not on the server.
 /// </para>
 /// <para>
-/// This version builds paths only in the folder layout that DATASUS uses now, from
-/// <see cref="FirstPeriod"/> on. Earlier periods are in older layouts and are reached with the path
-/// as a string.
+/// DATASUS moved some file types to other folders over time, some with other file names. The
+/// catalog knows the folder layout in use now and, for six file types, the one before it; a path
+/// is built in the layout its period belongs to, from <see cref="FirstPeriod"/> on.
 /// </para>
 /// </remarks>
 public sealed class DatasusDataset
@@ -52,8 +52,8 @@ public sealed class DatasusDataset
     public DatasusCoverage Coverage { get; }
 
     /// <summary>
-    /// Gets the first period this version accepts: the start of the folder layout that DATASUS
-    /// uses now. It is not the first period with data: a file type may have started later.
+    /// Gets the first period the catalog accepts: the start of the oldest folder layout it knows
+    /// for this file type. It is not the first period with data: a file type may have started later.
     /// </summary>
     public DatasusPeriod FirstPeriod => Eras[0].FirstPeriod;
 
@@ -68,6 +68,10 @@ public sealed class DatasusDataset
     /// <see cref="DatasusClientOptions.RootPath"/>, e.g. <c>/SIHSUS/200801_/Dados/RDSP2407.dbc</c>.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// The folder and the name are those of the layout the period belongs to: for SIM-DO,
+    /// <c>/SIM/CID9/DORES/DORSP95.dbc</c> for 1995 and <c>/SIM/CID10/DORES/DOSP1996.dbc</c> for 1996.
+    /// </para>
     /// <para>
     /// The path names the file without a part letter. For a table split into parts (SIA-PA in the
     /// larger states), pass it to <see cref="DatasusClient.FindPartsAsync"/> or to
@@ -90,9 +94,9 @@ public sealed class DatasusDataset
     /// <returns>The path, starting with <c>/</c>. The file may not exist on the server.</returns>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="uf"/> is not a state; <paramref name="period"/> is before
-    /// <see cref="FirstPeriod"/> (use the path as a string for older periods); or, for a monthly file
-    /// type, it is more than ninety-nine years after the year of <see cref="FirstPeriod"/>: the file
-    /// name carries two digits of the year and would be the one of an earlier month.
+    /// <see cref="FirstPeriod"/>; or, for a monthly file type, it is more than ninety-nine years
+    /// after the start of the folder layout in use now: the file name carries two digits of the
+    /// year and would be the one of an earlier month.
     /// </exception>
     /// <exception cref="ArgumentException">
     /// <paramref name="period"/> is not set, is a year where a month is needed, or is a month where
@@ -117,12 +121,15 @@ public sealed class DatasusDataset
     /// </remarks>
     /// <param name="uf">The state.</param>
     /// <param name="period">A month for a monthly file type, a year for a yearly one.</param>
-    /// <returns>One path, or two for a source with a folder of preliminary data; the first is <see cref="GetPath"/>.</returns>
+    /// <returns>
+    /// One path, or two when the layout of the period has a folder of preliminary data (SIM and
+    /// SINASC, from 1996 on); the first is <see cref="GetPath"/>.
+    /// </returns>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="uf"/> is not a state; <paramref name="period"/> is before
-    /// <see cref="FirstPeriod"/> (use the path as a string for older periods); or, for a monthly file
-    /// type, it is more than ninety-nine years after the year of <see cref="FirstPeriod"/>: the file
-    /// name carries two digits of the year and would be the one of an earlier month.
+    /// <see cref="FirstPeriod"/>; or, for a monthly file type, it is more than ninety-nine years
+    /// after the start of the folder layout in use now: the file name carries two digits of the
+    /// year and would be the one of an earlier month.
     /// </exception>
     /// <exception cref="ArgumentException">
     /// <paramref name="period"/> is not set, is a year where a month is needed, or is a month where
@@ -146,6 +153,33 @@ public sealed class DatasusDataset
 
     internal static DatasusDataset Yearly(string source, string code, string officialName, DatasusCoverage coverage, string directory, string? preliminaryDirectory, int firstYear) =>
         new(source, code, officialName, coverage, new DatasusEra(DatasusPeriod.OfYear(firstYear), null, directory, preliminaryDirectory, code, null, 4));
+
+    // A monthly file type with an older folder layout: the same file name in another folder, up to
+    // the month before the layout in use now starts.
+    internal static DatasusDataset Monthly(string source, string code, string officialName, string directory, int firstYear, int firstMonth, string olderDirectory, int olderFirstYear, int olderFirstMonth)
+    {
+        var first = DatasusPeriod.OfMonth(firstYear, firstMonth);
+        var lastOfTheOlder = firstMonth == 1 ? DatasusPeriod.OfMonth(firstYear - 1, 12) : DatasusPeriod.OfMonth(firstYear, firstMonth - 1);
+        return new(
+            source,
+            code,
+            officialName,
+            DatasusCoverage.Uf,
+            new DatasusEra(DatasusPeriod.OfMonth(olderFirstYear, olderFirstMonth), lastOfTheOlder, olderDirectory, null, code, null, 2),
+            new DatasusEra(first, null, directory, null, code, null, 2));
+    }
+
+    // A yearly file type with an older folder layout, which has another folder, another prefix
+    // and its own digits of the year, and ends the year before the layout in use now starts.
+    internal static DatasusDataset Yearly(
+        string source, string code, string officialName, DatasusCoverage coverage, string directory, string? preliminaryDirectory, int firstYear, string olderDirectory, string olderPrefix, int olderYearDigits, int olderFirstYear) =>
+        new(
+            source,
+            code,
+            officialName,
+            coverage,
+            new DatasusEra(DatasusPeriod.OfYear(olderFirstYear), DatasusPeriod.OfYear(firstYear - 1), olderDirectory, null, olderPrefix, null, olderYearDigits),
+            new DatasusEra(DatasusPeriod.OfYear(firstYear), null, directory, preliminaryDirectory, code, null, 4));
 
     // Checks the shape of the period and finds its era. Availability is never checked.
     internal DatasusEra EraFor(DatasusPeriod period, string paramName)
@@ -187,6 +221,6 @@ public sealed class DatasusDataset
         throw new ArgumentOutOfRangeException(
             paramName,
             period,
-            $"{this} files before {FirstPeriod} are in an older folder layout, which this version does not build. Use the path as a string instead; the layouts are described in {PathsGuide}");
+            $"{this} has no files before {FirstPeriod} in the folder layouts the catalog knows. See {PathsGuide}");
     }
 }

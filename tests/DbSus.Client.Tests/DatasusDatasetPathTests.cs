@@ -205,14 +205,18 @@ public class DatasusDatasetPathTests
         Assert.Contains("DatasusPeriod.OfYear(2020)", exception.Message, StringComparison.Ordinal);
     }
 
-    // The period just before each folder layout in use now, and its first period.
+    // The period just before the oldest folder layout the catalog knows of each, and its first period.
     [Theory]
-    [InlineData("SIASUS", "PA", 2007, 12, 2008, 1, "2008-01")]
-    [InlineData("SIHSUS", "RD", 2007, 12, 2008, 1, "2008-01")]
+    [InlineData("SIASUS", "PA", 1994, 6, 1994, 7, "1994-07")]
+    [InlineData("SIASUS", "AD", 2007, 12, 2008, 1, "2008-01")]
+    [InlineData("SIHSUS", "RD", 1991, 12, 1992, 1, "1992-01")]
+    [InlineData("SIHSUS", "SP", 1991, 12, 1992, 1, "1992-01")]
+    [InlineData("SIHSUS", "RJ", 1991, 12, 1992, 1, "1992-01")]
+    [InlineData("SIHSUS", "ER", 2007, 12, 2008, 1, "2008-01")]
     [InlineData("CNES", "ST", 2005, 7, 2005, 8, "2005-08")]
-    [InlineData("SIM", "DO", 1995, 0, 1996, 0, "1996")]
-    [InlineData("SINASC", "DN", 1995, 0, 1996, 0, "1996")]
-    public void GetPath_PeriodBeforeTheCurrentLayout_ThrowsPointingToTheStringPath(string source, string code, int year, int month, int firstYear, int firstMonth, string firstPeriod)
+    [InlineData("SIM", "DO", 1978, 0, 1979, 0, "1979")]
+    [InlineData("SINASC", "DN", 1993, 0, 1994, 0, "1994")]
+    public void GetPath_PeriodBeforeTheOldestLayout_ThrowsSayingThereAreNoFilesBeforeIt(string source, string code, int year, int month, int firstYear, int firstMonth, string firstPeriod)
     {
         var dataset = DatasusCatalog.Get(source, code);
         var before = month == 0 ? DatasusPeriod.OfYear(year) : DatasusPeriod.OfMonth(year, month);
@@ -222,9 +226,8 @@ public class DatasusDatasetPathTests
 
         Assert.Equal("period", exception.ParamName);
         Assert.Equal(before, exception.ActualValue);
-        Assert.Contains($"{dataset} files before {firstPeriod} are in an older folder layout", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("Use the path as a string instead", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("docs/datasus-paths.md", exception.Message, StringComparison.Ordinal);
+        Assert.Contains($"{dataset} has no files before {firstPeriod} in the folder layouts the catalog knows. See https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("path as a string", exception.Message, StringComparison.Ordinal);
         Assert.Throws<ArgumentOutOfRangeException>(() => dataset.GetCandidatePaths(DatasusUf.SP, before));
         Assert.Equal(first, dataset.FirstPeriod);
         Assert.NotNull(dataset.GetPath(DatasusUf.SP, first));
