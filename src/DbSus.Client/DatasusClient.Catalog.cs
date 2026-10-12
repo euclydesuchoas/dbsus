@@ -341,7 +341,7 @@ public sealed partial class DatasusClient
     // itself, or the name without its part letter for a split table.
     private static string TablePath(DatasusEra era, string directory, string firstName) =>
         directory + "/" + (era.TryParseFileName(firstName, out _, out _, out var part) && part is not null
-            ? firstName.Remove(era.Prefix.Length + 6, 1)
+            ? DatasusEra.WithoutPartLetter(firstName)
             : firstName);
 
     // The files of one table, as a listing shows them.

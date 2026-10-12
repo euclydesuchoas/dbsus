@@ -142,10 +142,10 @@ public sealed class DatasusDataset
     public override string ToString() => Source + "-" + Code;
 
     internal static DatasusDataset Monthly(string source, string code, string officialName, string directory, int firstYear, int firstMonth) =>
-        new(source, code, officialName, DatasusCoverage.Uf, new DatasusEra(DatasusPeriod.OfMonth(firstYear, firstMonth), directory, null, code));
+        new(source, code, officialName, DatasusCoverage.Uf, new DatasusEra(DatasusPeriod.OfMonth(firstYear, firstMonth), null, directory, null, code, null, 2));
 
     internal static DatasusDataset Yearly(string source, string code, string officialName, DatasusCoverage coverage, string directory, string? preliminaryDirectory, int firstYear) =>
-        new(source, code, officialName, coverage, new DatasusEra(DatasusPeriod.OfYear(firstYear), directory, preliminaryDirectory, code));
+        new(source, code, officialName, coverage, new DatasusEra(DatasusPeriod.OfYear(firstYear), null, directory, preliminaryDirectory, code, null, 4));
 
     // Checks the shape of the period and finds its era. Availability is never checked.
     internal DatasusEra EraFor(DatasusPeriod period, string paramName)
@@ -172,7 +172,8 @@ public sealed class DatasusDataset
                 // one of an earlier period, and the wrong table would be found without any error.
                 if (era.LastNameableYear is { } lastYear && period.Year > lastYear)
                 {
-                    var namesake = DatasusPeriod.OfMonth(era.YearNamedBy(period.Year % 100), period.Month!.Value);
+                    var namesakeYear = era.YearNamedBy(period.Year % 100);
+                    var namesake = period.Month is { } month ? DatasusPeriod.OfMonth(namesakeYear, month) : DatasusPeriod.OfYear(namesakeYear);
                     throw new ArgumentOutOfRangeException(
                         paramName,
                         period,
