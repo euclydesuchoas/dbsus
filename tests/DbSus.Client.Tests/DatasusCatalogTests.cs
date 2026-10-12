@@ -56,8 +56,19 @@ public class DatasusCatalogTests
     [InlineData("SISMAMA", "MM", "Exame Mamografia", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2009-01", "/SISCAN/SISMAMA/Dados", null, "MM{UF}{YY}{MM}.dbc")]
     [InlineData("PCE", "PCE", "Programa de Controle da Esquistossomose", UfAndNational, DatasusPeriodicity.Yearly, "1995", "/PCE/Dados", null, "PCE{UF}{YY}.dbc")]
     [InlineData("RESP", "RESP", "Notificações de casos suspeitos de SCZ", UfAndNational, DatasusPeriodicity.Yearly, "2015", "/RESP/DADOS", null, "RESP{UF}{YY}.dbc")]
+    [InlineData("SIHSUS", "CH", null, DatasusCoverage.National, DatasusPeriodicity.Monthly, "2008-01", "/SIHSUS/200801_/Dados", null, "CHBR{YY}{MM}.dbc")]
+    [InlineData("SIHSUS", "CM", null, DatasusCoverage.National, DatasusPeriodicity.Monthly, "2008-01", "/SIHSUS/200801_/Dados", null, "CMBR{YY}{MM}.dbc")]
+    [InlineData("SIHSUS", "MT", null, DatasusCoverage.National, DatasusPeriodicity.Monthly, "1995-01", "/SIHSUS/Arquivos_MTBR", null, "MTBR{YY}{MM}.dbc")]
+    [InlineData("SIM", "DOEXT", "Declarações de Óbitos por causas externas", DatasusCoverage.National, DatasusPeriodicity.Yearly, "1979", "/SIM/CID10/DOFET", "/SIM/PRELIM/DOFET", "DOEXT{YY}.dbc")]
+    [InlineData("SIM", "DOFET", "Declarações de Óbitos fetais", DatasusCoverage.National, DatasusPeriodicity.Yearly, "1979", "/SIM/CID10/DOFET", "/SIM/PRELIM/DOFET", "DOFET{YY}.dbc")]
+    [InlineData("SIM", "DOINF", "Declarações de Óbitos infantis", DatasusCoverage.National, DatasusPeriodicity.Yearly, "1979", "/SIM/CID10/DOFET", "/SIM/PRELIM/DOFET", "DOINF{YY}.dbc")]
+    [InlineData("SIM", "DOMAT", "Declarações de Óbitos maternos", DatasusCoverage.National, DatasusPeriodicity.Yearly, "1996", "/SIM/CID10/DOFET", "/SIM/PRELIM/DOFET", "DOMAT{YY}.dbc")]
+    [InlineData("SIM", "DOREXT", "Mortalidade de residentes no exterior", DatasusCoverage.National, DatasusPeriodicity.Yearly, "1996", "/SIM/CID10/DOFET", "/SIM/PRELIM/DOFET", "DOREXT{YY}.dbc")]
+    [InlineData("SINASC", "DNEX", "Declarações de nascidos vivos residentes no exterior", DatasusCoverage.National, DatasusPeriodicity.Yearly, "1996", "/SINASC/1996_/Dados/DNRES", "/SINASC/PRELIM/DNRES", "DNEX{YYYY}.dbc")]
+    [InlineData("ESUSNOTIFICA", "DCCR", "Doença de Chagas Crônica", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2023", "/ESUSNOTIFICA/DADOS/FINAIS", "/ESUSNOTIFICA/DADOS/PRELIM", "DCCRBR{YY}.dbc")]
+    [InlineData("PO", "PO", "Painel de Oncologia", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2013", "/painel_oncologia/Dados", null, "POBR{YYYY}.dbc")]
     public void Dataset_IsAsTheCatalogTableSays(
-        string source, string code, string officialName, DatasusCoverage coverage, DatasusPeriodicity periodicity, string firstPeriod, string directory, string? preliminaryDirectory, string fileNamePattern)
+        string source, string code, string? officialName, DatasusCoverage coverage, DatasusPeriodicity periodicity, string firstPeriod, string directory, string? preliminaryDirectory, string fileNamePattern)
     {
         var dataset = DatasusCatalog.Get(source, code);
 
@@ -82,18 +93,43 @@ public class DatasusCatalogTests
     }
 
     [Fact]
-    public void Datasets_Are42_EachOnce_GroupedBySource()
+    public void Datasets_Are53_EachOnce_GroupedBySource_InTheOrderOfTheCatalog()
     {
         var datasets = DatasusCatalog.Datasets;
 
-        Assert.Equal(42, datasets.Count);
-        Assert.Equal(42, datasets.Select(dataset => dataset.ToString()).Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        Assert.Equal(["SIASUS", "SIHSUS", "CNES", "SIM", "SINASC", "CIHA", "CIH", "SISPRENATAL", "SISCOLO", "SISMAMA", "PCE", "RESP"], datasets.Select(dataset => dataset.Source).Distinct());
+        Assert.Equal(53, datasets.Count);
+        Assert.Equal(53, datasets.Select(dataset => dataset.ToString()).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.Equal(
-            [13, 4, 13, 1, 1, 1, 1, 1, 2, 3, 1, 1],
-            datasets.GroupBy(dataset => dataset.Source).Select(group => group.Count()));
-        Assert.All(datasets, dataset => Assert.True(dataset.Coverage.HasFlag(DatasusCoverage.Uf), dataset.ToString()));
-        Assert.All(datasets, dataset => Assert.False(string.IsNullOrWhiteSpace(dataset.OfficialName), dataset.ToString()));
+            ["SIASUS", "SIHSUS", "CNES", "SIM", "SINASC", "CIHA", "CIH", "SISPRENATAL", "SISCOLO", "SISMAMA", "PCE", "RESP", "ESUSNOTIFICA", "PO"],
+            datasets.Select(dataset => dataset.Source).Distinct());
+        Assert.Equal(
+            [
+                "SIASUS: PA, AD, AM, AQ, AR, PS, ATD, ACF, AB, ABO, AN, SAD, AMP",
+                "SIHSUS: RD, SP, RJ, ER, CH, CM, MT",
+                "CNES: LT, EQ, ST, PF, SR, HB, DC, EP, EF, GM, IN, RC, EE",
+                "SIM: DO, DOEXT, DOFET, DOINF, DOMAT, DOREXT",
+                "SINASC: DN, DNEX",
+                "CIHA: CIHA",
+                "CIH: CR",
+                "SISPRENATAL: PN",
+                "SISCOLO: CC, HC",
+                "SISMAMA: CM, HM, MM",
+                "PCE: PCE",
+                "RESP: RESP",
+                "ESUSNOTIFICA: DCCR",
+                "PO: PO",
+            ],
+            datasets.GroupBy(dataset => dataset.Source).Select(group => group.Key + ": " + string.Join(", ", group.Select(dataset => dataset.Code))));
+
+        // Eleven have one file for the whole country and none by state; the other 42 have files by state.
+        Assert.Equal(
+            ["SIHSUS-CH", "SIHSUS-CM", "SIHSUS-MT", "SIM-DOEXT", "SIM-DOFET", "SIM-DOINF", "SIM-DOMAT", "SIM-DOREXT", "SINASC-DNEX", "ESUSNOTIFICA-DCCR", "PO-PO"],
+            datasets.Where(dataset => dataset.Coverage == DatasusCoverage.National).Select(dataset => dataset.ToString()));
+        Assert.Equal(42, datasets.Count(dataset => dataset.Coverage.HasFlag(DatasusCoverage.Uf)));
+
+        // DATASUS publishes no name for three of them; every other one has a name.
+        Assert.Equal(["SIHSUS-CH", "SIHSUS-CM", "SIHSUS-MT"], datasets.Where(dataset => dataset.OfficialName is null).Select(dataset => dataset.ToString()));
+        Assert.All(datasets.Where(dataset => dataset.OfficialName is not null), dataset => Assert.False(string.IsNullOrWhiteSpace(dataset.OfficialName), dataset.ToString()));
     }
 
     [Fact]
@@ -102,8 +138,8 @@ public class DatasusCatalogTests
         var groups = typeof(DatasusCatalog).GetNestedTypes(BindingFlags.Public);
         var properties = groups.SelectMany(group => group.GetProperties(BindingFlags.Public | BindingFlags.Static).Select(property => (Group: group, Property: property))).ToList();
 
-        Assert.Equal(["Cih", "Ciha", "Cnes", "Pce", "Resp", "SiaSus", "SihSus", "Sim", "Sinasc", "SisColo", "SisMama", "SisPrenatal"], groups.Select(group => group.Name).OrderBy(name => name, StringComparer.Ordinal));
-        Assert.Equal(42, properties.Count);
+        Assert.Equal(["Cih", "Ciha", "Cnes", "EsusNotifica", "Pce", "Po", "Resp", "SiaSus", "SihSus", "Sim", "Sinasc", "SisColo", "SisMama", "SisPrenatal"], groups.Select(group => group.Name).OrderBy(name => name, StringComparer.Ordinal));
+        Assert.Equal(53, properties.Count);
         foreach (var (group, property) in properties)
         {
             var dataset = Assert.IsType<DatasusDataset>(property.GetValue(null));
@@ -152,20 +188,22 @@ public class DatasusCatalogTests
         {
             Assert.Equal(dataset.Source, cells[1]);
             Assert.Equal(dataset.Code, cells[2]);
-            Assert.Equal(dataset.OfficialName, cells[3]);
-            Assert.Equal(dataset.Coverage == DatasusCoverage.Uf ? "state" : "state and country", cells[4]);
+            Assert.Equal(dataset.OfficialName ?? "(none published)", cells[3]);
+            Assert.Equal(dataset.Coverage == DatasusCoverage.Uf ? "state" : dataset.Coverage == DatasusCoverage.National ? "country" : "state and country", cells[4]);
             Assert.Equal(dataset.Periodicity == DatasusPeriodicity.Monthly ? "monthly" : "yearly", cells[5]);
             Assert.Equal(dataset.FirstPeriod.ToString(), cells[6]);
 
             // What was checked of the file type: a whole file read, a header alone, or only the names in a listing.
             Assert.True(cells[7] is "read" or "header" or "names", $"{dataset}: \"{cells[7]}\"");
 
-            // The folder and the file name are said once per source, in the line under its heading.
+            // The folder and the file name are said once per table, in the line under the heading
+            // above it; a source whose file types are in more than one folder has more than one heading.
             var era = dataset.CurrentEra;
-            var heading = Array.IndexOf(guide, "### " + dataset.Source);
-            Assert.True(heading >= 0, dataset.Source);
+            var row = Array.FindIndex(guide, line => line.StartsWith($"| {dataset.Source} | {dataset.Code} |", StringComparison.Ordinal));
+            var heading = Array.FindLastIndex(guide, row, line => line.StartsWith("### ", StringComparison.Ordinal));
+            Assert.True(heading >= 0 && guide[heading].StartsWith("### " + dataset.Source, StringComparison.Ordinal), dataset.ToString());
             var layout = guide[heading + 2];
-            var folder = era.Directory.EndsWith("/" + dataset.Code, StringComparison.Ordinal) ? era.Directory.Remove(era.Directory.Length - dataset.Code.Length) + "{CODE}" : era.Directory;
+            var folder = layout.Contains("{CODE}`,", StringComparison.Ordinal) ? era.Directory.Remove(era.Directory.Length - dataset.Code.Length) + "{CODE}" : era.Directory;
             Assert.Contains($"`{folder}`", layout, StringComparison.Ordinal);
             if (era.PreliminaryDirectory is not null)
             {
@@ -207,10 +245,10 @@ public class DatasusCatalogTests
 
         Assert.Contains($"no dataset '{source}-{code}'", exception.Message, StringComparison.Ordinal);
         Assert.Contains("SIASUS: PA, AD, AM, AQ, AR, PS, ATD, ACF, AB, ABO, AN, SAD, AMP;", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("SIHSUS: RD, SP, RJ, ER", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("SIHSUS: RD, SP, RJ, ER, CH, CM, MT;", exception.Message, StringComparison.Ordinal);
         Assert.Contains("CNES: LT, EQ, ST, PF, SR, HB, DC, EP, EF, GM, IN, RC, EE;", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("SIM: DO", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("SINASC: DN; CIHA: CIHA; CIH: CR; SISPRENATAL: PN; SISCOLO: CC, HC; SISMAMA: CM, HM, MM; PCE: PCE; RESP: RESP.", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("SIM: DO, DOEXT, DOFET, DOINF, DOMAT, DOREXT;", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("SINASC: DN, DNEX; CIHA: CIHA; CIH: CR; SISPRENATAL: PN; SISCOLO: CC, HC; SISMAMA: CM, HM, MM; PCE: PCE; RESP: RESP; ESUSNOTIFICA: DCCR; PO: PO.", exception.Message, StringComparison.Ordinal);
         Assert.Contains("path as a string", exception.Message, StringComparison.Ordinal);
 
         // The catalog is partial, and the message says so without claiming that the file exists.

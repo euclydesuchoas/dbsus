@@ -130,7 +130,15 @@ public class DatasusDatasetPathTests
         {
             var period = DatasusPeriod.OfMonth(2024, 7);
 
-            Assert.Equal([dataset.GetPath(DatasusUf.SP, period)], dataset.GetCandidatePaths(DatasusUf.SP, period));
+            // A monthly file type with one file for the whole country has a single candidate too.
+            if (dataset.Coverage.HasFlag(DatasusCoverage.Uf))
+            {
+                Assert.Equal([dataset.GetPath(DatasusUf.SP, period)], dataset.GetCandidatePaths(DatasusUf.SP, period));
+            }
+            else
+            {
+                Assert.Equal([dataset.GetNationalPath(period)], dataset.GetNationalCandidatePaths(period));
+            }
         }
     }
 

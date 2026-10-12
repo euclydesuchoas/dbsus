@@ -137,7 +137,7 @@ public class DatasusFileNameTests
     [Fact]
     public void EveryDataset_RoundTripsEveryStateThroughItsOwnNames()
     {
-        foreach (var dataset in DatasusCatalog.Datasets)
+        foreach (var dataset in DatasusCatalog.Datasets.Where(dataset => dataset.Coverage.HasFlag(DatasusCoverage.Uf)))
         {
             var period = dataset.Periodicity == DatasusPeriodicity.Monthly ? DatasusPeriod.OfMonth(2024, 7) : DatasusPeriod.OfYear(2024);
             foreach (var uf in DatasusUfNames.All)

@@ -3,7 +3,9 @@ DbSus.Client.DatasusCatalog
 DbSus.Client.DatasusCatalog.Cih
 DbSus.Client.DatasusCatalog.Ciha
 DbSus.Client.DatasusCatalog.Cnes
+DbSus.Client.DatasusCatalog.EsusNotifica
 DbSus.Client.DatasusCatalog.Pce
+DbSus.Client.DatasusCatalog.Po
 DbSus.Client.DatasusCatalog.Resp
 DbSus.Client.DatasusCatalog.SiaSus
 DbSus.Client.DatasusCatalog.SihSus
@@ -72,7 +74,7 @@ DbSus.Client.DatasusDataset.GetCandidatePaths(DbSus.Client.DatasusUf uf, DbSus.C
 DbSus.Client.DatasusDataset.GetNationalCandidatePaths(DbSus.Client.DatasusPeriod period) -> System.Collections.Generic.IReadOnlyList<string!>!
 DbSus.Client.DatasusDataset.GetNationalPath(DbSus.Client.DatasusPeriod period) -> string!
 DbSus.Client.DatasusDataset.GetPath(DbSus.Client.DatasusUf uf, DbSus.Client.DatasusPeriod period) -> string!
-DbSus.Client.DatasusDataset.OfficialName.get -> string!
+DbSus.Client.DatasusDataset.OfficialName.get -> string?
 DbSus.Client.DatasusDataset.Periodicity.get -> DbSus.Client.DatasusPeriodicity
 DbSus.Client.DatasusDataset.Source.get -> string!
 DbSus.Client.DatasusFileInfo
@@ -167,7 +169,9 @@ static DbSus.Client.DatasusCatalog.Cnes.SR.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Cnes.ST.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Datasets.get -> System.Collections.Generic.IReadOnlyList<DbSus.Client.DatasusDataset!>!
 static DbSus.Client.DatasusCatalog.Get(string! source, string! code) -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.EsusNotifica.DCCR.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Pce.PCE.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Po.PO.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Resp.RESP.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.AB.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.ABO.get -> DbSus.Client.DatasusDataset!
@@ -182,12 +186,21 @@ static DbSus.Client.DatasusCatalog.SiaSus.ATD.get -> DbSus.Client.DatasusDataset
 static DbSus.Client.DatasusCatalog.SiaSus.PA.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.PS.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.SAD.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SihSus.CH.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SihSus.CM.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SihSus.ER.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SihSus.MT.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SihSus.RD.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SihSus.RJ.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SihSus.SP.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Sim.DO.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sim.DOEXT.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sim.DOFET.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sim.DOINF.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sim.DOMAT.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sim.DOREXT.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Sinasc.DN.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinasc.DNEX.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SisColo.CC.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SisColo.HC.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SisMama.CM.get -> DbSus.Client.DatasusDataset!

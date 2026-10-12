@@ -38,11 +38,11 @@ public class DatasusOlderErasTests
     }
 
     [Fact]
-    public void Datasets_WithAnOlderEra_AreSix_AndTheOthersHaveOne()
+    public void Datasets_WithAnOlderEra_AreNine_AndTheOthersHaveOne()
     {
         var withOlder = DatasusCatalog.Datasets.Where(dataset => dataset.Eras.Count > 1).Select(dataset => dataset.ToString());
 
-        Assert.Equal(["SIASUS-PA", "SIHSUS-RD", "SIHSUS-SP", "SIHSUS-RJ", "SIM-DO", "SINASC-DN"], withOlder);
+        Assert.Equal(["SIASUS-PA", "SIHSUS-RD", "SIHSUS-SP", "SIHSUS-RJ", "SIM-DO", "SIM-DOEXT", "SIM-DOFET", "SIM-DOINF", "SINASC-DN"], withOlder);
         Assert.All(DatasusCatalog.Datasets, dataset => Assert.InRange(dataset.Eras.Count, 1, 2));
 
         // The eras of a dataset follow one another: no period is left out and none is in two.

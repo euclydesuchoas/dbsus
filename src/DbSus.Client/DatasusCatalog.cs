@@ -3,24 +3,26 @@ using System.Diagnostics.CodeAnalysis;
 namespace DbSus.Client;
 
 /// <summary>
-/// A partial catalog of the file types DATASUS lists: 42 of SIASUS, SIHSUS, CNES, SIM, SINASC,
-/// CIHA, CIH, SISPRENATAL, SISCOLO, SISMAMA, PCE and RESP, by state, each as a <see cref="DatasusDataset"/>.
-/// Use a property, e.g. <c>DatasusCatalog.SihSus.RD</c>, or look one up by text with <see cref="Get"/>.
+/// A partial catalog of the file types DATASUS lists: 53 of SIASUS, SIHSUS, CNES, SIM, SINASC,
+/// CIHA, CIH, SISPRENATAL, SISCOLO, SISMAMA, PCE, RESP, ESUSNOTIFICA and PO, each as a
+/// <see cref="DatasusDataset"/>. Use a property, e.g. <c>DatasusCatalog.SihSus.RD</c>, or look one
+/// up by text with <see cref="Get"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Most of the file types DATASUS lists are not here: those of other sources (SINAN, for one) and
-/// other file types of these sources, the ones that only have a file for the whole country
-/// included. A file type that is missing here may still be on the server.
+/// Many of the file types DATASUS lists are not here: those of SINAN, for one, and SIASUS-BI.
+/// A file type that is missing here may still be on the server.
 /// </para>
 /// <para>
-/// Four of the file types also have a file for the whole country: SIM-DO, SINASC-DN, PCE and
-/// RESP (see <see cref="DatasusDataset.GetNationalPath"/>).
+/// Of the file types here, 42 have one file per state, and four of these also have a file for
+/// the whole country (SIM-DO, SINASC-DN, PCE and RESP); the other 11 have a file for the whole
+/// country only (see <see cref="DatasusDataset.Coverage"/> and
+/// <see cref="DatasusDataset.GetNationalPath"/>).
 /// </para>
 /// <para>
-/// Six of the file types also have the folder layout that came before the one in use now:
-/// SIASUS-PA from 1994-07, SIHSUS RD, SP and RJ from 1992-01, SIM-DO from 1979 and SINASC-DN from
-/// 1994.
+/// Nine of the file types also have the folder layout that came before the one in use now:
+/// SIASUS-PA from 1994-07, SIHSUS RD, SP and RJ from 1992-01, SIM DO, DOEXT, DOFET and DOINF from
+/// 1979 and SINASC-DN from 1994.
 /// </para>
 /// <para>
 /// What is outside the catalog can be reached with the path as a string, when you know it. The
@@ -35,10 +37,10 @@ public static class DatasusCatalog
     [
         SiaSus.PA, SiaSus.AD, SiaSus.AM, SiaSus.AQ, SiaSus.AR, SiaSus.PS, SiaSus.ATD, SiaSus.ACF,
         SiaSus.AB, SiaSus.ABO, SiaSus.AN, SiaSus.SAD, SiaSus.AMP,
-        SihSus.RD, SihSus.SP, SihSus.RJ, SihSus.ER,
+        SihSus.RD, SihSus.SP, SihSus.RJ, SihSus.ER, SihSus.CH, SihSus.CM, SihSus.MT,
         Cnes.LT, Cnes.EQ, Cnes.ST, Cnes.PF, Cnes.SR, Cnes.HB, Cnes.DC, Cnes.EP, Cnes.EF, Cnes.GM, Cnes.IN, Cnes.RC, Cnes.EE,
-        Sim.DO,
-        Sinasc.DN,
+        Sim.DO, Sim.DOEXT, Sim.DOFET, Sim.DOINF, Sim.DOMAT, Sim.DOREXT,
+        Sinasc.DN, Sinasc.DNEX,
         Ciha.CIHA,
         Cih.CR,
         SisPrenatal.PN,
@@ -46,6 +48,8 @@ public static class DatasusCatalog
         SisMama.CM, SisMama.HM, SisMama.MM,
         Pce.PCE,
         Resp.RESP,
+        EsusNotifica.DCCR,
+        Po.PO,
     ];
 
     // Declared after Datasets: static fields are initialized in the order they are written.
@@ -146,7 +150,10 @@ public static class DatasusCatalog
         public static DatasusDataset AMP { get; } = DatasusDataset.Monthly("SIASUS", "AMP", "Laudo de Acompanhamento Multiprofissional", Directory, 2008, 1);
     }
 
-    /// <summary>SIHSUS, the hospital information system (<i>Sistema de Informações Hospitalares do SUS</i>). Monthly files, one per state.</summary>
+    /// <summary>
+    /// SIHSUS, the hospital information system (<i>Sistema de Informações Hospitalares do SUS</i>).
+    /// Monthly files, one per state; CH, CM and MT have one file for the whole country instead.
+    /// </summary>
     public static class SihSus
     {
         private const string Directory = "/SIHSUS/200801_/Dados";
@@ -169,6 +176,18 @@ public static class DatasusCatalog
 
         /// <summary>Gets SIHSUS-ER, <i>AIH Rejeitadas com código de erro</i>.</summary>
         public static DatasusDataset ER { get; } = DatasusDataset.Monthly("SIHSUS", "ER", "AIH Rejeitadas com código de erro", Directory, 2008, 1);
+
+        /// <summary>Gets SIHSUS-CH. Monthly, for the whole country only. DATASUS publishes no name for this file type.</summary>
+        public static DatasusDataset CH { get; } = DatasusDataset.CountryOnly("SIHSUS", "CH", null, DatasusPeriod.OfMonth(2008, 1), Directory, null, "CHBR", 2);
+
+        /// <summary>Gets SIHSUS-CM. Monthly, for the whole country only. DATASUS publishes no name for this file type.</summary>
+        public static DatasusDataset CM { get; } = DatasusDataset.CountryOnly("SIHSUS", "CM", null, DatasusPeriod.OfMonth(2008, 1), Directory, null, "CMBR", 2);
+
+        /// <summary>
+        /// Gets SIHSUS-MT. Monthly, for the whole country only, in a folder of its own; the files
+        /// listed in October 2026 go from 1995-01 to 1997-05. DATASUS publishes no name for this file type.
+        /// </summary>
+        public static DatasusDataset MT { get; } = DatasusDataset.CountryOnly("SIHSUS", "MT", null, DatasusPeriod.OfMonth(1995, 1), "/SIHSUS/Arquivos_MTBR", null, "MTBR", 2);
     }
 
     /// <summary>CNES, the registry of health facilities (<i>Cadastro Nacional de Estabelecimentos de Saúde</i>). Monthly files, one per state, each file type in a folder of its own.</summary>
@@ -217,9 +236,17 @@ public static class DatasusCatalog
             DatasusDataset.Monthly("CNES", code, officialName, "/CNES/200508_/Dados/" + code, 2005, 8);
     }
 
-    /// <summary>SIM, the mortality information system (<i>Sistema de informações de Mortalidade</i>). Yearly files, one per state and one for the whole country.</summary>
+    /// <summary>
+    /// SIM, the mortality information system (<i>Sistema de informações de Mortalidade</i>). Yearly
+    /// files: SIM-DO has one per state and one for the whole country, and the other file types one
+    /// for the whole country only.
+    /// </summary>
     public static class Sim
     {
+        private const string CountryDirectory = "/SIM/CID10/DOFET";
+        private const string CountryPreliminaryDirectory = "/SIM/PRELIM/DOFET";
+        private const string CountryOlderDirectory = "/SIM/CID9/DOFET";
+
         /// <summary>
         /// Gets SIM-DO, <i>Declarações de Óbito</i>, from 1979 on; up to 1995 its files are in an older
         /// folder, with another name (<c>DOR{UF}{YY}.dbc</c>). The most recent years are published
@@ -227,9 +254,45 @@ public static class DatasusCatalog
         /// </summary>
         public static DatasusDataset DO { get; } = DatasusDataset.Yearly(
             "SIM", "DO", "Declarações de Óbito", DatasusCoverage.Uf | DatasusCoverage.National, "/SIM/CID10/DORES", "/SIM/PRELIM/DORES", 1996, "/SIM/CID9/DORES", "DOR", 2, 1979, "DORBR");
+
+        /// <summary>
+        /// Gets SIM-DOEXT, <i>Declarações de Óbitos por causas externas</i>, from 1979 on; up to 1995 its
+        /// files are in an older folder. Yearly, for the whole country only.
+        /// </summary>
+        public static DatasusDataset DOEXT { get; } = DatasusDataset.CountryOnly(
+            "SIM", "DOEXT", "Declarações de Óbitos por causas externas", 1996, CountryDirectory, CountryPreliminaryDirectory, "DOEXT", 2, CountryOlderDirectory, 1979);
+
+        /// <summary>
+        /// Gets SIM-DOFET, <i>Declarações de Óbitos fetais</i>, from 1979 on; up to 1995 its files are in an
+        /// older folder. Yearly, for the whole country only.
+        /// </summary>
+        public static DatasusDataset DOFET { get; } = DatasusDataset.CountryOnly(
+            "SIM", "DOFET", "Declarações de Óbitos fetais", 1996, CountryDirectory, CountryPreliminaryDirectory, "DOFET", 2, CountryOlderDirectory, 1979);
+
+        /// <summary>
+        /// Gets SIM-DOINF, <i>Declarações de Óbitos infantis</i>, from 1979 on; up to 1995 its files are in
+        /// an older folder. Yearly, for the whole country only.
+        /// </summary>
+        public static DatasusDataset DOINF { get; } = DatasusDataset.CountryOnly(
+            "SIM", "DOINF", "Declarações de Óbitos infantis", 1996, CountryDirectory, CountryPreliminaryDirectory, "DOINF", 2, CountryOlderDirectory, 1979);
+
+        /// <summary>Gets SIM-DOMAT, <i>Declarações de Óbitos maternos</i>, from 1996 on. Yearly, for the whole country only.</summary>
+        public static DatasusDataset DOMAT { get; } = DatasusDataset.CountryOnly(
+            "SIM", "DOMAT", "Declarações de Óbitos maternos", DatasusPeriod.OfYear(1996), CountryDirectory, CountryPreliminaryDirectory, "DOMAT", 2);
+
+        /// <summary>
+        /// Gets SIM-DOREXT, <i>Mortalidade de residentes no exterior</i>. Yearly, for the whole country
+        /// only. Its folder starts in 1996; the files listed in October 2026 start in 2013.
+        /// </summary>
+        public static DatasusDataset DOREXT { get; } = DatasusDataset.CountryOnly(
+            "SIM", "DOREXT", "Mortalidade de residentes no exterior", DatasusPeriod.OfYear(1996), CountryDirectory, CountryPreliminaryDirectory, "DOREXT", 2);
     }
 
-    /// <summary>SINASC, the live births information system (<i>Sistema de informação de Nascidos Vivos</i>). Yearly files, one per state and one for the whole country.</summary>
+    /// <summary>
+    /// SINASC, the live births information system (<i>Sistema de informação de Nascidos Vivos</i>).
+    /// Yearly files: SINASC-DN has one per state and one for the whole country, and SINASC-DNEX one
+    /// for the whole country only.
+    /// </summary>
     public static class Sinasc
     {
         /// <summary>
@@ -239,6 +302,13 @@ public static class DatasusCatalog
         /// </summary>
         public static DatasusDataset DN { get; } = DatasusDataset.Yearly(
             "SINASC", "DN", "Declarações de nascidos vivos", DatasusCoverage.Uf | DatasusCoverage.National, "/SINASC/1996_/Dados/DNRES", "/SINASC/PRELIM/DNRES", 1996, "/SINASC/1994_1995/Dados/DNRES", "DNR", 4, 1994, "DNBR");
+
+        /// <summary>
+        /// Gets SINASC-DNEX, <i>Declarações de nascidos vivos residentes no exterior</i>. Yearly, for the
+        /// whole country only. Its folder starts in 1996; the files listed in October 2026 start in 2014.
+        /// </summary>
+        public static DatasusDataset DNEX { get; } = DatasusDataset.CountryOnly(
+            "SINASC", "DNEX", "Declarações de nascidos vivos residentes no exterior", DatasusPeriod.OfYear(1996), "/SINASC/1996_/Dados/DNRES", "/SINASC/PRELIM/DNRES", "DNEX", 4);
     }
 
     /// <summary>CIHA (<i>Comunicação de Internação Hospitalar e Ambulatorial</i>). Monthly files, one per state.</summary>
@@ -322,5 +392,23 @@ public static class DatasusCatalog
         /// <summary>Gets RESP-RESP, <i>Notificações de casos suspeitos de SCZ</i>, from 2015 on.</summary>
         public static DatasusDataset RESP { get; } = DatasusDataset.Yearly(
             "RESP", "RESP", "Notificações de casos suspeitos de SCZ", DatasusCoverage.Uf | DatasusCoverage.National, "/RESP/DADOS", null, 2015, yearDigits: 2);
+    }
+
+    /// <summary>
+    /// e-SUS Notifica. Yearly files for the whole country; the most recent years are published in
+    /// a folder of preliminary data.
+    /// </summary>
+    public static class EsusNotifica
+    {
+        /// <summary>Gets ESUSNOTIFICA-DCCR, <i>Doença de Chagas Crônica</i>, from 2023 on.</summary>
+        public static DatasusDataset DCCR { get; } = DatasusDataset.CountryOnly(
+            "ESUSNOTIFICA", "DCCR", "Doença de Chagas Crônica", DatasusPeriod.OfYear(2023), "/ESUSNOTIFICA/DADOS/FINAIS", "/ESUSNOTIFICA/DADOS/PRELIM", "DCCRBR", 2);
+    }
+
+    /// <summary>PO (<i>Painel de Oncologia</i>). Yearly files for the whole country.</summary>
+    public static class Po
+    {
+        /// <summary>Gets PO-PO, <i>Painel de Oncologia</i>, from 2013 on.</summary>
+        public static DatasusDataset PO { get; } = DatasusDataset.CountryOnly("PO", "PO", "Painel de Oncologia", DatasusPeriod.OfYear(2013), "/painel_oncologia/Dados", null, "POBR", 4);
     }
 }

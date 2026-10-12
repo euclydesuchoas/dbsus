@@ -7,15 +7,6 @@ namespace DbSus.Client.Tests;
 // the DATASUS server listed them in October 2026.
 public class DatasusNationalPathTests
 {
-    // A file type with one file for the whole country and none by state. No file type of the
-    // catalog is like that yet, so this one is built here; the folder and the name are real.
-    private static readonly DatasusDataset CountryOnly = new(
-        "SINAN",
-        "DENG",
-        "Dengue",
-        DatasusCoverage.National,
-        new DatasusEra(DatasusPeriod.OfYear(2000), null, "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", null, "DENGBR", 2));
-
     [Theory]
     [InlineData("SIM", "DO", 2011, "/SIM/CID10/DORES/DOBR2011.dbc")]
     [InlineData("SIM", "DO", 1996, "/SIM/CID10/DORES/DOBR1996.dbc")]
@@ -51,8 +42,8 @@ public class DatasusNationalPathTests
         Assert.Equal(["/SIM/CID9/DORES/DORBR95.dbc"], DatasusCatalog.Sim.DO.GetNationalCandidatePaths(DatasusPeriod.OfYear(1995)));
         Assert.Equal(["/PCE/Dados/PCEBR99.dbc"], DatasusCatalog.Pce.PCE.GetNationalCandidatePaths(DatasusPeriod.OfYear(1999)));
         Assert.Equal(
-            ["/SINAN/DADOS/FINAIS/DENGBR24.dbc", "/SINAN/DADOS/PRELIM/DENGBR24.dbc"],
-            CountryOnly.GetNationalCandidatePaths(DatasusPeriod.OfYear(2024)));
+            ["/SIM/CID10/DOFET/DOFET24.dbc", "/SIM/PRELIM/DOFET/DOFET24.dbc"],
+            DatasusCatalog.Sim.DOFET.GetNationalCandidatePaths(DatasusPeriod.OfYear(2024)));
     }
 
     [Theory]
@@ -77,20 +68,33 @@ public class DatasusNationalPathTests
         Assert.Throws<NotSupportedException>(() => dataset.GetNationalPath(default));
     }
 
-    [Fact]
-    public void GetPath_DatasetWithNoFileByState_ThrowsSayingWhichMethodsToUse()
+    [Theory]
+    [InlineData("SIM", "DOFET")]
+    [InlineData("SIM", "DOEXT")]
+    [InlineData("SIM", "DOINF")]
+    [InlineData("SIM", "DOMAT")]
+    [InlineData("SIM", "DOREXT")]
+    [InlineData("SINASC", "DNEX")]
+    [InlineData("SIHSUS", "CH")]
+    [InlineData("SIHSUS", "CM")]
+    [InlineData("SIHSUS", "MT")]
+    [InlineData("ESUSNOTIFICA", "DCCR")]
+    [InlineData("PO", "PO")]
+    public void GetPath_DatasetWithNoFileByState_ThrowsSayingWhichMethodsToUse(string source, string code)
     {
-        var year = DatasusPeriod.OfYear(2024);
+        var dataset = DatasusCatalog.Get(source, code);
+        var period = dataset.Periodicity == DatasusPeriodicity.Monthly ? DatasusPeriod.OfMonth(2024, 7) : DatasusPeriod.OfYear(2024);
 
-        var path = Assert.Throws<NotSupportedException>(() => CountryOnly.GetPath(DatasusUf.SP, year));
-        var candidates = Assert.Throws<NotSupportedException>(() => CountryOnly.GetCandidatePaths(DatasusUf.SP, year));
+        var path = Assert.Throws<NotSupportedException>(() => dataset.GetPath(DatasusUf.SP, period));
+        var candidates = Assert.Throws<NotSupportedException>(() => dataset.GetCandidatePaths(DatasusUf.SP, period));
 
-        Assert.Equal("SINAN-DENG has one file for the whole country and none by state: use GetNationalPath or GetNationalCandidatePaths.", path.Message);
+        Assert.Equal($"{dataset} has one file for the whole country and none by state: use GetNationalPath or GetNationalCandidatePaths.", path.Message);
         Assert.Equal(path.Message, candidates.Message);
-        Assert.Equal("/SINAN/DADOS/FINAIS/DENGBR24.dbc", CountryOnly.GetNationalPath(year));
+        Assert.Equal(DatasusCoverage.National, dataset.Coverage);
+        Assert.StartsWith(dataset.CurrentEra.Directory + "/", dataset.GetNationalPath(period), StringComparison.Ordinal);
 
         // The coverage is checked before the state and the period.
-        Assert.Throws<NotSupportedException>(() => CountryOnly.GetPath(default, default));
+        Assert.Throws<NotSupportedException>(() => dataset.GetPath(default, default));
     }
 
     [Fact]
@@ -162,8 +166,10 @@ public class DatasusNationalPathTests
     public void PathsGuide_HasOneRowPerFileForTheWholeCountry_SayingWhatTheCatalogSays()
     {
         var guide = File.ReadAllLines(Path.Combine(DbSus.Tests.TestSupport.RepositoryPaths.Root, "docs", "datasus-paths.md"));
+        // The file types that also have files by state; the ones for the whole country only are in
+        // the tables of the catalog and, for their older layouts, in the table of the older layouts.
         var expected = DatasusCatalog.Datasets
-            .Where(dataset => dataset.Coverage.HasFlag(DatasusCoverage.National))
+            .Where(dataset => dataset.Coverage == (DatasusCoverage.Uf | DatasusCoverage.National))
             .SelectMany(dataset => dataset.Eras.Select(era => (Dataset: dataset, Era: era)))
             .ToList();
         var rows = guide
@@ -208,6 +214,7 @@ public class DatasusNationalPathTests
 
         Assert.Equal(
             ["SIM-DO", "SINASC-DN", "PCE-PCE", "RESP-RESP"],
-            DatasusCatalog.Datasets.Where(dataset => dataset.Coverage.HasFlag(DatasusCoverage.National)).Select(dataset => dataset.ToString()));
+            DatasusCatalog.Datasets.Where(dataset => dataset.Coverage == (DatasusCoverage.Uf | DatasusCoverage.National)).Select(dataset => dataset.ToString()));
+        Assert.Equal(15, DatasusCatalog.Datasets.Count(dataset => dataset.Coverage.HasFlag(DatasusCoverage.National)));
     }
 }

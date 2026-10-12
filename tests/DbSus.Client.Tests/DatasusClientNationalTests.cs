@@ -14,15 +14,6 @@ public sealed class DatasusClientNationalTests : IDisposable
     private const string PceFolder = "/PCE/Dados";
     private const string RespFolder = "/RESP/DADOS";
 
-    // A file type with one file for the whole country and none by state. No file type of the
-    // catalog is like that yet, so this one is built here; the folder and the name are real.
-    private static readonly DatasusDataset CountryOnly = new(
-        "SINAN",
-        "DENG",
-        "Dengue",
-        DatasusCoverage.National,
-        new DatasusEra(DatasusPeriod.OfYear(2000), null, "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", null, "DENGBR", 2));
-
     private readonly ClientFixture _fixture = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -230,14 +221,15 @@ public sealed class DatasusClientNationalTests : IDisposable
     [Fact]
     public async Task MethodsByState_DatasetWithNoFileByState_AreRefused_AndTheServerIsNotAsked()
     {
-        _fixture.Server.Add("/SINAN/DADOS/FINAIS/DENGBR24.dbc", ClientFixture.Dbc("A1"));
+        _fixture.Server.Add("/SIM/CID10/DOFET/DOFET24.dbc", ClientFixture.Dbc("A1"));
         var client = _fixture.Client();
+        var fetal = DatasusCatalog.Sim.DOFET;
         var year = DatasusPeriod.OfYear(2024);
-        const string Message = "SINAN-DENG has one file for the whole country and none by state: use FindNationalTableAsync, OpenNationalReaderAsync or ListNationalTablesAsync.";
+        const string Message = "SIM-DOFET has one file for the whole country and none by state: use FindNationalTableAsync, OpenNationalReaderAsync or ListNationalTablesAsync.";
 
-        var find = await Assert.ThrowsAsync<ArgumentException>(() => client.FindTableAsync(CountryOnly, DatasusUf.SP, year, Ct));
-        var open = await Assert.ThrowsAsync<ArgumentException>(() => client.OpenReaderAsync(CountryOnly, DatasusUf.SP, year, cancellationToken: Ct));
-        var list = await Assert.ThrowsAsync<ArgumentException>(() => client.ListTablesAsync(CountryOnly, year, year, cancellationToken: Ct));
+        var find = await Assert.ThrowsAsync<ArgumentException>(() => client.FindTableAsync(fetal, DatasusUf.SP, year, Ct));
+        var open = await Assert.ThrowsAsync<ArgumentException>(() => client.OpenReaderAsync(fetal, DatasusUf.SP, year, cancellationToken: Ct));
+        var list = await Assert.ThrowsAsync<ArgumentException>(() => client.ListTablesAsync(fetal, year, year, cancellationToken: Ct));
 
         Assert.All(new[] { find, open, list }, exception =>
         {
@@ -247,8 +239,8 @@ public sealed class DatasusClientNationalTests : IDisposable
         Assert.Equal(0, _fixture.Server.ListCalls + _fixture.Server.InfoCalls);
 
         // The same dataset is found by the methods for the whole country.
-        var table = await client.FindNationalTableAsync(CountryOnly, year, Ct);
-        Assert.Equal("/SINAN/DADOS/FINAIS/DENGBR24.dbc", table.Path);
+        var table = await client.FindNationalTableAsync(fetal, year, Ct);
+        Assert.Equal("/SIM/CID10/DOFET/DOFET24.dbc", table.Path);
         Assert.Null(table.Uf);
     }
 

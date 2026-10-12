@@ -23,8 +23,8 @@ foreach (string candidate in deaths.GetCandidatePaths(DatasusUf.RR, DatasusPerio
 ```
 
 - **Only the shape of the request is checked:** a month for a monthly file type, a year for a yearly one, a real state. Whether the file exists is never checked: DATASUS publishes late, leaves gaps, and does not have every state in every period. A path built here may name a file that is not on the server; opening it then fails with `FileNotFoundException`.
-- **Older folder layouts are built for six file types.** For SIASUS-PA, SIHSUS RD, SP and RJ, SIM-DO and SINASC-DN, a period before the layout in use now gets the folder and the file name it had then (see "Older layouts" below). A period before the dataset's `FirstPeriod` fails with `ArgumentOutOfRangeException`.
-- **The file for the whole country has methods of its own.** SIM-DO, SINASC-DN, PCE and RESP have, beside the files of the states, one file per year for the whole country: `GetNationalPath` builds its path, and `GetPath` never does (see "Files for the whole country" below).
+- **Older folder layouts are built for nine file types.** For SIASUS-PA, SIHSUS RD, SP and RJ, SIM DO, DOEXT, DOFET and DOINF, and SINASC-DN, a period before the layout in use now gets the folder and the file name it had then (see "Older layouts" below). A period before the dataset's `FirstPeriod` fails with `ArgumentOutOfRangeException`.
+- **The file for the whole country has methods of its own.** SIM-DO, SINASC-DN, PCE and RESP have, beside the files of the states, one file per year for the whole country: `GetNationalPath` builds its path, and `GetPath` never does. Eleven other file types have a file for the whole country and none by state, and are reached with the same methods (see "Files for the whole country" below).
 - **The name is built in upper case, with a lower-case extension.** The server lists some names in another case (see "Letter case" below).
 
 ## Finding and opening a table
@@ -62,12 +62,12 @@ var tables = await client.ListTablesAsync(DatasusCatalog.Cnes.LT, DatasusPeriod.
 
 ## The file types in the catalog
 
-In the file names, `{CODE}` is the code of the file type, `{UF}` is the two-letter abbreviation of the state, `{YY}` and `{YYYY}` are the year with two or four digits, and `{MM}` is the month with two digits. A yearly name with `{YY}` (PCE and RESP) has the same limit of a hundred years as a monthly one (see "Series that have ended" below).
+In the file names, `{CODE}` is the code of the file type, `{UF}` is the two-letter abbreviation of the state, `{YY}` and `{YYYY}` are the year with two or four digits, and `{MM}` is the month with two digits. A yearly name with `{YY}` (PCE, RESP, ESUSNOTIFICA-DCCR and the five SIM file types for the whole country only) has the same limit of a hundred years as a monthly one (see "Series that have ended" below).
 
-- **Official name** is the name under which DATASUS publishes the file type, in Portuguese and spelled as DATASUS spells it (`DatasusDataset.OfficialName`).
-- **From** is the first period the catalog accepts (`DatasusDataset.FirstPeriod`): the start of the oldest folder layout it knows for the file type (see "Older layouts" below), not the first period with data. CNES-LT, for example, has files from 2005-10 only, SIASUS-ABO from 2014-01 and SIASUS-AMP from 2016-03.
+- **Official name** is the name under which DATASUS publishes the file type, in Portuguese and spelled as DATASUS spells it (`DatasusDataset.OfficialName`). It is `null` for SIHSUS CH, CM and MT, shown in the tables as "(none published)": the file transfer page of the DATASUS website does not list them, and the documents and definition files of the server that were searched do not name them.
+- **From** is the first period the catalog accepts (`DatasusDataset.FirstPeriod`): the start of the oldest folder layout it knows for the file type (see "Older layouts" below), not the first period with data. CNES-LT, for example, has files from 2005-10 only, SIASUS-ABO from 2014-01 and SIASUS-AMP from 2016-03; of the file types for the whole country only, SIHSUS CH and CM have files from 2019-01, SIM-DOREXT from 2013 and SINASC-DNEX from 2014.
 
-The tables below say, for each of the 42 file types, what was checked in October 2026: `read` means that one real file was read whole with DbSus (decompressed, its CRC-32 checked, every field of every record), usually a small and old one, and some held a single record; `header`, that a header alone was read, or that the file read had no record; `names`, that only the names were seen in a listing. From the `PRELIM` folders, two files were read in the same way in October 2026: SIM-DO and SINASC-DN of Roraima, both of 2026. That says nothing about other periods, or about other files of those folders.
+The tables below say, for each of the 53 file types, what was checked in October 2026: `read` means that one real file was read whole with DbSus (decompressed, its CRC-32 checked, every field of every record), usually a small and old one, and some held a single record; `header`, that a header alone was read, or that the file read had no record; `names`, that only the names were seen in a listing. From the `PRELIM` folders, two files were read in the same way in October 2026: SIM-DO and SINASC-DN of Roraima, both of 2026. That says nothing about other periods, or about other files of those folders.
 
 ### SIASUS
 
@@ -106,6 +106,31 @@ SIHSUS RD, SP and RJ are in this folder from 2008-01 on; for earlier months, see
 | SIHSUS | RJ | AIH Rejeitadas | state | monthly | 1992-01 | read |
 | SIHSUS | ER | AIH Rejeitadas com código de erro | state | monthly | 2008-01 | read |
 
+### SIHSUS: CH and CM
+
+Folder `/SIHSUS/200801_/Dados`, file name `{CODE}BR{YY}{MM}.dbc`.
+
+One file per month for the whole country, in the folder of the files of the states, and none by state.
+
+| Source | Code | Official name | Coverage | Published | From | Checked |
+|---|---|---|---|---|---|---|
+| SIHSUS | CH | (none published) | country | monthly | 2008-01 | read |
+| SIHSUS | CM | (none published) | country | monthly | 2008-01 | read |
+
+**From** is the start of the folder. In the listings of October 2026, each of the two had 42 files, from 2019-01 to 2026-03, and none for the other 45 months of that range. The files read whole in October 2026 were `CHBR2001.dbc` (3,357 records, 7 fields) and `CMBR2001.dbc` (1,048 records, 3 fields). SIHSUS-CM is not SISMAMA-CM: each of the two sources has a file type with the code `CM`, and a dataset is named by its source and its code together.
+
+### SIHSUS: MT
+
+Folder `/SIHSUS/Arquivos_MTBR`, file name `MTBR{YY}{MM}.dbc`.
+
+One file per month for the whole country, in a folder of its own, and none by state.
+
+| Source | Code | Official name | Coverage | Published | From | Checked |
+|---|---|---|---|---|---|---|
+| SIHSUS | MT | (none published) | country | monthly | 1995-01 | read |
+
+The folder has no date in its name: **From** is the first month with files in the listings of October 2026, which showed 29 files, one for each month from 1995-01 to 1997-05. The code `MT` is read from the names of the files. The file read whole in October 2026 was the smallest of the folder, `MTBR9612.dbc` (37,259,445 bytes, 3,995,417 records, 17 fields).
+
 ### CNES
 
 One folder per file type, `/CNES/200508_/Dados/{CODE}`, file name `{CODE}{UF}{YY}{MM}.dbc`.
@@ -136,6 +161,22 @@ For 1979 to 1995, see "Older layouts" below.
 |---|---|---|---|---|---|---|
 | SIM | DO | Declarações de Óbito | state and country | yearly | 1979 | read |
 
+### SIM: files for the whole country only
+
+From 1996 on: folder `/SIM/CID10/DOFET`, and `/SIM/PRELIM/DOFET` for preliminary years; file name `{CODE}{YY}.dbc`.
+
+For 1979 to 1995, DOEXT, DOFET and DOINF are in an older folder: see "Older layouts" below.
+
+| Source | Code | Official name | Coverage | Published | From | Checked |
+|---|---|---|---|---|---|---|
+| SIM | DOEXT | Declarações de Óbitos por causas externas | country | yearly | 1979 | read |
+| SIM | DOFET | Declarações de Óbitos fetais | country | yearly | 1979 | read |
+| SIM | DOINF | Declarações de Óbitos infantis | country | yearly | 1979 | read |
+| SIM | DOMAT | Declarações de Óbitos maternos | country | yearly | 1996 | read |
+| SIM | DOREXT | Mortalidade de residentes no exterior | country | yearly | 1996 | read |
+
+These names have no state and two digits of the year. In the listings of October 2026, `/SIM/CID10/DOFET` had DOEXT, DOFET, DOINF and DOMAT from 1996 to 2025 and DOREXT from 2013 to 2025, and `/SIM/PRELIM/DOFET` had the five for 2025 and 2026; those of 2025 were in both folders, with the same sizes. **From** of DOREXT is the start of its folder. One file of each was read whole in October 2026: `DOEXT96.DBC` (119,156 records), `DOINF97.DBC` (71,400) and `DOMAT96.DBC` (1,520) have the same fields (names, order, types and widths) as the SIM-DO file of Roraima for 1996; `DOFET97.dbc` (41,584) has them too, one with another width; and `DOREXT20.dbc` (318) has the fields of the SIM-DO file of Roraima for 2020 except one, and one that this file does not have.
+
 ### SINASC
 
 From 1996 on: folder `/SINASC/1996_/Dados/DNRES`, and `/SINASC/PRELIM/DNRES` for preliminary years; file name `DN{UF}{YYYY}.dbc`.
@@ -145,6 +186,18 @@ For 1994 and 1995, see "Older layouts" below.
 | Source | Code | Official name | Coverage | Published | From | Checked |
 |---|---|---|---|---|---|---|
 | SINASC | DN | Declarações de nascidos vivos | state and country | yearly | 1994 | read |
+
+### SINASC: DNEX
+
+Folder `/SINASC/1996_/Dados/DNRES`, and `/SINASC/PRELIM/DNRES` for preliminary years; file name `DNEX{YYYY}.dbc`.
+
+One file per year for the whole country, in the folders of the files of the states, and none by state.
+
+| Source | Code | Official name | Coverage | Published | From | Checked |
+|---|---|---|---|---|---|---|
+| SINASC | DNEX | Declarações de nascidos vivos residentes no exterior | country | yearly | 1996 | read |
+
+**From** is the start of the folder. In the listings of October 2026, DNEX had files from 2014 to 2024 in the final folder and for 2025 and 2026 in the preliminary one. The preliminary folder also had `DNEX25.dbc` and `DNEX26.dbc`, with two digits of the year and other sizes than `DNEX2025.dbc` and `DNEX2026.dbc`: they are not files of the pattern, and the catalog does not read them as tables. `DNEX2020.dbc` (507 records), read whole in October 2026, has the same fields (names, order, types and widths) as the SINASC-DN file of Roraima for 2020.
 
 ### CIHA
 
@@ -209,20 +262,40 @@ Folder `/RESP/DADOS`, file name `RESP{UF}{YY}.dbc`.
 
 The two folders have no date in their names: **From** is the first year with files in the listings of October 2026. In those listings, PCE had files of 19 states, from 1995 to 2026, and RESP of every state, from 2015 to 2024. Both folders also have a file for the whole country, with `BR` in place of the state (see "Files for the whole country" below). Of RESP, the first small file opened had a header and no record; another one, with a record, was then read whole.
 
+### ESUSNOTIFICA
+
+Folder `/ESUSNOTIFICA/DADOS/FINAIS`, and `/ESUSNOTIFICA/DADOS/PRELIM` for preliminary years; file name `DCCRBR{YY}.dbc`.
+
+| Source | Code | Official name | Coverage | Published | From | Checked |
+|---|---|---|---|---|---|---|
+| ESUSNOTIFICA | DCCR | Doença de Chagas Crônica | country | yearly | 2023 | read |
+
+One file per year for the whole country, and none by state. The folders have no date in their names: **From** is the first year with files in the listings of October 2026, in which the final folder had the file of 2023 and the preliminary one those of 2024 and 2025. `DCCRBR23.dbc` (5,455 records, 109 fields) was read whole in October 2026. The note `/ESUSNOTIFICA/DOCS/Nota_Informativa_Doenca_de_Chagas_Cronica.pdf` (p. 1; undated, the file on the server is of 2026-07-31) says that the preliminary base is exported in January or February and in July of the following year, and is considered closed after two years.
+
+### PO
+
+Folder `/painel_oncologia/Dados`, file name `POBR{YYYY}.dbc`.
+
+| Source | Code | Official name | Coverage | Published | From | Checked |
+|---|---|---|---|---|---|---|
+| PO | PO | Painel de Oncologia | country | yearly | 2013 | read |
+
+One file per year for the whole country, and none by state. The folder has no date in its name: **From** is the first year with files in the listings of October 2026, which showed one file for each year from 2013 to 2026. `POBR2013.dbc` (180,883 records, 23 fields) was read whole in October 2026.
+
 ## What to know about these files
 
 - **Split tables.** In the listings of October 2026, SIASUS-PA was split into lettered parts (`PAMG2407a.dbc`, `PAMG2407b.dbc`, up to `d`) in five states: São Paulo in most months since 2011-12, Minas Gerais and Rio de Janeiro in every month since 2021-01, Rio Grande do Sul in some months since 2025-09, and Paraná from 2026-03 to 2026-05. `GetPath` gives the name without a part letter, `PAMG2407.dbc`; `FindTableAsync`, `FindPartsAsync` and `OpenReaderAsync` find the parts from it (see [downloading with DbSus.Client](https://github.com/euclydesuchoas/dbsus/blob/main/docs/client.md)).
-- **Preliminary years.** SIM and SINASC publish the most recent years in a folder of preliminary data until they are closed. In the listings of October 2026, the final folders went from 1996 to 2024 and the preliminary ones held 2025 and 2026. Which years are preliminary changes, so the catalog does not know it: `GetCandidatePaths` gives the final path and then the preliminary one, and `FindTableAsync` tries them in that order. For a year that is not in the final folder yet, such as the current one, it sends two more `SIZE` requests per table: when the listing of the final folder does not show the file, it asks the server for the file and for a first lettered part before it looks in the preliminary folder. The preliminary folder is optional. If the server answers `550` to its listing (FTP uses `550` both for a folder that does not exist and for one that may not be read), `ListTablesAsync` returns the tables of the final folder only, and `FindTableAsync`, when it finds no table, says in its `FileNotFoundException` that the preliminary folder could not be listed. A `550` to the listing of the final folder, and any other permanent reply to either listing, is a `DatasusRequestRefusedException`. For SIM and SINASC, Ordinance SVS No. 116 of 11 February 2009, art. 37 (`/SIM/CID10/DOCS/Legislacao_PDF.pdf`, p. 117), says that the data of a year are released as preliminary between 30 June and 30 August of the following year, and as official by 30 December of that year; it does not name the folders.
+- **Preliminary years.** SIM and SINASC publish the most recent years in a folder of preliminary data until they are closed. In the listings of October 2026, the final folders went from 1996 to 2024 and the preliminary ones held 2025 and 2026. The SIM file types for the whole country only, SINASC-DNEX and ESUSNOTIFICA-DCCR have a folder of preliminary data too (see their tables above). Which years are preliminary changes, so the catalog does not know it: `GetCandidatePaths` gives the final path and then the preliminary one, and `FindTableAsync` tries them in that order. For a year that is not in the final folder yet, such as the current one, it sends two more `SIZE` requests per table: when the listing of the final folder does not show the file, it asks the server for the file and for a first lettered part before it looks in the preliminary folder. The preliminary folder is optional. If the server answers `550` to its listing (FTP uses `550` both for a folder that does not exist and for one that may not be read), `ListTablesAsync` returns the tables of the final folder only, and `FindTableAsync`, when it finds no table, says in its `FileNotFoundException` that the preliminary folder could not be listed. A `550` to the listing of the final folder, and any other permanent reply to either listing, is a `DatasusRequestRefusedException`. For SIM and SINASC, Ordinance SVS No. 116 of 11 February 2009, art. 37 (`/SIM/CID10/DOCS/Legislacao_PDF.pdf`, p. 117), says that the data of a year are released as preliminary between 30 June and 30 August of the following year, and as official by 30 December of that year; it does not name the folders.
 - **Letter case.** The server lists most names in upper case with a lower-case extension, but not all: in the listings of October 2026, `DORR2011.DBC`, `DNRR2010.DBC`, `AQPA1001.DBC` and `sppa1001.dbc` were listed like that. `GetPath` always builds the name in upper case with a lower-case extension; the listing has the real case, which is what `FindTableAsync` and `ListTablesAsync` return. In October 2026 the server ignored case: a file listed as `DORR2011.DBC` answered under `dorr2011.dbc` too.
 - **Gaps.** In the listings of October 2026, SIASUS-PA, SIHSUS RD and SP, CNES LT, EQ, ST, PF, HB, DC and EP, SIM-DO and SINASC-DN had no missing period between the first and the last file of each state. The other file types missed some state-months; SIASUS-AR had no file of Roraima, and CNES-EF none of Roraima or the Federal District. Some file types had files of fewer states: SIASUS-AMP of 13, SIASUS AB and ABO of 18, CNES-EE of 23, SIASUS-SAD of 25 and CIHA of 26 (none of Roraima). The latest months also arrive state by state: for several file types, the last month listed was not there for every state.
-- **Series that have ended.** In the listings of October 2026, the last files of SIASUS-AN were of 2014-10 and those of SIASUS-SAD of 2018-10. CNES-EE had, after 2018-12, files of 2019-12 and one file of 2021-07. SIASUS-AB had no file of 2016-11, of 2016-12, or from 2017-05 to 2024-12. Four sources had no file after a month long past: CIH-CR had files from 2008-01 to 2011-04, of 24 states, four months beyond the 2010-12 that the name of its folder suggests; SISPRENATAL-PN from 2012-01 to 2014-12; SISCOLO CC and HC from 2006-01 to 2015-10; and SISMAMA CM, HM and MM from 2009-01 to 2015-07. The catalog builds a path for any month from **From** on, whether the file is there or not, up to ninety-nine years after the year in which the folder layout in use now starts (2107 for SIASUS, SIHSUS and CIH, 2104 for CNES, 2110 for CIHA, 2111 for SISPRENATAL, 2105 for SISCOLO, 2108 for SISMAMA): the file name carries two digits of the year, and a later month would get the name of an earlier one, so it fails with `ArgumentOutOfRangeException`. The same holds for the yearly names with two digits of the year: PCE is built up to 2094 and RESP up to 2114.
+- **Series that have ended.** In the listings of October 2026, the last files of SIASUS-AN were of 2014-10 and those of SIASUS-SAD of 2018-10. CNES-EE had, after 2018-12, files of 2019-12 and one file of 2021-07. SIASUS-AB had no file of 2016-11, of 2016-12, or from 2017-05 to 2024-12. Four sources had no file after a month long past: CIH-CR had files from 2008-01 to 2011-04, of 24 states, four months beyond the 2010-12 that the name of its folder suggests; SISPRENATAL-PN from 2012-01 to 2014-12; SISCOLO CC and HC from 2006-01 to 2015-10; and SISMAMA CM, HM and MM from 2009-01 to 2015-07. SIHSUS-MT, for the whole country, had files from 1995-01 to 1997-05 only. The catalog builds a path for any month from **From** on, whether the file is there or not, up to ninety-nine years after the year in which the folder layout in use now starts (2107 for SIASUS, SIHSUS and CIH, 2094 for SIHSUS-MT, 2104 for CNES, 2110 for CIHA, 2111 for SISPRENATAL, 2105 for SISCOLO, 2108 for SISMAMA): the file name carries two digits of the year, and a later month would get the name of an earlier one, so it fails with `ArgumentOutOfRangeException`. The same holds for the yearly names with two digits of the year: PCE is built up to 2094, RESP up to 2114, the five SIM file types for the whole country only up to 2095 and ESUSNOTIFICA-DCCR up to 2122.
 - **Files with no records.** Some files hold a header and no record at all, as two SIHSUS files of Acre in 2009-09 did in October 2026 (`SPAC0909.dbc`, `RJAC0909.dbc`). They open as an empty table.
 - **Files that are not data.** The folders also hold a few other files, which are not part of any dataset: a placeholder named like `HBufAAmm.dbc` in five CNES folders, and two `.zip` files in the SIHSUS folder.
 - **Size of the folders.** `/SIASUS/200801_/Dados` holds every SIASUS file type and listed 54,478 files; `/SIHSUS/200801_/Dados` listed 22,915; each CNES folder, up to 6,831; `/CIHA/201101_/Dados`, 4,798.
 
 ## Older layouts
 
-Six file types were in other folders before the layout in use now, two of them with other file names. The catalog builds these too: a period from **From** to **To** gets the folder and the file name of this table, with no folder of preliminary data, and `ListTablesAsync` over a range that crosses both layouts lists the folder of each. The table is of the files of the states; the older folders of SIM-DO and SINASC-DN also have a file for the whole country (see "Files for the whole country" below).
+Nine file types were in other folders before the layout in use now, two of them with other file names. The catalog builds these too: a period from **From** to **To** gets the folder and the file name of this table, with no folder of preliminary data, and `ListTablesAsync` or `ListNationalTablesAsync` over a range that crosses both layouts lists the folder of each. The rows of SIM DOEXT, DOFET and DOINF are of files for the whole country, the only ones these file types have. The other rows are of the files of the states; the older folders of SIM-DO and SINASC-DN also have a file for the whole country (see "Files for the whole country" below).
 
 | File type | From | To | Folder | File name | Checked |
 |---|---|---|---|---|---|
@@ -231,10 +304,13 @@ Six file types were in other folders before the layout in use now, two of them w
 | SIHSUS-SP | 1992-01 | 2007-12 | `/SIHSUS/199201_200712/Dados` | `SP{UF}{YY}{MM}.dbc` | read |
 | SIHSUS-RJ | 1992-01 | 2007-12 | `/SIHSUS/199201_200712/Dados` | `RJ{UF}{YY}{MM}.dbc` | read |
 | SIM-DO | 1979 | 1995 | `/SIM/CID9/DORES` | `DOR{UF}{YY}.dbc` | read |
+| SIM-DOEXT | 1979 | 1995 | `/SIM/CID9/DOFET` | `DOEXT{YY}.dbc` | read |
+| SIM-DOFET | 1979 | 1995 | `/SIM/CID9/DOFET` | `DOFET{YY}.dbc` | read |
+| SIM-DOINF | 1979 | 1995 | `/SIM/CID9/DOFET` | `DOINF{YY}.dbc` | read |
 | SINASC-DN | 1994 | 1995 | `/SINASC/1994_1995/Dados/DNRES` | `DNR{UF}{YYYY}.dbc` | read |
 
 - **From** is the start of the folder, not the first period with data: in the listings of October 2026, SIHSUS-SP had files from 1997-06 and SIHSUS-RJ from 2006-04.
-- **Checked** is as in the tables above: of each of the six, one file with records was read whole in October 2026. The first file tried of SIASUS-PA and of SIHSUS-SP (`PAMA0409.dbc`, `SPAP0710.dbc`) had a header and no record, and another was read. Files of one folder do not all have the same fields: the two SIASUS-PA files had 28 and 20 fields, and the two SIHSUS-SP files 18 and 16.
+- **Checked** is as in the tables above: of each of the nine, one file with records was read whole in October 2026. The first file tried of SIASUS-PA and of SIHSUS-SP (`PAMA0409.dbc`, `SPAP0710.dbc`) had a header and no record, and another was read. Files of one folder do not all have the same fields: the two SIASUS-PA files had 28 and 20 fields, and the two SIHSUS-SP files 18 and 16. In the listings of October 2026, `/SIM/CID9/DOFET` had 17 files of each of DOEXT, DOFET and DOINF, from 1979 to 1995, all with the extension in upper case; the three read, `DOEXT79.DBC` (65,253 records), `DOFET90.DBC` (42,752) and `DOINF91.DBC` (86,969), have the same fields (names, order, types and widths) as the SIM-DO file of Roraima for 1979.
 - **The hundred years of a two-digit year are counted in each layout.** `RDSP0712.dbc` is 2007-12 in the older folder; in the folder in use now the same name would be 2107-12.
 
 The `R` of `DOR` stands for residence: the TAB user manual `/SIM/CID9/DOCS/MTAB16M.pdf` (p. 79; undated, it describes the data of 1979 to 1995) says that `DORuuaa.DBC` holds the deaths by state of residence, `uu` being the state and `aa` the year of the death.
@@ -242,6 +318,8 @@ The `R` of `DOR` stands for residence: the TAB user manual `/SIM/CID9/DOCS/MTAB1
 ## Files for the whole country
 
 Four file types have, beside the files of the states, one file per year for the whole country, in the same folders. `GetNationalPath` and `GetNationalCandidatePaths` build its path, and `FindNationalTableAsync`, `ListNationalTablesAsync` and `OpenNationalReaderAsync` find, list and open it. Such a table has no state (`DatasusTableInfo.Uf` is `null`), and the methods by state never return it: leaving the state out never opens the file for the whole country.
+
+Eleven other file types have a file for the whole country and none by state: SIHSUS CH, CM and MT, SIM DOEXT, DOFET, DOINF, DOMAT and DOREXT, SINASC-DNEX, ESUSNOTIFICA-DCCR and PO. The same methods build, find, list and open their files; their folders and file names are in the tables of "The file types in the catalog" above. The table below is of the four that also have files by state.
 
 | File type | Periods | Folder | File name | Checked |
 |---|---|---|---|---|
@@ -281,7 +359,7 @@ using (var reader = await client.OpenNationalReaderAsync(DatasusCatalog.Pce.PCE,
 var years = await client.ListNationalTablesAsync(DatasusCatalog.Resp.RESP, DatasusPeriod.OfYear(2015), DatasusPeriod.OfYear(2024));
 ```
 
-- **A dataset without the file asked for says so.** `GetNationalPath` of a file type that has files by state only (SIHSUS-RD, for one) fails with `NotSupportedException`, and the client methods with `ArgumentException`; the message names the methods to use instead.
+- **A dataset without the file asked for says so.** `GetNationalPath` of a file type that has files by state only (SIHSUS-RD, for one) fails with `NotSupportedException`, and the client methods with `ArgumentException`; the message names the methods to use instead. It is the same the other way round: `GetPath` and the client methods by state fail in those ways for a file type that has a file for the whole country only (SIM-DOFET, for one).
 - **The files are large.** In the listings of October 2026, `DOBR2026.dbc` had 73,395,328 bytes and `DNBR2026.dbc` 73,590,646. `OpenNationalReaderAsync` downloads the whole file before the first record is read.
 - **What was listed in October 2026.** `DORBR` from 1979 to 1995; `DOBR` and `DNBR` from 1996 to 2024 in the final folders and for 2025 and 2026 in the preliminary ones; `DNBR` for 1994 and 1995 in the older folder; `PCEBR` from 1995 to 2026; and `RESPBR` from 2015 to 2024. None of these names had a part letter. `/RESP/DADOS` also had one `RESPBR.dbc`, with no year in its name, which is not a file of the pattern.
 - **Checked** is as in the tables above. Of PCE and RESP, one file was read whole in October 2026: `PCEBR95.dbc` (85 records) has the same fields as the file of a state that was read, `PCEPE99.dbc`; `RESPBR24.dbc` (539 records) has 80 fields, two more than the files of a state that were read (`RESPAC21.dbc` and `RESPAC18.dbc`, with 78), and some of the fields they share have other widths.
@@ -292,11 +370,9 @@ var years = await client.ListNationalTablesAsync(DatasusCatalog.Resp.RESP, Datas
 
 These are on the server and are reached with the path as a string. For most of them only the names were seen. Where a file was opened, the item says so: a header alone, or one small file read whole (decompressed, its CRC-32 checked, every field of every record).
 
-- **Other files for the whole country.** SINASC has `DNEX{YYYY}.dbc` from 2014. SIM also has yearly files for the whole country, with a two-digit year and no state in the name: `DOFET`, `DOEXT`, `DOINF` and `DOMAT` from 1996 and `DOREXT` from 2013 in `/SIM/CID10/DOFET`, the same five for 2025 and 2026 in `/SIM/PRELIM/DOFET` (those of 2025 were in both folders, with the same sizes), and `DOFET`, `DOEXT` and `DOINF` from 1979 to 1995 in `/SIM/CID9/DOFET`. SIHSUS has `CH` and `CM` files with `BR` only. Three headers were read: `DOMAT96.DBC` has the same fields (names, order, types and widths) as the SIM-DO file of Roraima for 1996, and `DNEX2020.dbc` the same as the SINASC-DN file of Roraima for 2020; `DOREXT20.dbc` has the fields of the SIM-DO file of Roraima for 2020 except one, and one that this file does not have.
 - **SINAN.** Every file is for the whole country, with a two-digit year: `/SINAN/DADOS/FINAIS/DENGBR25.dbc`, and `/SINAN/DADOS/PRELIM` for preliminary years. The year in which a notifiable condition passes from preliminary to final differs from one condition to another. The file transfer page of the DATASUS website lists a file type `INFL`; the server had no file of it, and the form of that page returned none.
 - **SIASUS-BI.** Since 2023-05, in MG, RJ and SP, its files have a `_1`, `_2` or `_3` suffix (`BIMG2305_1.dbc`), sometimes next to a file without a suffix. DbSus does not treat them as parts of one table.
 - **SISCAN.** `/SISCAN/SISCAN` has `.csv` files for the whole country, by year, from 2013 to 2025, and no `.dbc`.
-- **PO and e-SUS Notifica.** For the whole country only: `/painel_oncologia/Dados/POBR{YYYY}.dbc`, from 2013 to 2026, and `DCCRBR{YY}.dbc`, of 2023 in `/ESUSNOTIFICA/DADOS/FINAIS` and of 2024 and 2025 in `/ESUSNOTIFICA/DADOS/PRELIM`. For `DCCR`, the note `/ESUSNOTIFICA/DOCS/Nota_Informativa_Doenca_de_Chagas_Cronica.pdf` (p. 1; undated, the file on the server is of 2026-07-31) says that the preliminary base is exported in January or February and in July of the following year, and is considered closed after two years.
 - **IBGE.** `.zip` files, not `.dbc`: `/IBGE/POP/POPBR{YY}.zip`, `/IBGE/POPSVS/POPSBR{YY}.zip` and `/IBGE/POPTCU/POPTBR{YY}.zip`.
 - **PNI.** `/PNI/DADOS` has files with the `.DBF` extension, not `.dbc`: `CPNI` and `DPNI`, by state and year, from 1994 to 2019. None was opened. The file transfer page does not list PNI.
 - **Folders that look like leftovers.** `/SINASC/NOV` and `/SINASC/ANT` repeat names of the folders above, some with other sizes, and `/SIM/1996_` and `/SIM/1997_1995` are empty.

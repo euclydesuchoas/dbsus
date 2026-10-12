@@ -13,7 +13,7 @@ namespace DbSus.Client;
 /// </para>
 /// <para>
 /// DATASUS moved some file types to other folders over time, some with other file names. The
-/// catalog knows the folder layout in use now and, for six file types, the one before it; a path
+/// catalog knows the folder layout in use now and, for nine file types, the one before it; a path
 /// is built in the layout its period belongs to, from <see cref="FirstPeriod"/> on.
 /// </para>
 /// </remarks>
@@ -21,7 +21,7 @@ public sealed class DatasusDataset
 {
     internal const string PathsGuide = "https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md";
 
-    internal DatasusDataset(string source, string code, string officialName, DatasusCoverage coverage, params DatasusEra[] eras)
+    internal DatasusDataset(string source, string code, string? officialName, DatasusCoverage coverage, params DatasusEra[] eras)
     {
         Source = source;
         Code = code;
@@ -38,9 +38,10 @@ public sealed class DatasusDataset
 
     /// <summary>
     /// Gets the name under which DATASUS publishes this file type, in Portuguese and spelled as
-    /// DATASUS spells it, e.g. <c>AIH Reduzida</c>.
+    /// DATASUS spells it, e.g. <c>AIH Reduzida</c>, or <see langword="null"/> when DATASUS publishes
+    /// no name for the file type.
     /// </summary>
-    public string OfficialName { get; }
+    public string? OfficialName { get; }
 
     /// <summary>Gets whether the files are monthly or yearly.</summary>
     public DatasusPeriodicity Periodicity => CurrentEra.Periodicity;
@@ -166,8 +167,8 @@ public sealed class DatasusDataset
     /// <c>/SIM/CID9/DORES/DORBR95.dbc</c> for 1995 and <c>/SIM/CID10/DORES/DOBR1996.dbc</c> for 1996.
     /// </para>
     /// <para>
-    /// The path is where the final file is published. For the most recent years of SIM and SINASC,
-    /// the file may still be in the folder of preliminary data instead: use
+    /// The path is where the final file is published. For the most recent years of SIM, SINASC and
+    /// ESUSNOTIFICA, the file may still be in the folder of preliminary data instead: use
     /// <see cref="DatasusClient.FindNationalTableAsync"/>, which looks in both and tells which one
     /// it found.
     /// </para>
@@ -274,6 +275,23 @@ public sealed class DatasusDataset
             new DatasusEra(DatasusPeriod.OfYear(firstYear), null, directory, preliminaryDirectory, code, NationalStem(coverage, code), 4));
 
     private static string? NationalStem(DatasusCoverage coverage, string code) => coverage.HasFlag(DatasusCoverage.National) ? code + "BR" : null;
+
+    // A file type with one file for the whole country and none by state. The name of its file is
+    // the stem and the digits of the period (two digits of the year in a monthly name).
+    internal static DatasusDataset CountryOnly(string source, string code, string? officialName, DatasusPeriod firstPeriod, string directory, string? preliminaryDirectory, string stem, int yearDigits) =>
+        new(source, code, officialName, DatasusCoverage.National, new DatasusEra(firstPeriod, null, directory, preliminaryDirectory, null, stem, yearDigits));
+
+    // The same, yearly, with an older folder: the same file name, up to the year before the
+    // folder in use now starts, and no folder of preliminary data.
+    internal static DatasusDataset CountryOnly(
+        string source, string code, string? officialName, int firstYear, string directory, string? preliminaryDirectory, string stem, int yearDigits, string olderDirectory, int olderFirstYear) =>
+        new(
+            source,
+            code,
+            officialName,
+            DatasusCoverage.National,
+            new DatasusEra(DatasusPeriod.OfYear(olderFirstYear), DatasusPeriod.OfYear(firstYear - 1), olderDirectory, null, null, stem, yearDigits),
+            new DatasusEra(DatasusPeriod.OfYear(firstYear), null, directory, preliminaryDirectory, null, stem, yearDigits));
 
     /// <summary>Gets a value indicating whether the file type has one file per state.</summary>
     internal bool HasFilesByState => Coverage.HasFlag(DatasusCoverage.Uf);
