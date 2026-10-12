@@ -57,7 +57,9 @@ public sealed class DatasusRetriesExhaustedException : DatasusTransferException
 /// not exist, and is a <see cref="FileNotFoundException"/>. For a listing, 550 is one of these: FTP
 /// uses it both for a folder that does not exist and for one that may not be read, so a refused
 /// listing is never reported as a missing file; <see cref="DatasusTransferException.FtpReplyCode"/>
-/// has the code and the message has the reply.
+/// has the code and the message has the reply. The one exception is the folder of preliminary data
+/// of a dataset of <see cref="DatasusCatalog"/>, which is optional: a 550 to its listing is taken
+/// as there being no such folder.
 /// </summary>
 [SuppressMessage("Design", "CA1032", Justification = "Created only by the client with the transfer details.")]
 public sealed class DatasusRequestRefusedException : DatasusTransferException

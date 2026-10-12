@@ -137,32 +137,6 @@ public sealed class ListingRefusedTests : IDisposable
     }
 
     [Fact(Timeout = 30_000)]
-    public async Task FindTableAsync_PreliminaryFolderRefused_ThrowsTheRefusal_NotAMissingTable()
-    {
-        ServeTheFinalFolderWithoutTheTable();
-        using var client = Client(defaultRetries: true);
-
-        var exception = await Assert.ThrowsAsync<DatasusRequestRefusedException>(
-            () => client.FindTableAsync(DatasusCatalog.Sim.DO, DatasusUf.RR, DatasusPeriod.OfYear(2025), TestContext.Current.CancellationToken));
-
-        Assert.Equal("550", exception.FtpReplyCode);
-        Assert.Equal(SimPreliminary, exception.RemotePath);
-        Assert.Equal(2, _server.Commands.Count(command => command == "LIST"));
-    }
-
-    [Fact(Timeout = 30_000)]
-    public async Task OpenReaderAsync_ByCriteria_PreliminaryFolderRefused_ThrowsTheRefusal()
-    {
-        ServeTheFinalFolderWithoutTheTable();
-        using var client = Client(defaultRetries: true);
-
-        var exception = await Assert.ThrowsAsync<DatasusRequestRefusedException>(
-            () => client.OpenReaderAsync(DatasusCatalog.Sim.DO, DatasusUf.RR, DatasusPeriod.OfYear(2025), cancellationToken: TestContext.Current.CancellationToken));
-
-        Assert.Equal(SimPreliminary, exception.RemotePath);
-    }
-
-    [Fact(Timeout = 30_000)]
     public async Task ListTablesAsync_FinalFolderRefused_ThrowsTheRefusal()
     {
         _server.ListRefusal = Denied;
@@ -175,26 +149,186 @@ public sealed class ListingRefusedTests : IDisposable
         AssertOneListingAndNothingElse();
     }
 
-    [Fact(Timeout = 30_000)]
-    public async Task ListTablesAsync_PreliminaryFolderRefused_ThrowsTheRefusal_AndNoPartialResult()
+    // The folder of preliminary data is optional: a source may stop having one. A 550 to its
+    // listing, and only a 550, is taken as "there is no such folder". FTP uses the same reply for
+    // a folder that may not be read, so the message says that the folder could not be listed.
+    [Theory(Timeout = 30_000)]
+    [InlineData(Missing, false)]
+    [InlineData(Missing, true)]
+    [InlineData(Denied, false)]
+    [InlineData(Denied, true)]
+    public async Task FindTableAsync_PreliminaryFolderRefusedWith550_IsAMissingTable_AndTheMessageSaysTheFolderWasNotListed(string reply, bool afterOpening)
     {
-        ServeTheFinalFolderWithoutTheTable();
+        ServeTheFinalFolderWithoutTheTable(reply, afterOpening);
+        using var client = Client(defaultRetries: true);
+
+        var exception = await Assert.ThrowsAsync<FileNotFoundException>(
+            () => client.FindTableAsync(DatasusCatalog.Sim.DO, DatasusUf.RR, DatasusPeriod.OfYear(2025), TestContext.Current.CancellationToken));
+
+        AssertSaysThePreliminaryFolderWasNotListed(exception, reply);
+        Assert.Equal(2, _server.Commands.Count(command => command == "LIST"));
+    }
+
+    [Theory(Timeout = 30_000)]
+    [InlineData(Missing)]
+    [InlineData(Denied)]
+    public async Task OpenReaderAsync_ByCriteria_PreliminaryFolderRefusedWith550_IsAMissingTable_AndTheMessageSaysTheFolderWasNotListed(string reply)
+    {
+        ServeTheFinalFolderWithoutTheTable(reply);
+        using var client = Client(defaultRetries: true);
+
+        var exception = await Assert.ThrowsAsync<FileNotFoundException>(
+            () => client.OpenReaderAsync(DatasusCatalog.Sim.DO, DatasusUf.RR, DatasusPeriod.OfYear(2025), cancellationToken: TestContext.Current.CancellationToken));
+
+        AssertSaysThePreliminaryFolderWasNotListed(exception, reply);
+    }
+
+    [Theory(Timeout = 30_000)]
+    [InlineData(Missing, false)]
+    [InlineData(Missing, true)]
+    [InlineData(Denied, false)]
+    [InlineData(Denied, true)]
+    public async Task ListTablesAsync_PreliminaryFolderRefusedWith550_ReturnsTheTablesOfTheFinalFolder(string reply, bool afterOpening)
+    {
+        ServeTheFinalFolderWithoutTheTable(reply, afterOpening);
+        using var client = Client(defaultRetries: true);
+
+        var tables = await client.ListTablesAsync(DatasusCatalog.Sim.DO, DatasusPeriod.OfYear(2024), DatasusPeriod.OfYear(2025), cancellationToken: TestContext.Current.CancellationToken);
+
+        var table = Assert.Single(tables);
+        Assert.Equal(SimFinal + "/DOAC2024.dbc", table.Path);
+        Assert.False(table.IsPreliminary);
+        Assert.Equal(2, _server.Commands.Count(command => command == "LIST"));
+    }
+
+    // The refused folder is asked again the next time: a refusal is not kept as an empty listing.
+    [Fact(Timeout = 30_000)]
+    public async Task ListTablesAsync_PreliminaryFolderRefusedWith550_IsAskedAgainTheNextTime()
+    {
+        ServeTheFinalFolderWithoutTheTable(Missing);
+        using var client = Client(defaultRetries: true);
+        Assert.Single(await client.ListTablesAsync(DatasusCatalog.Sim.DO, DatasusPeriod.OfYear(2024), DatasusPeriod.OfYear(2025), cancellationToken: TestContext.Current.CancellationToken));
+
+        _server.ListRefusal = null;
+        var tables = await client.ListTablesAsync(DatasusCatalog.Sim.DO, DatasusPeriod.OfYear(2024), DatasusPeriod.OfYear(2025), cancellationToken: TestContext.Current.CancellationToken);
+
+        // The final folder comes from the cache; the preliminary one, now listed, has the same file.
+        Assert.Single(tables);
+        Assert.Equal(3, _server.Commands.Count(command => command == "LIST"));
+    }
+
+    // Found in the folder of final data: the preliminary one is not asked at all.
+    [Fact(Timeout = 30_000)]
+    public async Task FindTableAsync_TableInTheFinalFolder_DoesNotListThePreliminaryOne()
+    {
+        ServeTheFinalFolderWithoutTheTable(Denied);
+        using var client = Client(defaultRetries: true);
+
+        var table = await client.FindTableAsync(DatasusCatalog.Sim.DO, DatasusUf.AC, DatasusPeriod.OfYear(2024), TestContext.Current.CancellationToken);
+
+        Assert.False(table.IsPreliminary);
+        Assert.Equal(1, _server.Commands.Count(command => command == "LIST"));
+    }
+
+    // Any other permanent reply to the listing of the preliminary folder is still a refusal.
+    [Theory(Timeout = 30_000)]
+    [InlineData("530 Not logged in.", "530")]
+    [InlineData("501 Syntax error in parameters.", "501")]
+    public async Task FindTableAsync_PreliminaryFolderRefusedWithAnother5xx_ThrowsTheRefusal(string reply, string code)
+    {
+        ServeTheFinalFolderWithoutTheTable(reply);
+        using var client = Client(defaultRetries: true);
+
+        var exception = await Assert.ThrowsAsync<DatasusRequestRefusedException>(
+            () => client.FindTableAsync(DatasusCatalog.Sim.DO, DatasusUf.RR, DatasusPeriod.OfYear(2025), TestContext.Current.CancellationToken));
+
+        Assert.Equal(code, exception.FtpReplyCode);
+        Assert.Equal(SimPreliminary, exception.RemotePath);
+        Assert.Equal(2, _server.Commands.Count(command => command == "LIST"));
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task OpenReaderAsync_ByCriteria_PreliminaryFolderRefusedWith530_ThrowsTheRefusal()
+    {
+        ServeTheFinalFolderWithoutTheTable("530 Not logged in.");
+        using var client = Client(defaultRetries: true);
+
+        var exception = await Assert.ThrowsAsync<DatasusRequestRefusedException>(
+            () => client.OpenReaderAsync(DatasusCatalog.Sim.DO, DatasusUf.RR, DatasusPeriod.OfYear(2025), cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Equal("530", exception.FtpReplyCode);
+        Assert.Equal(SimPreliminary, exception.RemotePath);
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task ListTablesAsync_PreliminaryFolderRefusedWith530_ThrowsTheRefusal_AndNoPartialResult()
+    {
+        ServeTheFinalFolderWithoutTheTable("530 Not logged in.");
         using var client = Client(defaultRetries: true);
 
         var exception = await Assert.ThrowsAsync<DatasusRequestRefusedException>(
             () => client.ListTablesAsync(DatasusCatalog.Sim.DO, DatasusPeriod.OfYear(2024), DatasusPeriod.OfYear(2025), cancellationToken: TestContext.Current.CancellationToken));
 
+        Assert.Equal("530", exception.FtpReplyCode);
         Assert.Equal(SimPreliminary, exception.RemotePath);
         Assert.Equal(2, _server.Commands.Count(command => command == "LIST"));
     }
 
+    // The folder of final data is not optional: a 550 to its listing is a refusal, also for a
+    // source that has a folder of preliminary data.
+    [Theory(Timeout = 30_000)]
+    [InlineData(Missing)]
+    [InlineData(Denied)]
+    public async Task FindTableAsync_FinalFolderOfASourceWithPreliminaryData_RefusedWith550_ThrowsTheRefusal(string reply)
+    {
+        _server.Listing = [LoopbackFtpServer.FileLine("DORR2025.dbc", 10)];
+        _server.ListRefusal = reply;
+        _server.RefusedFolder = SimFinal;
+        using var client = Client(defaultRetries: true);
+
+        var exception = await Assert.ThrowsAsync<DatasusRequestRefusedException>(
+            () => client.FindTableAsync(DatasusCatalog.Sim.DO, DatasusUf.RR, DatasusPeriod.OfYear(2025), TestContext.Current.CancellationToken));
+
+        Assert.Equal("550", exception.FtpReplyCode);
+        Assert.Equal(SimFinal, exception.RemotePath);
+        AssertOneListingAndNothingElse();
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task ListTablesAsync_OnlyTheFinalFolderRefusedWith550_ThrowsTheRefusal()
+    {
+        _server.Listing = [LoopbackFtpServer.FileLine("DORR2025.dbc", 10)];
+        _server.ListRefusal = Missing;
+        _server.RefusedFolder = SimFinal;
+        using var client = Client(defaultRetries: true);
+
+        var exception = await Assert.ThrowsAsync<DatasusRequestRefusedException>(
+            () => client.ListTablesAsync(DatasusCatalog.Sim.DO, DatasusPeriod.OfYear(2024), DatasusPeriod.OfYear(2025), cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Equal(SimFinal, exception.RemotePath);
+        AssertOneListingAndNothingElse();
+    }
+
+    private static void AssertSaysThePreliminaryFolderWasNotListed(FileNotFoundException exception, string reply)
+    {
+        Assert.Equal(SimFinal + "/DORR2025.dbc", exception.FileName);
+        Assert.Contains("The server has no final SIM-DO table of RR for 2025: " + SimFinal + "/DORR2025.dbc does not exist, whole or in parts.", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("The folder of preliminary data, " + SimPreliminary + ", was not searched, because it could not be listed", exception.Message, StringComparison.Ordinal);
+        Assert.Contains($"the server refused the listing ('{reply}')", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("FTP uses 550 both for a folder that does not exist and for one that may not be read.", exception.Message, StringComparison.Ordinal);
+        var refusal = Assert.IsType<DatasusRequestRefusedException>(exception.InnerException);
+        Assert.Equal("550", refusal.FtpReplyCode);
+        Assert.Equal(SimPreliminary, refusal.RemotePath);
+    }
+
     // The final folder lists one file of another state and year, and the server answers 550 for
-    // any other file; only the listing of the preliminary folder is refused.
-    private void ServeTheFinalFolderWithoutTheTable()
+    // any other file; only the listing of the preliminary folder gets the reply.
+    private void ServeTheFinalFolderWithoutTheTable(string preliminaryReply, bool afterOpening = false)
     {
         _server.Listing = [LoopbackFtpServer.FileLine("DOAC2024.dbc", 10)];
         _server.Files[Root + SimFinal + "/DOAC2024.dbc"] = new byte[10];
-        _server.ListRefusal = Missing;
+        _server.ListRefusal = preliminaryReply;
+        _server.RefuseListAfterOpening = afterOpening;
         _server.RefusedFolder = SimPreliminary;
     }
 

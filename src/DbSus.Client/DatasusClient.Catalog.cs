@@ -30,6 +30,12 @@ public sealed partial class DatasusClient
     /// country, and names outside the pattern. A table is judged only when it is opened: a part
     /// missing in the middle shows here as the parts that are listed.
     /// </para>
+    /// <para>
+    /// The folder of preliminary data is optional: when the server answers 550 to its listing (FTP
+    /// uses it both for a folder that does not exist and for one that may not be read), the result
+    /// has the tables of the folder of final data only, and nothing tells that apart from a
+    /// preliminary folder with no table in the range.
+    /// </para>
     /// </remarks>
     /// <param name="dataset">The dataset, from <see cref="DatasusCatalog"/>.</param>
     /// <param name="from">The first period, inclusive: a month for a monthly dataset, a year for a yearly one.</param>
@@ -50,9 +56,10 @@ public sealed partial class DatasusClient
     /// after <paramref name="to"/>.
     /// </exception>
     /// <exception cref="DatasusRequestRefusedException">
-    /// The server refused the listing of a folder of the dataset, the folder of preliminary data
-    /// included, with a permanent reply (FTP 5xx, 550 included: the folder does not exist or may not
-    /// be read). It is not retried, and no partial result is returned.
+    /// The server refused the listing of a folder of the dataset with a permanent reply (FTP 5xx).
+    /// For the folder of final data that includes 550 (the folder does not exist or may not be
+    /// read); for the folder of preliminary data, any reply but 550. It is not retried, and no
+    /// partial result is returned.
     /// </exception>
     public async Task<IReadOnlyList<DatasusTableInfo>> ListTablesAsync(DatasusDataset dataset, DatasusPeriod from, DatasusPeriod to, DatasusUf? uf = null, CancellationToken cancellationToken = default)
     {
@@ -81,7 +88,8 @@ public sealed partial class DatasusClient
             Collect(era, era.Directory, isPreliminary: false, await ListInternalAsync(RemotePath.Parse(era.Directory, Root), cancellationToken).ConfigureAwait(false));
             if (era.PreliminaryDirectory is not null)
             {
-                Collect(era, era.PreliminaryDirectory, isPreliminary: true, await ListOrEmptyAsync(era.PreliminaryDirectory, cancellationToken).ConfigureAwait(false));
+                var (entries, _) = await ListPreliminaryAsync(era.PreliminaryDirectory, cancellationToken).ConfigureAwait(false);
+                Collect(era, era.PreliminaryDirectory, isPreliminary: true, entries);
             }
         }
 
@@ -146,7 +154,9 @@ public sealed partial class DatasusClient
     /// </returns>
     /// <exception cref="FileNotFoundException">
     /// The server has no such table, final or preliminary (the message names the paths tried), or
-    /// a part before the last one is missing.
+    /// a part before the last one is missing. When the server answered 550 to the listing of the
+    /// folder of preliminary data, that folder was not searched: the message says so and has the
+    /// reply, and the refusal is the <see cref="Exception.InnerException"/>.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="uf"/> is not a state, or <paramref name="period"/> is before
@@ -155,7 +165,8 @@ public sealed partial class DatasusClient
     /// <exception cref="ArgumentException"><paramref name="period"/> is not set or is not of the dataset's periodicity.</exception>
     /// <exception cref="DatasusRequestRefusedException">
     /// The server refused the listing of a folder where the table was looked for, with a permanent
-    /// reply (FTP 5xx, 550 included: the folder does not exist or may not be read). It is not
+    /// reply (FTP 5xx). For the folder of final data that includes 550 (the folder does not exist
+    /// or may not be read); for the folder of preliminary data, any reply but 550. It is not
     /// retried, and it is not reported as a table that does not exist.
     /// </exception>
     /// <exception cref="IOException">Ambiguous names on the server.</exception>
@@ -168,16 +179,13 @@ public sealed partial class DatasusClient
         var fileName = era.FileName(ufName, period);
 
         var table = await FindInAsync(dataset, era, era.Directory, fileName, uf, period, isPreliminary: false, cancellationToken).ConfigureAwait(false);
+        DatasusRequestRefusedException? notListed = null;
         if (table is null && era.PreliminaryDirectory is not null)
         {
-            table = await FindInAsync(dataset, era, era.PreliminaryDirectory, fileName, uf, period, isPreliminary: true, cancellationToken).ConfigureAwait(false);
+            (table, notListed) = await FindPreliminaryAsync(dataset, era, era.PreliminaryDirectory, fileName, uf, period, cancellationToken).ConfigureAwait(false);
         }
 
-        return table ?? throw new FileNotFoundException(
-            era.PreliminaryDirectory is null
-                ? $"The server has no {dataset} table of {ufName} for {period}: {era.Directory}/{fileName} does not exist, whole or in parts."
-                : $"The server has no {dataset} table of {ufName} for {period}, final or preliminary: neither {era.Directory}/{fileName} nor {era.PreliminaryDirectory}/{fileName} exists.",
-            era.Directory + "/" + fileName);
+        return table ?? throw NoTable(dataset, era, ufName, period, fileName, notListed);
     }
 
     /// <summary>
@@ -200,7 +208,8 @@ public sealed partial class DatasusClient
     /// <returns>A reader positioned before the first record, over every part in order.</returns>
     /// <exception cref="FileNotFoundException">
     /// The server has no final table for that state and period; the message says so when only a
-    /// preliminary one exists.
+    /// preliminary one exists, and when the folder of preliminary data was not searched because
+    /// the server answered 550 to its listing.
     /// </exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="uf"/> is not a state, or <paramref name="period"/> is before
@@ -209,7 +218,8 @@ public sealed partial class DatasusClient
     /// <exception cref="ArgumentException"><paramref name="period"/> is not set or is not of the dataset's periodicity.</exception>
     /// <exception cref="DatasusRequestRefusedException">
     /// The server refused the listing of a folder where the table was looked for, with a permanent
-    /// reply (FTP 5xx, 550 included: the folder does not exist or may not be read). It is not
+    /// reply (FTP 5xx). For the folder of final data that includes 550 (the folder does not exist
+    /// or may not be read); for the folder of preliminary data, any reply but 550. It is not
     /// retried, and it is not reported as a table that does not exist.
     /// </exception>
     public async Task<DbfReader> OpenReaderAsync(DatasusDataset dataset, DatasusUf uf, DatasusPeriod period, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null, CancellationToken cancellationToken = default)
@@ -227,20 +237,20 @@ public sealed partial class DatasusClient
             return await OpenPartsAsync(table.Parts, dbfOptions, dbcOptions, cancellationToken).ConfigureAwait(false);
         }
 
-        if (era.PreliminaryDirectory is not null
-            && await FindInAsync(dataset, era, era.PreliminaryDirectory, fileName, uf, period, isPreliminary: true, cancellationToken).ConfigureAwait(false) is { } preliminary)
+        DatasusRequestRefusedException? notListed = null;
+        if (era.PreliminaryDirectory is not null)
         {
-            throw new FileNotFoundException(
-                $"{dataset} of {ufName} for {period} is not published as final data: only the preliminary table {preliminary.Path} exists, and this method opens final data only. "
-                + "To read preliminary data, find the table with FindTableAsync and pass it to OpenReaderAsync(DatasusTableInfo).",
-                finalPath);
+            (var preliminary, notListed) = await FindPreliminaryAsync(dataset, era, era.PreliminaryDirectory, fileName, uf, period, cancellationToken).ConfigureAwait(false);
+            if (preliminary is not null)
+            {
+                throw new FileNotFoundException(
+                    $"{dataset} of {ufName} for {period} is not published as final data: only the preliminary table {preliminary.Path} exists, and this method opens final data only. "
+                    + "To read preliminary data, find the table with FindTableAsync and pass it to OpenReaderAsync(DatasusTableInfo).",
+                    finalPath);
+            }
         }
 
-        throw new FileNotFoundException(
-            era.PreliminaryDirectory is null
-                ? $"The server has no {dataset} table of {ufName} for {period}: {finalPath} does not exist, whole or in parts."
-                : $"The server has no {dataset} table of {ufName} for {period}, final or preliminary: neither {finalPath} nor {era.PreliminaryDirectory}/{fileName} exists.",
-            finalPath);
+        throw NoTable(dataset, era, ufName, period, fileName, notListed);
     }
 
     /// <summary>
@@ -271,30 +281,54 @@ public sealed partial class DatasusClient
     // One candidate folder: the table there, confirmed with the server, or null when it has none.
     private async Task<DatasusTableInfo?> FindInAsync(DatasusDataset dataset, DatasusEra era, string directory, string fileName, DatasusUf uf, DatasusPeriod period, bool isPreliminary, CancellationToken cancellationToken)
     {
-        if (isPreliminary && await ListOrNullAsync(directory, cancellationToken).ConfigureAwait(false) is null)
-        {
-            return null;
-        }
-
         var remote = RemotePath.Parse(directory + "/" + fileName, Root);
         var parts = await FindPartsOrNullAsync(remote, nameof(fileName), cancellationToken).ConfigureAwait(false);
         return parts is null ? null : new DatasusTableInfo(dataset, uf, period, isPreliminary, TablePath(era, directory, parts[0].Name), parts);
     }
 
-    // The folder of preliminary data is optional: a source may stop having one.
-    private async Task<IReadOnlyList<RemoteEntry>> ListOrEmptyAsync(string directory, CancellationToken cancellationToken) =>
-        await ListOrNullAsync(directory, cancellationToken).ConfigureAwait(false) ?? [];
+    // The preliminary candidate: the table there, or no table and, when the folder could not be
+    // listed, the server's refusal, so that the caller can say that the folder was not searched.
+    private async Task<(DatasusTableInfo? Table, DatasusRequestRefusedException? NotListed)> FindPreliminaryAsync(DatasusDataset dataset, DatasusEra era, string directory, string fileName, DatasusUf uf, DatasusPeriod period, CancellationToken cancellationToken)
+    {
+        var (_, notListed) = await ListPreliminaryAsync(directory, cancellationToken).ConfigureAwait(false);
+        return notListed is null
+            ? (await FindInAsync(dataset, era, directory, fileName, uf, period, isPreliminary: true, cancellationToken).ConfigureAwait(false), null)
+            : (null, notListed);
+    }
 
-    private async Task<IReadOnlyList<RemoteEntry>?> ListOrNullAsync(string directory, CancellationToken cancellationToken)
+    // The folder of preliminary data is optional: a source may stop having one. A 550 to its
+    // listing, and no other reply, is taken as "there is no such folder": no entries, and the
+    // refusal itself, because FTP uses the same 550 for a folder that may not be read.
+    private async Task<(IReadOnlyList<RemoteEntry> Entries, DatasusRequestRefusedException? NotListed)> ListPreliminaryAsync(string directory, CancellationToken cancellationToken)
     {
         try
         {
-            return await ListInternalAsync(RemotePath.Parse(directory, Root), cancellationToken).ConfigureAwait(false);
+            return (await ListInternalAsync(RemotePath.Parse(directory, Root), cancellationToken).ConfigureAwait(false), null);
         }
-        catch (FileNotFoundException)
+        catch (DatasusRequestRefusedException exception) when (exception.FtpReplyCode == "550")
         {
-            return null;
+            return ([], exception);
         }
+    }
+
+    private static FileNotFoundException NoTable(DatasusDataset dataset, DatasusEra era, string ufName, DatasusPeriod period, string fileName, DatasusRequestRefusedException? preliminaryNotListed)
+    {
+        var finalPath = era.Directory + "/" + fileName;
+        if (preliminaryNotListed is not null)
+        {
+            // Not "final or preliminary": a folder that may not be read gets the same 550.
+            return new FileNotFoundException(
+                $"The server has no final {dataset} table of {ufName} for {period}: {finalPath} does not exist, whole or in parts. "
+                + $"The folder of preliminary data, {era.PreliminaryDirectory}, was not searched, because it could not be listed: {preliminaryNotListed.Message}",
+                finalPath,
+                preliminaryNotListed);
+        }
+
+        return new FileNotFoundException(
+            era.PreliminaryDirectory is null
+                ? $"The server has no {dataset} table of {ufName} for {period}: {finalPath} does not exist, whole or in parts."
+                : $"The server has no {dataset} table of {ufName} for {period}, final or preliminary: neither {finalPath} nor {era.PreliminaryDirectory}/{fileName} exists.",
+            finalPath);
     }
 
     // The path of a table from the name of its first file, in the case the server uses: the name
