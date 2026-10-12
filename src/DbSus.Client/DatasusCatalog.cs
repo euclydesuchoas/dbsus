@@ -3,14 +3,14 @@ using System.Diagnostics.CodeAnalysis;
 namespace DbSus.Client;
 
 /// <summary>
-/// A partial catalog of the file types DATASUS lists: 33 of SIASUS, SIHSUS, CNES, SIM, SINASC and
-/// CIHA, by state, each as a <see cref="DatasusDataset"/>. Use a property, e.g.
-/// <c>DatasusCatalog.SihSus.RD</c>, or look one up by text with <see cref="Get"/>.
+/// A partial catalog of the file types DATASUS lists: 40 of SIASUS, SIHSUS, CNES, SIM, SINASC,
+/// CIHA, CIH, SISPRENATAL, SISCOLO and SISMAMA, by state, each as a <see cref="DatasusDataset"/>.
+/// Use a property, e.g. <c>DatasusCatalog.SihSus.RD</c>, or look one up by text with <see cref="Get"/>.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Most of the file types DATASUS lists are not here: those of other sources (SINAN, for one) and
-/// other file types of these six sources. Nor are the files for the whole country, those of SIM
+/// other file types of these sources. Nor are the files for the whole country, those of SIM
 /// and SINASC included. A file type that is missing here may still be on the server.
 /// </para>
 /// <para>
@@ -36,6 +36,10 @@ public static class DatasusCatalog
         Sim.DO,
         Sinasc.DN,
         Ciha.CIHA,
+        Cih.CR,
+        SisPrenatal.PN,
+        SisColo.CC, SisColo.HC,
+        SisMama.CM, SisMama.HM, SisMama.MM,
     ];
 
     // Declared after Datasets: static fields are initialized in the order they are written.
@@ -237,5 +241,58 @@ public static class DatasusCatalog
         /// <summary>Gets CIHA-CIHA, <i>Comunicação de Internação Hospitalar e Ambulatorial</i>, from 2011-01 on.</summary>
         public static DatasusDataset CIHA { get; } = DatasusDataset.Monthly(
             "CIHA", "CIHA", "Comunicação de Internação Hospitalar e Ambulatorial", "/CIHA/201101_/Dados", 2011, 1);
+    }
+
+    /// <summary>
+    /// CIH (<i>Sistema de Comunicação de Informação Hospitalar</i>). Monthly files, one per state.
+    /// The last files listed in October 2026 are of 2011-04.
+    /// </summary>
+    public static class Cih
+    {
+        /// <summary>Gets CIH-CR, <i>Comunicação de Internação Hospitalar</i>, from 2008-01 on.</summary>
+        public static DatasusDataset CR { get; } = DatasusDataset.Monthly("CIH", "CR", "Comunicação de Internação Hospitalar", "/CIH/200801_201012/Dados", 2008, 1);
+    }
+
+    /// <summary>
+    /// SISPRENATAL (<i>Sistema de Monitoramento e Avaliação do Pré-Natal, Parto, Puerpério e Criança</i>).
+    /// Monthly files, one per state. The last files listed in October 2026 are of 2014-12.
+    /// </summary>
+    public static class SisPrenatal
+    {
+        /// <summary>Gets SISPRENATAL-PN, <i>Pré-Natal</i>, from 2012-01 on.</summary>
+        public static DatasusDataset PN { get; } = DatasusDataset.Monthly("SISPRENATAL", "PN", "Pré-Natal", "/SISPRENATAL/201201_/Dados", 2012, 1);
+    }
+
+    /// <summary>
+    /// SISCOLO (<i>Sistema de Informações de Cânceres de Colo de Útero</i>). Monthly files, one per
+    /// state, from 2006-01 on. The last files listed in October 2026 are of 2015-10.
+    /// </summary>
+    public static class SisColo
+    {
+        private const string Directory = "/SISCAN/SISCOLO4/Dados";
+
+        /// <summary>Gets SISCOLO-CC, <i>Citopatológico de Colo de Útero</i>.</summary>
+        public static DatasusDataset CC { get; } = DatasusDataset.Monthly("SISCOLO", "CC", "Citopatológico de Colo de Útero", Directory, 2006, 1);
+
+        /// <summary>Gets SISCOLO-HC, <i>Histopatológico de Colo de Útero</i>.</summary>
+        public static DatasusDataset HC { get; } = DatasusDataset.Monthly("SISCOLO", "HC", "Histopatológico de Colo de Útero", Directory, 2006, 1);
+    }
+
+    /// <summary>
+    /// SISMAMA (<i>Sistema de Informações de Cânceres de Mama</i>). Monthly files, one per state,
+    /// from 2009-01 on. The last files listed in October 2026 are of 2015-07.
+    /// </summary>
+    public static class SisMama
+    {
+        private const string Directory = "/SISCAN/SISMAMA/Dados";
+
+        /// <summary>Gets SISMAMA-CM, <i>Citopatológico de Mama</i>.</summary>
+        public static DatasusDataset CM { get; } = DatasusDataset.Monthly("SISMAMA", "CM", "Citopatológico de Mama", Directory, 2009, 1);
+
+        /// <summary>Gets SISMAMA-HM, <i>Histopatológico de Mama</i>.</summary>
+        public static DatasusDataset HM { get; } = DatasusDataset.Monthly("SISMAMA", "HM", "Histopatológico de Mama", Directory, 2009, 1);
+
+        /// <summary>Gets SISMAMA-MM, <i>Exame Mamografia</i>.</summary>
+        public static DatasusDataset MM { get; } = DatasusDataset.Monthly("SISMAMA", "MM", "Exame Mamografia", Directory, 2009, 1);
     }
 }

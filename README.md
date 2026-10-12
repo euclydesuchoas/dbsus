@@ -63,7 +63,7 @@ while (reader.Read())
 }
 ```
 
-Or name the table by dataset, state and period, and let the client find its file or parts (33 file types, listed in the [paths guide](https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md)):
+Or name the table by dataset, state and period, and let the client find its file or parts (40 file types, listed in the [paths guide](https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md)):
 
 ```csharp
 using System;
@@ -89,13 +89,13 @@ while (reader.Read())
 - Tables split into parts read as one table, from paths or streams.
 - The CRC-32 stored in each `.dbc` is verified.
 - `DbSus.Client`: listing, file size and date, split-table discovery, headers without a full download, resumable and verified downloads, an optional cache shared safely between threads and processes, retries with backoff, typed exceptions, read timeouts and cancellation.
-- `DatasusCatalog`: 33 DATASUS file types by name, to build paths and to find, list and open tables by dataset, state and period.
+- `DatasusCatalog`: 40 DATASUS file types by name, to build paths and to find, list and open tables by dataset, state and period.
 
 ## Guides
 
 - [Reading DBC and DBF files](https://github.com/euclydesuchoas/dbsus/blob/main/docs/reading.md): value types, who closes what, split tables, conversions, encodings, ADO.NET, integrity, reading without allocation.
 - [Downloading with DbSus.Client](https://github.com/euclydesuchoas/dbsus/blob/main/docs/client.md): paths, retries, downloads, the cache, exceptions.
-- [DATASUS paths and file names](https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md): the 33 file types of the catalog, their folders and file names, finding and opening tables, what is outside the catalog.
+- [DATASUS paths and file names](https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md): the 40 file types of the catalog, their folders and file names, finding and opening tables, what is outside the catalog.
 - [FTP troubleshooting](https://github.com/euclydesuchoas/dbsus/blob/main/docs/ftp-troubleshooting.md): failed or stalled connections, worst-case times, a known limit of listings.
 - [Performance](https://github.com/euclydesuchoas/dbsus/blob/main/docs/performance.md): throughput, field projection, allocation.
 - [Compatibility](https://github.com/euclydesuchoas/dbsus/blob/main/docs/compatibility.md): target frameworks, runtimes, dependencies, FluentFTP versions.
@@ -112,7 +112,7 @@ The CRC-32 of a `.dbc` can only be checked once the last byte has been decompres
 - Character encoding: the code page comes from the header's language driver ID (LDID), and LDID 0x00 (no driver) is read as code page 1252. The only accented text found (CNES) reads correctly as code page 1252, including in a file whose LDID is 0x00; the 1252 fallback for LDID 0x00, and whether files marked 0x02 and 0x57 really hold text in those code pages, are still to be validated. `DbfReadOptions.Encoding` overrides the code page, and `DbfReader.EncodingSource` tells where the encoding of a reader came from: the option, the LDID, or the fallback.
 - The reader is forward-only. It is not thread-safe, and the asynchronous methods it inherits from `DbDataReader` complete synchronously. `DatasusClient` is thread-safe.
 - On .NET Framework and .NET 8, `GetFieldValue<T>` with a nullable type (e.g. `GetFieldValue<int?>`) allocates on every call: about 24 bytes on .NET Framework 4.8.1, and 24 bytes (32 for `decimal?`) on .NET 8. The non-nullable forms do not, and on .NET 9 and .NET 10 the nullable forms do not either (measured).
-- `DatasusCatalog` covers 33 file types, by state: the folder layout that DATASUS uses now and, for six of them, the one before it. It checks the shape of a request (a month or a year, a real state), never whether the file exists; other files are reached with the path as a string.
+- `DatasusCatalog` covers 40 file types, by state: the folder layout that DATASUS uses now and, for six of them, the one before it. It checks the shape of a request (a month or a year, a real state), never whether the file exists; other files are reached with the path as a string.
 - A listing from the server can be partial if the client's read of it fails while the server still answers `226`. `FindPartsAsync` reduces the risk for split tables but does not remove it; `ListAsync` returns the listing as received.
 - The handling of stalled reads was verified on .NET 10 and .NET Framework 4.8; .NET 8 and 9, Mono, Unity and Xamarin were not checked.
 

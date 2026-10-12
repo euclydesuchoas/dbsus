@@ -1,11 +1,15 @@
 #nullable enable
 DbSus.Client.DatasusCatalog
+DbSus.Client.DatasusCatalog.Cih
 DbSus.Client.DatasusCatalog.Ciha
 DbSus.Client.DatasusCatalog.Cnes
 DbSus.Client.DatasusCatalog.SiaSus
 DbSus.Client.DatasusCatalog.SihSus
 DbSus.Client.DatasusCatalog.Sim
 DbSus.Client.DatasusCatalog.Sinasc
+DbSus.Client.DatasusCatalog.SisColo
+DbSus.Client.DatasusCatalog.SisMama
+DbSus.Client.DatasusCatalog.SisPrenatal
 DbSus.Client.DatasusClient
 DbSus.Client.DatasusClient.ClearCacheAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
 DbSus.Client.DatasusClient.DatasusClient(DbSus.Client.DatasusClientOptions? options = null) -> void
@@ -139,6 +143,7 @@ override DbSus.Client.DatasusPeriod.Equals(object? obj) -> bool
 override DbSus.Client.DatasusPeriod.GetHashCode() -> int
 override DbSus.Client.DatasusPeriod.ToString() -> string!
 override DbSus.Client.DatasusTableInfo.ToString() -> string!
+static DbSus.Client.DatasusCatalog.Cih.CR.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Ciha.CIHA.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Cnes.DC.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Cnes.EE.get -> DbSus.Client.DatasusDataset!
@@ -174,6 +179,12 @@ static DbSus.Client.DatasusCatalog.SihSus.RJ.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SihSus.SP.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Sim.DO.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Sinasc.DN.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SisColo.CC.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SisColo.HC.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SisMama.CM.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SisMama.HM.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SisMama.MM.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SisPrenatal.PN.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.TryGet(string! source, string! code, out DbSus.Client.DatasusDataset? dataset) -> bool
 static DbSus.Client.DatasusPeriod.OfMonth(int year, int month) -> DbSus.Client.DatasusPeriod
 static DbSus.Client.DatasusPeriod.OfYear(int year) -> DbSus.Client.DatasusPeriod
