@@ -67,7 +67,7 @@ In the file names, `{CODE}` is the code of the file type, `{UF}` is the two-lett
 - **Official name** is the name under which DATASUS publishes the file type, in Portuguese and spelled as DATASUS spells it (`DatasusDataset.OfficialName`).
 - **From** is the first period the catalog accepts (`DatasusDataset.FirstPeriod`): the start of the folder layout in use now, not the first period with data. CNES-LT, for example, has files from 2005-10 only.
 
-One real file of each of the 26 file types was read with DbSus: decompressed, its CRC-32 checked, and every field of every record read. It was usually a small and old file, and some held a single record. From the `PRELIM` folders, two files were read in the same way in October 2026: SIM-DO and SINASC-DN of Roraima, both of 2026. That says nothing about other periods, or about other files of those folders.
+One real file of each of the 33 file types was read with DbSus: decompressed, its CRC-32 checked, and every field of every record read. It was usually a small and old file, and some held a single record. From the `PRELIM` folders, two files were read in the same way in October 2026: SIM-DO and SINASC-DN of Roraima, both of 2026. That says nothing about other periods, or about other files of those folders.
 
 ### SIASUS
 
@@ -83,6 +83,13 @@ Folder `/SIASUS/200801_/Dados`, file name `{CODE}{UF}{YY}{MM}.dbc`.
 | SIASUS | PS | Psicossocial | state | monthly | 2008-01 |
 | SIASUS | ATD | APAC Tratamento Dialítico | state | monthly | 2008-01 |
 | SIASUS | ACF | APAC Confeção de Fístula Arteriovenosa | state | monthly | 2008-01 |
+| SIASUS | AB | APAC de Acompanhamento a Cirurgia Bariátrica | state | monthly | 2008-01 |
+| SIASUS | ABO | APAC Acompanhamento Pós Cirurgia Bariátrica | state | monthly | 2008-01 |
+| SIASUS | AN | APAC de Nefrologia | state | monthly | 2008-01 |
+| SIASUS | SAD | Atenção Domiciliar | state | monthly | 2008-01 |
+| SIASUS | AMP | Laudo de Acompanhamento Multiprofissional | state | monthly | 2008-01 |
+
+The name of SIASUS-AMP comes from a document in the SIASUS folder of the server; the file transfer page of the DATASUS website does not list this file type.
 
 ### SIHSUS
 
@@ -113,6 +120,7 @@ One folder per file type, `/CNES/200508_/Dados/{CODE}`, file name `{CODE}{UF}{YY
 | CNES | GM | Gestão e Metas | state | monthly | 2005-08 |
 | CNES | IN | Incentivos | state | monthly | 2005-08 |
 | CNES | RC | Regra Contratual | state | monthly | 2005-08 |
+| CNES | EE | Estabelecimento de Ensino | state | monthly | 2005-08 |
 
 ### SIM
 
@@ -129,6 +137,14 @@ Folder `/SINASC/1996_/Dados/DNRES`, and `/SINASC/PRELIM/DNRES` for preliminary y
 | Source | Code | Official name | Coverage | Published | From |
 |---|---|---|---|---|---|
 | SINASC | DN | Declarações de nascidos vivos | state and country | yearly | 1996 |
+
+### CIHA
+
+Folder `/CIHA/201101_/Dados`, file name `CIHA{UF}{YY}{MM}.dbc`.
+
+| Source | Code | Official name | Coverage | Published | From |
+|---|---|---|---|---|---|
+| CIHA | CIHA | Comunicação de Internação Hospitalar e Ambulatorial | state | monthly | 2011-01 |
 
 ## What to know about these files
 

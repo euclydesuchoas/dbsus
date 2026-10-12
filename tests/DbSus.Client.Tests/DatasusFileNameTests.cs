@@ -18,6 +18,13 @@ public class DatasusFileNameTests
     [InlineData("SIASUS", "AQ", "AQPA1001.DBC", DatasusUf.PA, 2010, 1)]
     [InlineData("SIASUS", "ATD", "ATDMG1507.dbc", DatasusUf.MG, 2015, 7)]
     [InlineData("CNES", "IN", "INTO2608.dbc", DatasusUf.TO, 2026, 8)]
+    [InlineData("SIASUS", "AB", "ABAC2501.dbc", DatasusUf.AC, 2025, 1)]
+    [InlineData("SIASUS", "ABO", "ABOAC1502.dbc", DatasusUf.AC, 2015, 2)]
+    [InlineData("SIASUS", "AN", "ANTO1407.dbc", DatasusUf.TO, 2014, 7)]
+    [InlineData("SIASUS", "SAD", "SADRN1204.dbc", DatasusUf.RN, 2012, 4)]
+    [InlineData("SIASUS", "AMP", "AMPMG2306.dbc", DatasusUf.MG, 2023, 6)]
+    [InlineData("CNES", "EE", "EEMT1111.dbc", DatasusUf.MT, 2011, 11)]
+    [InlineData("CIHA", "CIHA", "CIHAAM2603.dbc", DatasusUf.AM, 2026, 3)]
     public void TryParseFileName_MonthlyName_ReadsStateAndMonth(string source, string code, string fileName, DatasusUf uf, int year, int month)
     {
         var era = DatasusCatalog.Get(source, code).CurrentEra;
@@ -66,6 +73,10 @@ public class DatasusFileNameTests
     [Theory]
     [InlineData("SIASUS", "AM", "AMPMG2306.dbc")]      // SIA-AMP, another file type: "PM" is not a state
     [InlineData("SIASUS", "AM", "AMPPA2306.dbc")]      // made up: AMP of Pará must not read as AM
+    [InlineData("SIASUS", "AB", "ABOAC1502.dbc")]      // SIA-ABO, another file type: "OA" is not a state
+    [InlineData("SIASUS", "ABO", "ABAC2501.dbc")]      // SIA-AB is not SIA-ABO
+    [InlineData("SIASUS", "AMP", "AMPA2407.dbc")]      // SIA-AM of Pará is not SIA-AMP
+    [InlineData("CIHA", "CIHA", "CIHABR1101.dbc")]     // made up: the whole country is not a state
     [InlineData("SIASUS", "AD", "ADMG1507.txt")]
     [InlineData("SIASUS", "PA", "PAMG2407_1.dbc")]     // the suffix of SIA-BI is not a part letter
     [InlineData("SIASUS", "PA", "PAMG2407ab.dbc")]
@@ -120,6 +131,7 @@ public class DatasusFileNameTests
         Assert.Equal("PA{UF}{YY}{MM}.dbc", DatasusCatalog.SiaSus.PA.CurrentEra.FileNamePattern);
         Assert.Equal("ATD{UF}{YY}{MM}.dbc", DatasusCatalog.SiaSus.ATD.CurrentEra.FileNamePattern);
         Assert.Equal("DO{UF}{YYYY}.dbc", DatasusCatalog.Sim.DO.CurrentEra.FileNamePattern);
+        Assert.Equal("CIHA{UF}{YY}{MM}.dbc", DatasusCatalog.Ciha.CIHA.CurrentEra.FileNamePattern);
     }
 
     [Fact]

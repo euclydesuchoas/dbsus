@@ -47,7 +47,7 @@ Confirmed on every file examined:
 
 ### DBF dialect seen across sources
 
-Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggregate (no individual values recorded). Here "examined" means their headers, and counts over their data, such as which field types and which bytes occur. It does not mean "read", which in these notes is reading a file record by record with the DbSus reader: that was done later, for one file of each of the 26 file types of the catalog (`docs/datasus-paths.md`), and found only `C` and `N` fields.
+Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggregate (no individual values recorded). Here "examined" means their headers, and counts over their data, such as which field types and which bytes occur. It does not mean "read", which in these notes is reading a file record by record with the DbSus reader: that was done later, for one file of each of the 33 file types of the catalog (`docs/datasus-paths.md`), and found only `C` and `N` fields.
 
 - **Header:** field descriptors end at 0x0D, at an empty name, or where the header length runs out (the CNES file above has no terminator at all). Spare bytes after the last field are tolerated; in every file examined the fields fill the record exactly.
 - **Field types:** `C` everywhere, `N` in most sources, `D` only in SINAN; no `F`, `L` or `M`.
@@ -120,7 +120,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 
 ### Client
 
-- **Paths** are strings relative to a configurable root (`/dissemin/publicos`). URLs, `..`, `.`, empty segments, `\`, control characters and names invalid on Windows or Linux are rejected. For 26 file types the catalog builds them from a dataset, a state and a period (see Catalog, below).
+- **Paths** are strings relative to a configurable root (`/dissemin/publicos`). URLs, `..`, `.`, empty segments, `\`, control characters and names invalid on Windows or Linux are rejected. For 33 file types the catalog builds them from a dataset, a state and a period (see Catalog, below).
 - **FTP:** FluentFTP behind an internal interface; explicit `EncryptionMode = None`, raw `SIZE`/`MDTM`, `LIST` forced.
 - **Concurrency:** the client is thread-safe; a pool lends at most `MaxConnections` connections (default 2, maximum 4).
 - **Retries:** transient failures only (socket errors, timeouts, FTP 4xx, truncated transfers), exponential backoff with jitter capped at 30 s; `550` to a request for a file is `FileNotFoundException`. A listing refused with a permanent reply (5xx, `550` included) is `DatasusRequestRefusedException`, never retried and never a missing file: FTP uses `550` both for a folder that does not exist and for one that may not be read. FluentFTP 55 takes a `550` to `LIST` for an empty folder and returns no entries, so the client reads the reply itself (reproduced against a loopback server, October 2026).
@@ -133,7 +133,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 
 ### Catalog
 
-- **Scope:** 26 file types of SIASUS, SIHSUS, CNES, SIM and SINASC, by state. A file type is in the catalog when the server's listings (October 2026) showed one regular folder and name pattern for it. The catalog follows the server, not the DATASUS website: the two disagree on when some file types start (`docs/datasus-paths.md` has the table).
+- **Scope:** 33 file types of SIASUS, SIHSUS, CNES, SIM, SINASC and CIHA, by state. A file type is in the catalog when the server's listings (October 2026) showed one regular folder and name pattern for it. The catalog follows the server, not the DATASUS website: the two disagree on when some file types start (`docs/datasus-paths.md` has the table).
 - **Shape, never availability.** A dataset checks that a period is a month for a monthly file type and a year for a yearly one, and that the state is one. It never checks whether the file exists: DATASUS publishes late, leaves gaps and does not have every state in every period, and constants about that would go out of date.
 - **Eras.** A dataset is a list of eras: a range of periods with one folder and one name pattern, because DATASUS changed folders, prefixes and the digits of the year over time. This version holds only the era in use now; a period before it is an `ArgumentOutOfRangeException` that says to use the path as a string. Older eras can be added later without changing the API, and the eras themselves are not public.
 - **Final and preliminary data.** Which years SIM and SINASC still publish as preliminary changes, so nothing about it is constant in the code: a dataset gives the candidate paths in order, final first, and the client asks the server. `OpenReaderAsync(dataset, uf, period)` opens final data only, so that preliminary data is never read by accident; preliminary data is opened from a `DatasusTableInfo`, where `IsPreliminary` is in plain sight.
@@ -143,7 +143,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 - **`DatasusUf`** members are named by the abbreviation that file names carry, and their values are the IBGE codes of the states. There is no zero member: `default(DatasusUf)` is rejected rather than named.
 - **`DatasusPeriod`** is a month or a year. A year is never equal to a month, and a year sorts before its own months.
 - **`OfficialName` is in Portuguese,** a deliberate exception to the rule that everything in the code is in English: it is the name under which DATASUS publishes the file type, a proper name, kept as DATASUS spells it (including `Confeção`).
-- **Files read.** By October 2026 one real file of each of the 26 file types, with at least one record, was read with DbSus: decompressed, its CRC-32 checked, and every field of every record read. It was usually a small and old file, and some held a single record. From the folders of preliminary data, two files were read in the same way in October 2026, found and opened through the catalog on the server: SIM-DO and SINASC-DN of Roraima, both of 2026. That says nothing about other periods or other files. The paths guide says it in one paragraph, with no column per file type.
+- **Files read.** By October 2026 one real file of each of the 33 file types, with at least one record, was read with DbSus: decompressed, its CRC-32 checked, and every field of every record read. It was usually a small and old file, and some held a single record. From the folders of preliminary data, two files were read in the same way in October 2026, found and opened through the catalog on the server: SIM-DO and SINASC-DN of Roraima, both of 2026. That says nothing about other periods or other files. The paths guide says it in one paragraph, with no column per file type.
 
 ## Performance
 

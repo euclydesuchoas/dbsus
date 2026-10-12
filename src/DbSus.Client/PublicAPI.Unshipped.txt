@@ -1,5 +1,6 @@
 #nullable enable
 DbSus.Client.DatasusCatalog
+DbSus.Client.DatasusCatalog.Ciha
 DbSus.Client.DatasusCatalog.Cnes
 DbSus.Client.DatasusCatalog.SiaSus
 DbSus.Client.DatasusCatalog.SihSus
@@ -138,7 +139,9 @@ override DbSus.Client.DatasusPeriod.Equals(object? obj) -> bool
 override DbSus.Client.DatasusPeriod.GetHashCode() -> int
 override DbSus.Client.DatasusPeriod.ToString() -> string!
 override DbSus.Client.DatasusTableInfo.ToString() -> string!
+static DbSus.Client.DatasusCatalog.Ciha.CIHA.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Cnes.DC.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Cnes.EE.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Cnes.EF.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Cnes.EP.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Cnes.EQ.get -> DbSus.Client.DatasusDataset!
@@ -152,14 +155,19 @@ static DbSus.Client.DatasusCatalog.Cnes.SR.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Cnes.ST.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Datasets.get -> System.Collections.Generic.IReadOnlyList<DbSus.Client.DatasusDataset!>!
 static DbSus.Client.DatasusCatalog.Get(string! source, string! code) -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SiaSus.AB.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SiaSus.ABO.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.ACF.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.AD.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.AM.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SiaSus.AMP.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SiaSus.AN.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.AQ.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.AR.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.ATD.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.PA.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.PS.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SiaSus.SAD.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SihSus.ER.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SihSus.RD.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SihSus.RJ.get -> DbSus.Client.DatasusDataset!

@@ -3,14 +3,14 @@ using System.Diagnostics.CodeAnalysis;
 namespace DbSus.Client;
 
 /// <summary>
-/// A partial catalog of the file types DATASUS lists: 26 of SIASUS, SIHSUS, CNES, SIM and SINASC,
-/// by state, each as a <see cref="DatasusDataset"/>. Use a property, e.g.
+/// A partial catalog of the file types DATASUS lists: 33 of SIASUS, SIHSUS, CNES, SIM, SINASC and
+/// CIHA, by state, each as a <see cref="DatasusDataset"/>. Use a property, e.g.
 /// <c>DatasusCatalog.SihSus.RD</c>, or look one up by text with <see cref="Get"/>.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Most of the file types DATASUS lists are not here: those of other sources (SINAN, for one) and
-/// other file types of these five sources. Nor are the files for the whole country, those of SIM
+/// other file types of these six sources. Nor are the files for the whole country, those of SIM
 /// and SINASC included, or the periods in older folder layouts. A file type that is missing here
 /// may still be on the server.
 /// </para>
@@ -26,10 +26,12 @@ public static class DatasusCatalog
     public static IReadOnlyList<DatasusDataset> Datasets { get; } =
     [
         SiaSus.PA, SiaSus.AD, SiaSus.AM, SiaSus.AQ, SiaSus.AR, SiaSus.PS, SiaSus.ATD, SiaSus.ACF,
+        SiaSus.AB, SiaSus.ABO, SiaSus.AN, SiaSus.SAD, SiaSus.AMP,
         SihSus.RD, SihSus.SP, SihSus.RJ, SihSus.ER,
-        Cnes.LT, Cnes.EQ, Cnes.ST, Cnes.PF, Cnes.SR, Cnes.HB, Cnes.DC, Cnes.EP, Cnes.EF, Cnes.GM, Cnes.IN, Cnes.RC,
+        Cnes.LT, Cnes.EQ, Cnes.ST, Cnes.PF, Cnes.SR, Cnes.HB, Cnes.DC, Cnes.EP, Cnes.EF, Cnes.GM, Cnes.IN, Cnes.RC, Cnes.EE,
         Sim.DO,
         Sinasc.DN,
+        Ciha.CIHA,
     ];
 
     // Declared after Datasets: static fields are initialized in the order they are written.
@@ -109,6 +111,21 @@ public static class DatasusCatalog
 
         /// <summary>Gets SIASUS-ACF, <i>APAC Confeção de Fístula Arteriovenosa</i> (spelled as DATASUS spells it).</summary>
         public static DatasusDataset ACF { get; } = DatasusDataset.Monthly("SIASUS", "ACF", "APAC Confeção de Fístula Arteriovenosa", Directory, 2008, 1);
+
+        /// <summary>Gets SIASUS-AB, <i>APAC de Acompanhamento a Cirurgia Bariátrica</i>.</summary>
+        public static DatasusDataset AB { get; } = DatasusDataset.Monthly("SIASUS", "AB", "APAC de Acompanhamento a Cirurgia Bariátrica", Directory, 2008, 1);
+
+        /// <summary>Gets SIASUS-ABO, <i>APAC Acompanhamento Pós Cirurgia Bariátrica</i>.</summary>
+        public static DatasusDataset ABO { get; } = DatasusDataset.Monthly("SIASUS", "ABO", "APAC Acompanhamento Pós Cirurgia Bariátrica", Directory, 2008, 1);
+
+        /// <summary>Gets SIASUS-AN, <i>APAC de Nefrologia</i>.</summary>
+        public static DatasusDataset AN { get; } = DatasusDataset.Monthly("SIASUS", "AN", "APAC de Nefrologia", Directory, 2008, 1);
+
+        /// <summary>Gets SIASUS-SAD, <i>Atenção Domiciliar</i>.</summary>
+        public static DatasusDataset SAD { get; } = DatasusDataset.Monthly("SIASUS", "SAD", "Atenção Domiciliar", Directory, 2008, 1);
+
+        /// <summary>Gets SIASUS-AMP, <i>Laudo de Acompanhamento Multiprofissional</i>.</summary>
+        public static DatasusDataset AMP { get; } = DatasusDataset.Monthly("SIASUS", "AMP", "Laudo de Acompanhamento Multiprofissional", Directory, 2008, 1);
     }
 
     /// <summary>SIHSUS, the hospital information system (<i>Sistema de Informações Hospitalares do SUS</i>). Monthly files, one per state.</summary>
@@ -168,6 +185,9 @@ public static class DatasusCatalog
         /// <summary>Gets CNES-RC, <i>Regra Contratual</i>.</summary>
         public static DatasusDataset RC { get; } = Dataset("RC", "Regra Contratual");
 
+        /// <summary>Gets CNES-EE, <i>Estabelecimento de Ensino</i>.</summary>
+        public static DatasusDataset EE { get; } = Dataset("EE", "Estabelecimento de Ensino");
+
         private static DatasusDataset Dataset(string code, string officialName) =>
             DatasusDataset.Monthly("CNES", code, officialName, "/CNES/200508_/Dados/" + code, 2005, 8);
     }
@@ -192,5 +212,13 @@ public static class DatasusCatalog
         /// </summary>
         public static DatasusDataset DN { get; } = DatasusDataset.Yearly(
             "SINASC", "DN", "Declarações de nascidos vivos", DatasusCoverage.Uf | DatasusCoverage.National, "/SINASC/1996_/Dados/DNRES", "/SINASC/PRELIM/DNRES", 1996);
+    }
+
+    /// <summary>CIHA (<i>Comunicação de Internação Hospitalar e Ambulatorial</i>). Monthly files, one per state.</summary>
+    public static class Ciha
+    {
+        /// <summary>Gets CIHA-CIHA, <i>Comunicação de Internação Hospitalar e Ambulatorial</i>, from 2011-01 on.</summary>
+        public static DatasusDataset CIHA { get; } = DatasusDataset.Monthly(
+            "CIHA", "CIHA", "Comunicação de Internação Hospitalar e Ambulatorial", "/CIHA/201101_/Dados", 2011, 1);
     }
 }

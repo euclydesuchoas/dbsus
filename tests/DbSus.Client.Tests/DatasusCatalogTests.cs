@@ -21,6 +21,11 @@ public class DatasusCatalogTests
     [InlineData("SIASUS", "PS", "Psicossocial", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "PS{UF}{YY}{MM}.dbc")]
     [InlineData("SIASUS", "ATD", "APAC Tratamento Dialítico", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "ATD{UF}{YY}{MM}.dbc")]
     [InlineData("SIASUS", "ACF", "APAC Confeção de Fístula Arteriovenosa", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "ACF{UF}{YY}{MM}.dbc")]
+    [InlineData("SIASUS", "AB", "APAC de Acompanhamento a Cirurgia Bariátrica", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "AB{UF}{YY}{MM}.dbc")]
+    [InlineData("SIASUS", "ABO", "APAC Acompanhamento Pós Cirurgia Bariátrica", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "ABO{UF}{YY}{MM}.dbc")]
+    [InlineData("SIASUS", "AN", "APAC de Nefrologia", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "AN{UF}{YY}{MM}.dbc")]
+    [InlineData("SIASUS", "SAD", "Atenção Domiciliar", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "SAD{UF}{YY}{MM}.dbc")]
+    [InlineData("SIASUS", "AMP", "Laudo de Acompanhamento Multiprofissional", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "AMP{UF}{YY}{MM}.dbc")]
     [InlineData("SIHSUS", "RD", "AIH Reduzida", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIHSUS/200801_/Dados", null, "RD{UF}{YY}{MM}.dbc")]
     [InlineData("SIHSUS", "SP", "Serviços Profissionais", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIHSUS/200801_/Dados", null, "SP{UF}{YY}{MM}.dbc")]
     [InlineData("SIHSUS", "RJ", "AIH Rejeitadas", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIHSUS/200801_/Dados", null, "RJ{UF}{YY}{MM}.dbc")]
@@ -37,8 +42,10 @@ public class DatasusCatalogTests
     [InlineData("CNES", "GM", "Gestão e Metas", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2005-08", "/CNES/200508_/Dados/GM", null, "GM{UF}{YY}{MM}.dbc")]
     [InlineData("CNES", "IN", "Incentivos", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2005-08", "/CNES/200508_/Dados/IN", null, "IN{UF}{YY}{MM}.dbc")]
     [InlineData("CNES", "RC", "Regra Contratual", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2005-08", "/CNES/200508_/Dados/RC", null, "RC{UF}{YY}{MM}.dbc")]
+    [InlineData("CNES", "EE", "Estabelecimento de Ensino", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2005-08", "/CNES/200508_/Dados/EE", null, "EE{UF}{YY}{MM}.dbc")]
     [InlineData("SIM", "DO", "Declarações de Óbito", UfAndNational, DatasusPeriodicity.Yearly, "1996", "/SIM/CID10/DORES", "/SIM/PRELIM/DORES", "DO{UF}{YYYY}.dbc")]
     [InlineData("SINASC", "DN", "Declarações de nascidos vivos", UfAndNational, DatasusPeriodicity.Yearly, "1996", "/SINASC/1996_/Dados/DNRES", "/SINASC/PRELIM/DNRES", "DN{UF}{YYYY}.dbc")]
+    [InlineData("CIHA", "CIHA", "Comunicação de Internação Hospitalar e Ambulatorial", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2011-01", "/CIHA/201101_/Dados", null, "CIHA{UF}{YY}{MM}.dbc")]
     public void Dataset_IsAsTheCatalogTableSays(
         string source, string code, string officialName, DatasusCoverage coverage, DatasusPeriodicity periodicity, string firstPeriod, string directory, string? preliminaryDirectory, string fileNamePattern)
     {
@@ -64,15 +71,15 @@ public class DatasusCatalogTests
     }
 
     [Fact]
-    public void Datasets_Are26_EachOnce_GroupedBySource()
+    public void Datasets_Are33_EachOnce_GroupedBySource()
     {
         var datasets = DatasusCatalog.Datasets;
 
-        Assert.Equal(26, datasets.Count);
-        Assert.Equal(26, datasets.Select(dataset => dataset.ToString()).Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        Assert.Equal(["SIASUS", "SIHSUS", "CNES", "SIM", "SINASC"], datasets.Select(dataset => dataset.Source).Distinct());
+        Assert.Equal(33, datasets.Count);
+        Assert.Equal(33, datasets.Select(dataset => dataset.ToString()).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(["SIASUS", "SIHSUS", "CNES", "SIM", "SINASC", "CIHA"], datasets.Select(dataset => dataset.Source).Distinct());
         Assert.Equal(
-            [8, 4, 12, 1, 1],
+            [13, 4, 13, 1, 1, 1],
             datasets.GroupBy(dataset => dataset.Source).Select(group => group.Count()));
         Assert.All(datasets, dataset => Assert.True(dataset.Coverage.HasFlag(DatasusCoverage.Uf), dataset.ToString()));
         Assert.All(datasets, dataset => Assert.False(string.IsNullOrWhiteSpace(dataset.OfficialName), dataset.ToString()));
@@ -84,8 +91,8 @@ public class DatasusCatalogTests
         var groups = typeof(DatasusCatalog).GetNestedTypes(BindingFlags.Public);
         var properties = groups.SelectMany(group => group.GetProperties(BindingFlags.Public | BindingFlags.Static).Select(property => (Group: group, Property: property))).ToList();
 
-        Assert.Equal(["Cnes", "SiaSus", "SihSus", "Sim", "Sinasc"], groups.Select(group => group.Name).OrderBy(name => name, StringComparer.Ordinal));
-        Assert.Equal(26, properties.Count);
+        Assert.Equal(["Ciha", "Cnes", "SiaSus", "SihSus", "Sim", "Sinasc"], groups.Select(group => group.Name).OrderBy(name => name, StringComparer.Ordinal));
+        Assert.Equal(33, properties.Count);
         foreach (var (group, property) in properties)
         {
             var dataset = Assert.IsType<DatasusDataset>(property.GetValue(null));
@@ -109,7 +116,7 @@ public class DatasusCatalogTests
     public void TextsThatCountTheFileTypes_GiveTheNumberOfDatasets(string file)
     {
         var text = File.ReadAllText(Path.Combine(RepositoryPaths.Root, file.Replace('/', Path.DirectorySeparatorChar)));
-        var counts = Regex.Matches(text, @"\b(\d+) (?:file types\b|of SIASUS\b)")
+        var counts = Regex.Matches(text, @"\b(\d+) (?:DATASUS )?(?:file types\b|of SIASUS\b)")
             .Cast<Match>()
             .Select(match => int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture))
             .ToList();
@@ -171,7 +178,7 @@ public class DatasusCatalogTests
     [InlineData("SIHSUS", "XX")]
     [InlineData("SIA", "PA")]              // the source is SIASUS
     [InlineData("SIASUS", "BI")]           // on the server, but not in the catalog
-    [InlineData("SIASUS", "AMP")]
+    [InlineData("CIH", "CR")]              // on the server, but not in the catalog
     [InlineData("SINAN", "DENG")]          // files for the whole country only
     [InlineData("SIHSUS-RD", "")]
     [InlineData("", "SIHSUS-RD")]
@@ -184,11 +191,11 @@ public class DatasusCatalogTests
         var exception = Assert.Throws<ArgumentException>(() => DatasusCatalog.Get(source, code));
 
         Assert.Contains($"no dataset '{source}-{code}'", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("SIASUS: PA, AD, AM, AQ, AR, PS, ATD, ACF", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("SIASUS: PA, AD, AM, AQ, AR, PS, ATD, ACF, AB, ABO, AN, SAD, AMP;", exception.Message, StringComparison.Ordinal);
         Assert.Contains("SIHSUS: RD, SP, RJ, ER", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("CNES: LT, EQ, ST, PF, SR, HB, DC, EP, EF, GM, IN, RC", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("CNES: LT, EQ, ST, PF, SR, HB, DC, EP, EF, GM, IN, RC, EE;", exception.Message, StringComparison.Ordinal);
         Assert.Contains("SIM: DO", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("SINASC: DN", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("SINASC: DN; CIHA: CIHA.", exception.Message, StringComparison.Ordinal);
         Assert.Contains("path as a string", exception.Message, StringComparison.Ordinal);
 
         // The catalog is partial, and the message says so without claiming that the file exists.

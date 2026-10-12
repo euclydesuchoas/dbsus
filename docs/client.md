@@ -35,7 +35,7 @@ using var reader = await client.OpenReaderAsync("/SIASUS/200801_/Dados/PAMG2407.
 
 ## By dataset, state and period
 
-For 26 file types, `DatasusCatalog` builds the path, and the client finds, lists and opens the table, from a dataset, a state and a period:
+For 33 file types, `DatasusCatalog` builds the path, and the client finds, lists and opens the table, from a dataset, a state and a period:
 
 ```csharp
 using System;
