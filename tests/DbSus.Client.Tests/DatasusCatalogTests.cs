@@ -192,7 +192,7 @@ public class DatasusCatalogTests
     [InlineData("SIHSUS", "XX")]
     [InlineData("SIA", "PA")]              // the source is SIASUS
     [InlineData("SIASUS", "BI")]           // on the server, but not in the catalog
-    [InlineData("SIHSUS", "CH")]           // on the server, but not in the catalog
+    [InlineData("SISMAMA", "QQ")]          // a made-up code, which no source uses
     [InlineData("SISCOLO", "CM")]          // a code of another source
     [InlineData("SINAN", "DENG")]          // files for the whole country only
     [InlineData("SIHSUS-RD", "")]
