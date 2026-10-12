@@ -89,7 +89,15 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
         return Guard<IReadOnlyList<RemoteEntry>>(step, ConnectCount, async () =>
         {
             // ForceList: the server has no MLSD; its LIST output (DOS format) is parsed by FluentFTP.
-            var items = await session.GetListingAsync(directory, FtpListOption.ForceList, cancellationToken).ConfigureAwait(false);
+            FtpListItem[] items;
+            try
+            {
+                items = await session.GetListingAsync(directory, FtpListOption.ForceList, cancellationToken).ConfigureAwait(false);
+            }
+            catch (FtpCommandException exception) when (exception.CompletionCode is { Length: 3 } code && code[0] == '5')
+            {
+                throw ListingRefused(step, code, exception.Message, exception);
+            }
 
             // FluentFTP 55 returns what it has read, as a success, when the data connection fails
             // while the control connection stays open, and when the final reply does not arrive in
@@ -97,6 +105,14 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
             var last = session.LastReply;
             if (last.Type != FtpResponseType.PositiveCompletion || !last.Command.StartsWith("LIST", StringComparison.Ordinal))
             {
+                // FluentFTP 55 also takes a 550 to LIST for an empty folder and returns no entries.
+                // A permanent reply (5xx) to LIST is the server refusing the listing: asking again
+                // would get the same answer.
+                if (last.Type == FtpResponseType.PermanentNegativeCompletion && last.Command.StartsWith("LIST", StringComparison.Ordinal))
+                {
+                    throw ListingRefused(step, last.Code, last.Message, null);
+                }
+
                 throw new TransientTransportException(
                     $"FTP transport failure while {step.Description}: the server did not confirm the end of the listing (last reply: '{last.Code} {last.Message}'), so it is not used.");
             }
@@ -242,6 +258,19 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
                 throw new OperationCanceledException($"Canceled while {step.Description}; the connection was closed.", exception, cancellationToken);
             }
         }
+    }
+
+    // A refused listing is never a missing file: FTP uses the same 550 for a folder that does not
+    // exist and for one that may not be read, and the text of the reply is not interpreted.
+    private static DatasusRequestRefusedException ListingRefused(FtpStep step, string code, string reply, Exception? inner)
+    {
+        // FluentFTP's exception repeats the code before the text of the reply.
+        var libraryPrefix = $"Code: {code} Message: ";
+        var text = reply.StartsWith(libraryPrefix, StringComparison.Ordinal) ? reply.Substring(libraryPrefix.Length) : reply;
+        return new DatasusRequestRefusedException(
+            $"FTP reply while {step.Description}: the server refused the listing ('{code} {text.Trim()}'). FTP uses 550 both for a folder that does not exist and for one that may not be read.",
+            code,
+            inner);
     }
 
     private static Exception Classify(string? code, string message, Exception? inner)

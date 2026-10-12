@@ -49,6 +49,11 @@ public sealed partial class DatasusClient
     /// A period is not set or is not of the dataset's periodicity, or <paramref name="from"/> is
     /// after <paramref name="to"/>.
     /// </exception>
+    /// <exception cref="DatasusRequestRefusedException">
+    /// The server refused the listing of a folder of the dataset, the folder of preliminary data
+    /// included, with a permanent reply (FTP 5xx, 550 included: the folder does not exist or may not
+    /// be read). It is not retried, and no partial result is returned.
+    /// </exception>
     public async Task<IReadOnlyList<DatasusTableInfo>> ListTablesAsync(DatasusDataset dataset, DatasusPeriod from, DatasusPeriod to, DatasusUf? uf = null, CancellationToken cancellationToken = default)
     {
         Guard.NotDisposed(_disposed, this);
@@ -148,6 +153,11 @@ public sealed partial class DatasusClient
     /// <see cref="DatasusDataset.FirstPeriod"/> (use the path as a string for older periods).
     /// </exception>
     /// <exception cref="ArgumentException"><paramref name="period"/> is not set or is not of the dataset's periodicity.</exception>
+    /// <exception cref="DatasusRequestRefusedException">
+    /// The server refused the listing of a folder where the table was looked for, with a permanent
+    /// reply (FTP 5xx, 550 included: the folder does not exist or may not be read). It is not
+    /// retried, and it is not reported as a table that does not exist.
+    /// </exception>
     /// <exception cref="IOException">Ambiguous names on the server.</exception>
     public async Task<DatasusTableInfo> FindTableAsync(DatasusDataset dataset, DatasusUf uf, DatasusPeriod period, CancellationToken cancellationToken = default)
     {
@@ -197,6 +207,11 @@ public sealed partial class DatasusClient
     /// <see cref="DatasusDataset.FirstPeriod"/> (use the path as a string for older periods).
     /// </exception>
     /// <exception cref="ArgumentException"><paramref name="period"/> is not set or is not of the dataset's periodicity.</exception>
+    /// <exception cref="DatasusRequestRefusedException">
+    /// The server refused the listing of a folder where the table was looked for, with a permanent
+    /// reply (FTP 5xx, 550 included: the folder does not exist or may not be read). It is not
+    /// retried, and it is not reported as a table that does not exist.
+    /// </exception>
     public async Task<DbfReader> OpenReaderAsync(DatasusDataset dataset, DatasusUf uf, DatasusPeriod period, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null, CancellationToken cancellationToken = default)
     {
         Guard.NotDisposed(_disposed, this);

@@ -6,8 +6,8 @@ namespace DbSus.Client;
 /// A transfer with the DATASUS server failed. The subclasses tell why: retries were exhausted
 /// (<see cref="DatasusRetriesExhaustedException"/>) or the server refused the request
 /// (<see cref="DatasusRequestRefusedException"/>). A missing file is a
-/// <see cref="FileNotFoundException"/> instead (FTP 550), never one of these. Only the subclasses are
-/// thrown; catch this type to handle both.
+/// <see cref="FileNotFoundException"/> instead (FTP 550 to a request for a file), never one of these.
+/// Only the subclasses are thrown; catch this type to handle both.
 /// </summary>
 [SuppressMessage("Design", "CA1032", Justification = "Created only by the client with the transfer details; constructors without them would make no sense.")]
 public abstract class DatasusTransferException : IOException
@@ -52,8 +52,12 @@ public sealed class DatasusRetriesExhaustedException : DatasusTransferException
 }
 
 /// <summary>
-/// The server refused the request with a permanent FTP reply other than 550 (for example
-/// <c>530</c>, not logged in). It is not retried.
+/// The server refused the request with a permanent FTP reply (5xx), for example <c>530</c>, not
+/// logged in. It is not retried. For a file, 550 is not one of these: it means that the file does
+/// not exist, and is a <see cref="FileNotFoundException"/>. For a listing, 550 is one of these: FTP
+/// uses it both for a folder that does not exist and for one that may not be read, so a refused
+/// listing is never reported as a missing file; <see cref="DatasusTransferException.FtpReplyCode"/>
+/// has the code and the message has the reply.
 /// </summary>
 [SuppressMessage("Design", "CA1032", Justification = "Created only by the client with the transfer details.")]
 public sealed class DatasusRequestRefusedException : DatasusTransferException

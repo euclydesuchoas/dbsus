@@ -72,6 +72,11 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     /// <param name="directory">Directory relative to the root, e.g. <c>/SIHSUS/200801_/Dados</c>; empty or <c>/</c> for the root.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The entries; their <see cref="DatasusFileInfo.LastModifiedUtc"/> is <see langword="null"/> (listing times are imprecise).</returns>
+    /// <exception cref="DatasusRequestRefusedException">
+    /// The server refused the listing of the directory with a permanent reply (FTP 5xx, 550 included: the
+    /// folder does not exist or may not be read). It is not retried.
+    /// </exception>
+    /// <exception cref="DatasusRetriesExhaustedException">Transient failures persisted after every retry.</exception>
     public async Task<IReadOnlyList<DatasusFileInfo>> ListAsync(string directory, CancellationToken cancellationToken = default)
     {
         Guard.NotDisposed(_disposed, this);
@@ -111,6 +116,10 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     /// exact size and modification time in UTC.
     /// </returns>
     /// <exception cref="FileNotFoundException">No such file, or a part before the last one is missing.</exception>
+    /// <exception cref="DatasusRequestRefusedException">
+    /// The server refused the listing of the file's folder with a permanent reply (FTP 5xx, 550 included: the
+    /// folder does not exist or may not be read). It is not retried.
+    /// </exception>
     /// <exception cref="IOException">Ambiguous names on the server.</exception>
     public async Task<IReadOnlyList<DatasusFileInfo>> FindPartsAsync(string path, CancellationToken cancellationToken = default)
     {
@@ -277,6 +286,11 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     /// header has been checked. Each part's checksum is verified when that part has been read to
     /// its end.
     /// </returns>
+    /// <exception cref="FileNotFoundException">No such file, or a part before the last one is missing.</exception>
+    /// <exception cref="DatasusRequestRefusedException">
+    /// The server refused the listing of the file's folder with a permanent reply (FTP 5xx, 550 included: the
+    /// folder does not exist or may not be read). It is not retried.
+    /// </exception>
     public async Task<DbfReader> OpenReaderAsync(string path, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null, CancellationToken cancellationToken = default)
     {
         Guard.NotDisposed(_disposed, this);
