@@ -73,6 +73,12 @@ DbSus.Dbf.DbfReadOptions.FallbackEncoding.get -> System.Text.Encoding?
 DbSus.Dbf.DbfReadOptions.FallbackEncoding.set -> void
 DbSus.Dbf.DbfReadOptions.IncludeDeletedRecords.get -> bool
 DbSus.Dbf.DbfReadOptions.IncludeDeletedRecords.set -> void
+DbSus.Dbf.DbfReadOptions.UnconvertibleValues.get -> DbSus.Dbf.DbfUnconvertibleValueHandling
+DbSus.Dbf.DbfReadOptions.UnconvertibleValues.set -> void
+DbSus.Dbf.DbfUnconvertibleValueHandling
+DbSus.Dbf.DbfUnconvertibleValueHandling.AsterisksAsNull = 1 -> DbSus.Dbf.DbfUnconvertibleValueHandling
+DbSus.Dbf.DbfUnconvertibleValueHandling.Null = 2 -> DbSus.Dbf.DbfUnconvertibleValueHandling
+DbSus.Dbf.DbfUnconvertibleValueHandling.Throw = 0 -> DbSus.Dbf.DbfUnconvertibleValueHandling
 DbSus.DbSusFile
 override DbSus.Dbf.DbfField.ToString() -> string!
 override DbSus.Dbf.DbfFieldConversion.ToString() -> string!

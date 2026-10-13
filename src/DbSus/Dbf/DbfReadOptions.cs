@@ -58,6 +58,32 @@ public sealed class DbfReadOptions
     public bool BlankStringsAsNull { get; set; }
 
     /// <summary>
+    /// Gets or sets what the reader does with the content of a numeric (<c>N</c> or <c>F</c>) or
+    /// date (<c>D</c>) field that is not a number or a date. The default is
+    /// <see cref="DbfUnconvertibleValueHandling.Throw"/>: <see cref="FormatException"/>. A value
+    /// outside the enumeration is rejected when the reader opens
+    /// (<see cref="ArgumentOutOfRangeException"/>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// With <see cref="DbfUnconvertibleValueHandling.AsterisksAsNull"/>, a field filled with
+    /// asterisks is read as null and any other content that does not convert still throws; with
+    /// <see cref="DbfUnconvertibleValueHandling.Null"/>, any content that does not convert is read
+    /// as null. Read as null means what a blank field means: <see cref="DbfReader.IsDBNull(int)"/>
+    /// returns <see langword="true"/>, <see cref="DbfReader.GetValue(int)"/> and
+    /// <see cref="DbfReader.GetValues(object[])"/> give <see cref="DBNull"/>,
+    /// <see cref="DbfReader.GetFieldValue{T}(int)"/> of a nullable type gives
+    /// <see langword="null"/>, and the typed getters throw <see cref="InvalidCastException"/>.
+    /// <see cref="DbfReader.GetRawBytes(int)"/> returns the bytes of the field in every mode.
+    /// </para>
+    /// <para>
+    /// It does not apply to logical (<c>L</c>) fields, nor to the character fields of
+    /// <see cref="Conversions"/>: those throw <see cref="FormatException"/> in every mode.
+    /// </para>
+    /// </remarks>
+    public DbfUnconvertibleValueHandling UnconvertibleValues { get; set; }
+
+    /// <summary>
     /// Gets the opt-in conversions of character (<c>C</c>) fields into typed values, keyed by field
     /// name (case-insensitive). Example: <c>Conversions["DTOBITO"] = DbfFieldConversion.Date("ddMMyyyy")</c>.
     /// Each name must be a <c>C</c> field of the file, or opening fails with <see cref="ArgumentException"/>.

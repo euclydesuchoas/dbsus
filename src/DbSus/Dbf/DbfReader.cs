@@ -38,7 +38,9 @@ namespace DbSus.Dbf;
 /// <see cref="decimal"/>; <c>D</c> is a <see cref="DateTime"/> (<c>yyyyMMdd</c>); <c>L</c> is a
 /// <see cref="bool"/>. Blank numbers, dates and logicals, and dates made of zeros, are
 /// <see cref="DBNull"/>. Content that does not parse throws <see cref="FormatException"/>; the
-/// message names the field and the record but, deliberately, not the value.
+/// message names the field and the record but, deliberately, not the value. With
+/// <see cref="DbfReadOptions.UnconvertibleValues"/>, such content of an <c>N</c>, <c>F</c> or
+/// <c>D</c> field is read as null instead.
 /// </para>
 /// </remarks>
 [SuppressMessage("Design", "CA1010", Justification = "The non-generic IEnumerable comes from DbDataReader; its items are records, as in every ADO.NET reader.")]
@@ -50,6 +52,7 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     private readonly DbfPart[] _parts;
     private readonly bool _includeDeleted;
     private readonly bool _blankStringsAsNull;
+    private readonly DbfUnconvertibleValueHandling _unconvertibleValues;
     private readonly DbfField[] _fields;
     private readonly Dictionary<string, int> _ordinals;
     private readonly byte[] _record;
@@ -64,6 +67,9 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
         _parts = parts;
         _includeDeleted = options.IncludeDeletedRecords;
         _blankStringsAsNull = options.BlankStringsAsNull;
+        _unconvertibleValues = options.UnconvertibleValues is DbfUnconvertibleValueHandling.Throw or DbfUnconvertibleValueHandling.AsterisksAsNull or DbfUnconvertibleValueHandling.Null
+            ? options.UnconvertibleValues
+            : throw new ArgumentOutOfRangeException(nameof(options), options.UnconvertibleValues, "UnconvertibleValues is not a value of DbfUnconvertibleValueHandling.");
 
         var first = parts[0];
         foreach (var part in parts)
@@ -424,9 +430,12 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             case DbfValueKind.String:
                 return _blankStringsAsNull && DbfValueParser.IsBlank(bytes);
             case DbfValueKind.Int32 or DbfValueKind.Int64 or DbfValueKind.Decimal:
-                return DbfValueParser.IsBlank(bytes);
+                return DbfValueParser.IsBlank(bytes)
+                    || (_unconvertibleValues != DbfUnconvertibleValueHandling.Throw && IsNullByOption(field, bytes));
             case DbfValueKind.Date:
-                return DbfValueParser.TryParseDate(DbfValueParser.Trim(bytes), field.DateLayout, out var date) && date is null;
+                return DbfValueParser.TryParseDate(DbfValueParser.Trim(bytes), field.DateLayout, out var date)
+                    ? date is null
+                    : _unconvertibleValues != DbfUnconvertibleValueHandling.Throw && IsNullByOption(field, bytes);
             case DbfValueKind.Boolean:
                 return DbfValueParser.TryParseBoolean(DbfValueParser.Trim(bytes), out var flag) && flag is null;
             default:
@@ -441,6 +450,8 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// <exception cref="FormatException">
     /// The stored content does not parse as the field's type, including an integer field whose
     /// value has a fraction or does not fit its type (<see cref="int"/> or <see cref="long"/>).
+    /// For an <c>N</c>, <c>F</c> or <c>D</c> field, <see cref="DbfReadOptions.UnconvertibleValues"/>
+    /// can make such content <see cref="DBNull"/> instead.
     /// </exception>
     public override object GetValue(int ordinal)
     {
@@ -1129,7 +1140,12 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             return null;
         }
 
-        return DbfValueParser.TryParseDecimal(trimmed, out var value) ? value : throw Invalid(field, "a number");
+        if (DbfValueParser.TryParseDecimal(trimmed, out var value))
+        {
+            return value;
+        }
+
+        return ReadsAsNull(field, trimmed) ? null : throw Invalid(field, "a number");
     }
 
     private decimal ReadNumber(DbfField field)
@@ -1139,18 +1155,35 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             throw new InvalidCastException($"Field {field.Name} is {field.TypeCode}({field.Length},{field.DecimalCount}) and is not numeric.");
         }
 
-        return ReadDecimal(field) ?? throw NullValue(field);
+        var value = ReadDecimal(field) ?? throw NullValue(field);
+
+        // In the mode that reads as null whatever does not convert, a number that does not fit
+        // the field's own integer type is null for every getter, as it is for GetValue.
+        if (_unconvertibleValues == DbfUnconvertibleValueHandling.Null && !FitsOwnType(field, value))
+        {
+            throw NullValue(field);
+        }
+
+        return value;
     }
 
-    private DateTime? ReadDate(DbfField field) =>
-        DbfValueParser.TryParseDate(DbfValueParser.Trim(CurrentRecord().AsSpan(field.Offset, field.Length)), field.DateLayout, out var value)
-            ? value
+    private DateTime? ReadDate(DbfField field)
+    {
+        var trimmed = DbfValueParser.Trim(CurrentRecord().AsSpan(field.Offset, field.Length));
+        if (DbfValueParser.TryParseDate(trimmed, field.DateLayout, out var value))
+        {
+            return value;
+        }
+
+        return ReadsAsNull(field, trimmed)
+            ? null
             : throw Invalid(field, field.DateLayout switch
             {
                 DbfDateLayout.DayMonthYear => "a ddMMyyyy date",
                 DbfDateLayout.YearMonth => "a yyyyMM date",
                 _ => "a yyyyMMdd date",
             });
+    }
 
     // Values read as the field's own integer type: a fraction or an out-of-range value means the
     // data does not match the declared type, so it is a format error (the value is not reported).
@@ -1161,9 +1194,12 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             return null;
         }
 
-        return decimal.Truncate(value) == value && value >= int.MinValue && value <= int.MaxValue
-            ? (int)value
-            : throw Invalid(field, "a whole number that fits in Int32");
+        if (FitsInt32(value))
+        {
+            return (int)value;
+        }
+
+        return ReadsAsNull(field) ? null : throw Invalid(field, "a whole number that fits in Int32");
     }
 
     private long? ReadInt64(DbfField field)
@@ -1173,9 +1209,12 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             return null;
         }
 
-        return decimal.Truncate(value) == value && value >= long.MinValue && value <= long.MaxValue
-            ? (long)value
-            : throw Invalid(field, "a whole number that fits in Int64");
+        if (FitsInt64(value))
+        {
+            return (long)value;
+        }
+
+        return ReadsAsNull(field) ? null : throw Invalid(field, "a whole number that fits in Int64");
     }
 
     private bool? ReadBoolean(DbfField field) =>
@@ -1188,11 +1227,84 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             ? value
             : throw new InvalidCastException($"Field {field.Name} holds a fractional value in record {RecordNumber}; use GetDecimal.");
 
-    // The value itself is deliberately left out of the message: DATASUS data can be personal.
+    private static bool FitsInt32(decimal value) => decimal.Truncate(value) == value && value >= int.MinValue && value <= int.MaxValue;
+
+    private static bool FitsInt64(decimal value) => decimal.Truncate(value) == value && value >= long.MinValue && value <= long.MaxValue;
+
+    // Whether a number converts to the type of its field: only an N field read as an integer can
+    // hold a number that does not.
+    private static bool FitsOwnType(DbfField field, decimal value) => !IsNativeNumberOrDate(field) || field.Kind switch
+    {
+        DbfValueKind.Int32 => FitsInt32(value),
+        DbfValueKind.Int64 => FitsInt64(value),
+        _ => true,
+    };
+
+    // DbfReadOptions.UnconvertibleValues is for the N, F and D fields of the file. A logical field
+    // and a character field with a conversion (whose type code is still C) are outside it.
+    private static bool IsNativeNumberOrDate(DbfField field) => field.TypeCode is 'N' or 'F' or 'D';
+
+    // The field, without the spaces at its ends, holds asterisks and nothing else.
+    private static bool IsAsterisks(ReadOnlySpan<byte> trimmed)
+    {
+        foreach (var value in trimmed)
+        {
+            if (value != (byte)'*')
+            {
+                return false;
+            }
+        }
+
+        return !trimmed.IsEmpty;
+    }
+
+    // Consulted only where a conversion has already failed: whether the option reads this content
+    // of the field as null instead of throwing.
+    private bool ReadsAsNull(DbfField field, ReadOnlySpan<byte> trimmed) =>
+        _unconvertibleValues != DbfUnconvertibleValueHandling.Throw
+        && IsNativeNumberOrDate(field)
+        && (_unconvertibleValues == DbfUnconvertibleValueHandling.Null || IsAsterisks(trimmed));
+
+    // The same for a number that parsed and does not fit the integer type of its field: it is not
+    // asterisks, so only the mode Null reads it as null.
+    private bool ReadsAsNull(DbfField field) => _unconvertibleValues == DbfUnconvertibleValueHandling.Null && IsNativeNumberOrDate(field);
+
+    // IsDBNull in the two modes that read null, for content that is not blank and, for a date,
+    // did not parse: the answer of ReadsAsNull without the exception, so that IsDBNull never throws.
+    private bool IsNullByOption(DbfField field, ReadOnlySpan<byte> bytes)
+    {
+        if (!IsNativeNumberOrDate(field))
+        {
+            return false;
+        }
+
+        var trimmed = DbfValueParser.Trim(bytes);
+        if (IsAsterisks(trimmed))
+        {
+            return true;
+        }
+
+        if (_unconvertibleValues != DbfUnconvertibleValueHandling.Null)
+        {
+            return false;
+        }
+
+        return field.Kind switch
+        {
+            DbfValueKind.Date => !DbfValueParser.TryParseDate(trimmed, field.DateLayout, out _),
+            DbfValueKind.Int32 => !DbfValueParser.TryParseDecimal(trimmed, out var int32) || !FitsInt32(int32),
+            DbfValueKind.Int64 => !DbfValueParser.TryParseDecimal(trimmed, out var int64) || !FitsInt64(int64),
+            _ => !DbfValueParser.TryParseDecimal(trimmed, out _),
+        };
+    }
+
+    // The value itself is deliberately left out of the message: DATASUS data can be personal. For
+    // the fields that DbfReadOptions.UnconvertibleValues is for, the message points at the option.
     private FormatException Invalid(DbfField field, string expected)
     {
         var part = _parts[_partIndex].Name is { } name ? $" ({name})" : string.Empty;
-        return new($"Field {field.Name} ({field.TypeCode}) of record {RecordNumber}{part} does not hold {expected}.");
+        var end = IsNativeNumberOrDate(field) ? "; to read such a value as null, see DbfReadOptions.UnconvertibleValues." : ".";
+        return new($"Field {field.Name} ({field.TypeCode}) of record {RecordNumber}{part} does not hold {expected}{end}");
     }
 
     private sealed class DbfColumn : DbColumn

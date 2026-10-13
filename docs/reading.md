@@ -39,7 +39,7 @@ Types follow the DBF header:
 | `D` | `DateTime` (`yyyyMMdd`) |
 | `L` | `bool` |
 
-Blank numbers, dates and logicals, and dates made of zeros, are `DBNull`. A blank `C` field is an empty string, or `DBNull` with `DbfReadOptions.BlankStringsAsNull`. Content that does not parse throws `FormatException`, naming the field and the record but never the value. Other field types (for example `M`, memo, whose data lives in a separate file) are not interpreted: `DbfField.IsSupported` is `false` and their stored bytes are available through `GetRawBytes`.
+Blank numbers, dates and logicals, and dates made of zeros, are `DBNull`. A blank `C` field is an empty string, or `DBNull` with `DbfReadOptions.BlankStringsAsNull`. Content that does not parse throws `FormatException`, naming the field and the record but never the value; for `N`, `F` and `D` fields, `DbfReadOptions.UnconvertibleValues` can read it as null instead (see "Values that do not convert" below). Other field types (for example `M`, memo, whose data lives in a separate file) are not interpreted: `DbfField.IsSupported` is `false` and their stored bytes are available through `GetRawBytes`.
 
 ### Who closes what
 
@@ -108,7 +108,7 @@ using var reader = DbSusFile.OpenReader("LTRR0610.dbc", options);
 //   SIA and CNES use the same yyyyMMdd layout, in their own date fields.
 ```
 
-A converted field reports its new type everywhere (`GetFieldType`, schema, `GetValue`). Values that do not parse or do not fit throw `FormatException`, naming the field and record but never the value. The available conversions are `Int32`, `Int64`, `Decimal`, and `Date` with the layouts `yyyyMMdd`, `ddMMyyyy` and `yyyyMM`.
+A converted field reports its new type everywhere (`GetFieldType`, schema, `GetValue`). Values that do not parse or do not fit throw `FormatException`, naming the field and record but never the value; `DbfReadOptions.UnconvertibleValues` does not apply to converted fields. The available conversions are `Int32`, `Int64`, `Decimal`, and `Date` with the layouts `yyyyMMdd`, `ddMMyyyy` and `yyyyMM`.
 
 Date layout of character fields, as found in the files examined so far:
 
@@ -118,6 +118,83 @@ Date layout of character fields, as found in the files examined so far:
 | `yyyyMMdd` | SIH, SIA, CNES |
 
 SINAN stores dates in native `D` fields, which need no conversion. The layout cannot be inferred from field names, and a wrong one is not always caught: a `yyyyMMdd` value read as `ddMMyyyy` can still form a valid date, with the wrong year. Fields that hold a year and month (`yyyyMM`, such as a processing month) convert with `DbfFieldConversion.Date("yyyyMM")`, to the first day of that month. A year and a month stored in two separate fields (as SIH-RD does with `ANO_CMPT` and `MES_CMPT`) are not combined into one date: a conversion applies to one field.
+
+## Values that do not convert
+
+Some DATASUS files hold, in a numeric (`N` or `F`) or date (`D`) field, content that is not a number or a date. In the SINAN files read in October 2026 it was, in all fields but two, the field filled with asterisks; one file also had a date with slashes and a letter in a number ([DATASUS paths and file names](https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md) says which files). A blank field and a date made of zeros are not this: they are null, always.
+
+By default the reader does not guess what such content means:
+
+- **These throw `FormatException`** on such a field: `GetValue`, the indexers, `GetValues`, `GetProviderSpecificValue`, the typed getters (`GetDecimal`, `GetDouble`, `GetInt16`, `GetInt32`, `GetInt64`, `GetDateTime`), `GetFieldValue<T>` with a nullable or a non-nullable type, and whatever reads every value, such as `DataTable.Load`. The message names the field, its type and the record, points at the option below, and never has the content.
+- **These do not throw:** `Read`; `GetRawBytes`, which returns the bytes of the field as they are in the file; and the members that describe the fields. After the exception the reader is still usable: the other fields of the record and the records after it are read as usual. A projection that leaves the field out (`DbfReadOptions.Columns`) reads the table without the exception, `DataTable.Load` included.
+- **`IsDBNull` returns `false`, and does not throw.** For a numeric field it only tells whether the field is blank. So the usual guard, `if (!reader.IsDBNull(i)) value = reader.GetDecimal(i);`, does not protect from this content: `GetDecimal` throws. For a date field it is the same.
+
+`DbfReadOptions.UnconvertibleValues` changes that, for `N`, `F` and `D` fields:
+
+| Value | A field filled with asterisks | Any other content that does not convert |
+|---|---|---|
+| `Throw` (the default) | `FormatException` | `FormatException` |
+| `AsterisksAsNull` | null | `FormatException` |
+| `Null` | null | null |
+
+A field is filled with asterisks when, without the spaces at its ends, it holds `*` and nothing else.
+
+Read as null means what a blank field means, in every member: `IsDBNull` returns `true`; `GetValue`, the indexers, `GetValues` and `GetProviderSpecificValue` give `DBNull.Value`; `GetFieldValue<T>` gives `null` for a nullable `T`; the typed getters, and `GetFieldValue<T>` of a non-nullable `T`, throw `InvalidCastException`, as they do for a blank field; `DataTable.Load` loads `DBNull`. `GetRawBytes` is the same in every mode. With `AsterisksAsNull`, for content that is not asterisks, `IsDBNull` returns `false` and the getter that follows throws, as in the default.
+
+```csharp
+using System;
+using DbSus;
+using DbSus.Dbf;
+
+// A field filled with asterisks is read as null; any other content that does not convert still throws.
+var options = new DbfReadOptions { UnconvertibleValues = DbfUnconvertibleValueHandling.AsterisksAsNull };
+using var reader = DbSusFile.OpenReader("LTRR0610.dbc", options);
+int beds = reader.GetOrdinal("QT_EXIST");
+long total = 0, withoutNumber = 0;
+while (reader.Read())
+{
+    if (reader.IsDBNull(beds))
+    {
+        withoutNumber++;                // blank, or filled with asterisks
+    }
+    else
+    {
+        total += reader.GetInt32(beds);
+    }
+}
+
+Console.WriteLine($"{total} beds; {withoutNumber} records without the number");
+```
+
+- **The option is not for every field.** It does not apply to logical (`L`) fields, nor to character fields with a conversion (`DbfReadOptions.Conversions`): content of those that does not convert throws `FormatException` in every mode, and their message does not point at the option. No file read so far had such content in them.
+- **A value read as null cannot be told from a blank field** through the typed members, and the reader does not count them. To know what a field holds, read it with `GetRawBytes`; the example below counts the values that do not convert, without the option.
+- **With `Null`, a number that does not fit its field is null too.** An `N` field without decimals is an `int` or a `long`, and a number with a fraction stored in it does not convert. With `Null` it is null for every getter, `GetDecimal` included.
+- **Cost.** In the default mode the option is looked at only where a conversion has already failed. In the two modes that read null, `IsDBNull` of a numeric field does more than look for a blank field: it looks for the asterisks and, with `Null`, tries the conversion, so `IsDBNull` followed by a getter converts the value twice. No mode allocates per record.
+
+```csharp
+using System;
+using DbSus;
+
+// Without the option: count the values of one field that do not convert.
+using var reader = DbSusFile.OpenReader("LTRR0610.dbc");
+int beds = reader.GetOrdinal("QT_EXIST");
+long doNotConvert = 0;
+while (reader.Read())
+{
+    try
+    {
+        _ = reader.GetValue(beds);
+    }
+    catch (FormatException)
+    {
+        doNotConvert++;                                // the message names the field and the record, never the content
+        int width = reader.GetRawBytes(beds).Length;   // the bytes of the field, as they are in the file
+        _ = width;
+    }
+}
+
+Console.WriteLine($"{doNotConvert} values do not convert");
+```
 
 ## Character encoding
 

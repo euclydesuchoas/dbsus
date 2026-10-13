@@ -83,7 +83,7 @@ while (reader.Read())
 - DBC decompressed while you read: no temporary file, no full copy in memory.
 - A `DbDataReader`, so it plugs into ADO.NET consumers such as `DataTable.Load`.
 - Typed getters that do not allocate per record (measured on .NET 8, 9 and 10 and on .NET Framework 4.8), and raw access to the stored bytes.
-- Field projection (`Columns`), deleted records on request, blank strings as null.
+- Field projection (`Columns`), deleted records on request, blank strings as null, and, on request, content of a numeric or date field that does not convert read as null (`UnconvertibleValues`).
 - Encoding taken from the header's language driver ID, with a fallback.
 - Opt-in conversions of character fields: `Int32`, `Int64`, `Decimal`, and dates (`yyyyMMdd`, `ddMMyyyy`, `yyyyMM`).
 - Tables split into parts read as one table, from paths or streams.

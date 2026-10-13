@@ -14,6 +14,7 @@ All notable changes to this project are documented in this file. The format foll
 - `DbcReadOptions.ChecksumMismatch`, a callback to react specifically to a checksum failure; it is called with a `DbcChecksumMismatch` (part index and name, stored and computed CRC-32) just before the exception.
 - `DbfReader`, a streaming `DbDataReader`: typed getters, raw bytes (`GetRawBytes`), field projection (`DbfReadOptions.Columns`), deleted records (`IncludeDeletedRecords`), blank strings as null (`BlankStringsAsNull`), and the encoding taken from the header's language driver ID, with a fallback (`FallbackEncoding`).
 - `DbfReader.EncodingSource` tells where the encoding came from: `DbfReadOptions.Encoding`, the header's language driver ID, or the fallback.
+- `DbfReadOptions.UnconvertibleValues` (`DbfUnconvertibleValueHandling`): what the reader does with the content of an `N`, `F` or `D` field that is not a number or a date. `Throw`, the default, is a `FormatException`, whose message points at the option and never has the content; `AsterisksAsNull` reads as null a field filled with asterisks; `Null` reads as null whatever does not convert. It does not apply to `L` fields nor to converted `C` fields.
 - Conversions of character fields (`DbfFieldConversion`): `Int32`, `Int64`, `Decimal`, and `Date` with the formats `yyyyMMdd`, `ddMMyyyy` and `yyyyMM`.
 - Tables split into parts, read as one table (`DbSusFile.FindParts`, `OpenReader`, `OpenDbcReader`, `DbcPart`).
 

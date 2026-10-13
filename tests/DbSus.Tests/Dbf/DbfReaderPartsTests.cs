@@ -200,7 +200,7 @@ public sealed class DbfReaderPartsTests : IDisposable
 
         var exception = Assert.Throws<FormatException>(() => reader.GetValue(0));
 
-        Assert.Equal("Field QTY (N) of record 3 (part 2) does not hold a number.", exception.Message);
+        Assert.Equal("Field QTY (N) of record 3 (part 2) does not hold a number; to read such a value as null, see DbfReadOptions.UnconvertibleValues.", exception.Message);
     }
 
     [Fact]
