@@ -120,6 +120,8 @@ One file per month for the whole country, in the folder of the files of the stat
 
 **From** is the start of the folder. In the listings of October 2026, each of the two had 42 files, from 2019-01 to 2026-03, and none for the other 45 months of that range. The files read whole in October 2026 were `CHBR2001.dbc` (3,357 records, 7 fields) and `CMBR2001.dbc` (1,048 records, 3 fields). SIHSUS-CM is not SISMAMA-CM: each of the two sources has a file type with the code `CM`, and a dataset is named by its source and its code together.
 
+**What the two files show.** This is a description of ours, from the names of the fields, and not a name that DATASUS gives. `CHBR2001.dbc` has seven fields, all of type `C`: `CNES`, `RAZAO`, `NOMEFANT`, `CGC_HOSP`, `MUNIC_LOC`, `CNPJ_MANT` and `CMPT`. `CMBR2001.dbc` has three, of type `C` too: `CNPJ_MANT`, `RAZAO` and `COMPET`. By these names, a record of CH identifies a hospital (its CNES code, its names, its CNPJ, its municipality and the CNPJ of the entity that maintains it), and a record of CM identifies such an entity (its CNPJ and its name), each with a month. A definition file of the server, `RD2008.DEF` in `/SIHSUS/200801_/Auxiliar/TAB_SIH.zip`, tabulates SIHSUS-RD with two conversion tables that go by the same field names: "Hospital BR (CNPJ)", by `CGC_HOSP` and `NOMEFANT`, from a file `TCHBR.DBF`, and "Mantenedora", by `CNPJ_MANT` and `RAZAO`, from a file `TMANTBR.DBF`. No document that was read says what CH and CM are, and what the records hold was not examined: the two files were read to count them.
+
 ### SIHSUS: MT
 
 Folder `/SIHSUS/Arquivos_MTBR`, file name `MTBR{YY}{MM}.dbc`.
@@ -131,6 +133,8 @@ One file per month for the whole country, in a folder of its own, and none by st
 | SIHSUS | MT | (none published) | country | monthly | 1995-01 | read |
 
 The folder has no date in its name: **From** is the first month with files in the listings of October 2026, which showed 29 files, one for each month from 1995-01 to 1997-05. The code `MT` is read from the names of the files. The file read whole in October 2026 was the smallest of the folder, `MTBR9612.dbc` (37,259,445 bytes, 3,995,417 records, 17 fields).
+
+**What the file shows.** This is a description of ours, from the names of the fields, and not a name that DATASUS gives. The 17 fields of `MTBR9612.dbc`, of types `C` and `N`, are `ANO_MES`, `ID_CGC_CPF`, `CGC_CPF`, `CGC_HOSP`, `N_AIH`, `RATEIO`, `ATO_PROF`, `TIPO_ATO`, `QTD_ATO`, `TIPO`, `SP_PONTO`, `VAL_ATO`, `ESPEC`, `UF_ZI`, `NUM_PROC`, `UF_DOM` and `UF_VINC`. By these names, a record is one act of a hospital admission (an AIH): the month, who performed the act (a CPF or a CNPJ), the hospital, the number of the AIH, the act, its quantity, its points and its value. No definition file and no document that was read names the file type; of its fields, only `UF_ZI` is in the definition files of 1992 to 1997, as a field of SIHSUS RD and RJ. What the records hold was not examined: the file was read to count them.
 
 ### CNES
 
