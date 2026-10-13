@@ -226,6 +226,7 @@ public class DatasusCatalogTests
     [InlineData("docs/datasus-paths.md")]
     [InlineData("docs/decisions.md")]
     [InlineData("src/DbSus.Client/DatasusCatalog.cs")]
+    [InlineData("src/DbSus.Client/DbSus.Client.csproj")]   // the description and the release notes of the package
     public void TextsThatCountTheFileTypes_GiveTheNumberOfDatasets(string file)
     {
         var text = File.ReadAllText(Path.Combine(RepositoryPaths.Root, file.Replace('/', Path.DirectorySeparatorChar)));
