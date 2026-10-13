@@ -226,35 +226,72 @@ public class DatasusCatalogTests
         Assert.Same(DatasusCatalog.SihSus.RD, dataset);
     }
 
+    // The end of both messages: the catalog is partial, and the message says so without claiming
+    // that the file exists.
+    private const string GetMessageEnd =
+        "The catalog is partial. A file type that is not in it may still be on the server: use its path as a string. "
+        + "What the catalog leaves out is described in https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md";
+
+    private static readonly string[] NotInTheMessageOfCnes = ["SIASUS", "SIHSUS", "SINASC", "RD, SP", "PA, AD", "DOEXT"];
+    private static readonly string[] NotInTheMessageOfNoSource = ["LT, EQ", "RD, SP", "PA, AD", "DOEXT", "Of "];
+
+    // A source of the catalog and a code it does not have: the message lists the codes of that
+    // source, and of no other.
     [Theory]
-    [InlineData("SIHSUS", "XX")]
-    [InlineData("SIA", "PA")]              // the source is SIASUS
-    [InlineData("SIASUS", "BI")]           // on the server, but not in the catalog
-    [InlineData("SISMAMA", "QQ")]          // a made-up code, which no source uses
-    [InlineData("SISCOLO", "CM")]          // a code of another source
-    [InlineData("SINAN", "DENG")]          // files for the whole country only
-    [InlineData("SIHSUS-RD", "")]
-    [InlineData("", "SIHSUS-RD")]
-    [InlineData("SIHSUS", " RD")]
-    public void Get_DatasetOutsideTheCatalog_ThrowsListingTheOnesItHas(string source, string code)
+    [InlineData("SIHSUS", "XX", "SIHSUS", "RD, SP, RJ, ER, CH, CM, MT")]
+    [InlineData("sihsus", "xx", "SIHSUS", "RD, SP, RJ, ER, CH, CM, MT")]
+    [InlineData("SIHSUS", " RD", "SIHSUS", "RD, SP, RJ, ER, CH, CM, MT")]
+    [InlineData("SIASUS", "BI", "SIASUS", "PA, AD, AM, AQ, AR, PS, ATD, ACF, AB, ABO, AN, SAD, AMP")]   // on the server, but not in the catalog
+    [InlineData("SISMAMA", "QQ", "SISMAMA", "CM, HM, MM")]                                               // a made-up code, which no source uses
+    [InlineData("SISCOLO", "CM", "SISCOLO", "CC, HC")]                                                   // a code of another source
+    [InlineData("SIM", "", "SIM", "DO, DOEXT, DOFET, DOINF, DOMAT, DOREXT")]
+    [InlineData("CIH", "CIHA", "CIH", "CR")]                                                             // CIHA is another source
+    [InlineData("PO", "POBR", "PO", "PO")]
+    public void Get_CodeThatTheSourceDoesNotHave_ThrowsListingTheCodesOfThatSourceOnly(string source, string code, string sourceInTheCatalog, string codes)
     {
         Assert.False(DatasusCatalog.TryGet(source, code, out var missing));
         Assert.Null(missing);
 
         var exception = Assert.Throws<ArgumentException>(() => DatasusCatalog.Get(source, code));
 
-        Assert.Contains($"no dataset '{source}-{code}'", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("SIASUS: PA, AD, AM, AQ, AR, PS, ATD, ACF, AB, ABO, AN, SAD, AMP;", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("SIHSUS: RD, SP, RJ, ER, CH, CM, MT;", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("CNES: LT, EQ, ST, PF, SR, HB, DC, EP, EF, GM, IN, RC, EE;", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("SIM: DO, DOEXT, DOFET, DOINF, DOMAT, DOREXT;", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("SINASC: DN, DNEX; CIHA: CIHA; CIH: CR; SISPRENATAL: PN; SISCOLO: CC, HC; SISMAMA: CM, HM, MM; PCE: PCE; RESP: RESP; ESUSNOTIFICA: DCCR; PO: PO.", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("path as a string", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("code", exception.ParamName);
+        Assert.StartsWith($"The catalog has no dataset '{source}-{code}'. Of {sourceInTheCatalog} it has: {codes}. {GetMessageEnd}", exception.Message, StringComparison.Ordinal);
+    }
 
-        // The catalog is partial, and the message says so without claiming that the file exists.
-        Assert.Contains("The catalog is partial", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("may still be on the server", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("docs/datasus-paths.md", exception.Message, StringComparison.Ordinal);
+    // A source the catalog does not have: the message lists the sources, and no code.
+    [Theory]
+    [InlineData("SIA", "PA")]              // the source is SIASUS
+    [InlineData("SINAN", "DENG")]          // files for the whole country only
+    [InlineData("IBGE", "POP")]            // on the server, as .zip files
+    [InlineData("SIHSUS-RD", "")]
+    [InlineData("", "SIHSUS-RD")]
+    [InlineData(" SIHSUS", "RD")]
+    public void Get_SourceThatTheCatalogDoesNotHave_ThrowsListingTheSourcesOnly(string source, string code)
+    {
+        Assert.False(DatasusCatalog.TryGet(source, code, out var missing));
+        Assert.Null(missing);
+
+        var exception = Assert.Throws<ArgumentException>(() => DatasusCatalog.Get(source, code));
+
+        Assert.Equal("source", exception.ParamName);
+        Assert.StartsWith(
+            $"The catalog has no source '{source}'. It has: SIASUS, SIHSUS, CNES, SIM, SINASC, CIHA, CIH, SISPRENATAL, SISCOLO, SISMAMA, PCE, RESP, ESUSNOTIFICA, PO. {GetMessageEnd}",
+            exception.Message,
+            StringComparison.Ordinal);
+    }
+
+    // The message has what was asked for and nothing of the rest of the catalog.
+    [Fact]
+    public void Get_Message_HasNoCodeOfAnotherSource_AndIsShort()
+    {
+        var ofSource = Assert.Throws<ArgumentException>(() => DatasusCatalog.Get("CNES", "XX")).Message;
+        var noSource = Assert.Throws<ArgumentException>(() => DatasusCatalog.Get("XX", "LT")).Message;
+
+        Assert.Contains("Of CNES it has: LT, EQ, ST, PF, SR, HB, DC, EP, EF, GM, IN, RC, EE.", ofSource, StringComparison.Ordinal);
+        Assert.All(NotInTheMessageOfCnes, other => Assert.DoesNotContain(other, ofSource, StringComparison.Ordinal));
+        Assert.All(NotInTheMessageOfNoSource, code => Assert.DoesNotContain(code, noSource, StringComparison.Ordinal));
+        Assert.InRange(ofSource.Length, 1, 420);
+        Assert.InRange(noSource.Length, 1, 520);
     }
 
     [Fact]
