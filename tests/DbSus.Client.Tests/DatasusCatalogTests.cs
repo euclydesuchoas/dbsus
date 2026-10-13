@@ -67,6 +67,63 @@ public class DatasusCatalogTests
     [InlineData("SINASC", "DNEX", "Declarações de nascidos vivos residentes no exterior", DatasusCoverage.National, DatasusPeriodicity.Yearly, "1996", "/SINASC/1996_/Dados/DNRES", "/SINASC/PRELIM/DNRES", "DNEX{YYYY}.dbc")]
     [InlineData("ESUSNOTIFICA", "DCCR", "Doença de Chagas Crônica", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2023", "/ESUSNOTIFICA/DADOS/FINAIS", "/ESUSNOTIFICA/DADOS/PRELIM", "DCCRBR{YY}.dbc")]
     [InlineData("PO", "PO", "Painel de Oncologia", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2013", "/painel_oncologia/Dados", null, "POBR{YYYY}.dbc")]
+    [InlineData("SINAN", "ANIM", "Acidente por Animais Peçonhentos", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "ANIMBR{YY}.dbc")]
+    [InlineData("SINAN", "ANTR", "Atendimento Antirrabico", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2006", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "ANTRBR{YY}.dbc")]
+    [InlineData("SINAN", "AIDA", "AIDS em adultos", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "AIDABR{YY}.dbc")]
+    [InlineData("SINAN", "AIDC", "AIDS em crianças", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "AIDCBR{YY}.dbc")]
+    [InlineData("SINAN", "BOTU", "Botulismo", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "BOTUBR{YY}.dbc")]
+    [InlineData("SINAN", "COLE", "Cólera", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "COLEBR{YY}.dbc")]
+    [InlineData("SINAN", "COQU", "Coqueluche", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "COQUBR{YY}.dbc")]
+    [InlineData("SINAN", "DENG", "Dengue", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2000", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "DENGBR{YY}.dbc")]
+    [InlineData("SINAN", "DIFT", "Difteria", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "DIFTBR{YY}.dbc")]
+    [InlineData("SINAN", "DCRJ", "Doença de Creutzfeldt-Jakob (DCJ)", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "DCRJBR{YY}.dbc")]
+    [InlineData("SINAN", "CHAG", "Doença de Chagas Aguda", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2000", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "CHAGBR{YY}.dbc")]
+    [InlineData("SINAN", "EXAN", "Doença exantemáticas", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "EXANBR{YY}.dbc")]
+    [InlineData("SINAN", "ESQU", "Esquistossomose", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "ESQUBR{YY}.dbc")]
+    [InlineData("SINAN", "ESPO", "Esporotricose (Epizootia)", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2013", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "ESPOBR{YY}.dbc")]
+    [InlineData("SINAN", "CHIK", "Febre de Chikungunya", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2014", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "CHIKBR{YY}.dbc")]
+    [InlineData("SINAN", "FMAC", "Febre Maculosa", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "FMACBR{YY}.dbc")]
+    [InlineData("SINAN", "FTIF", "Febre Tifóide", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "FTIFBR{YY}.dbc")]
+    [InlineData("SINAN", "HANS", "Hanseníase", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2001", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "HANSBR{YY}.dbc")]
+    [InlineData("SINAN", "HANT", "Hantavirose", DatasusCoverage.National, DatasusPeriodicity.Yearly, "1999", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "HANTBR{YY}.dbc")]
+    [InlineData("SINAN", "HEPA", "Hepatites Virais", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "HEPABR{YY}.dbc")]
+    [InlineData("SINAN", "HIVA", "HIV em adultos", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "HIVABR{YY}.dbc")]
+    [InlineData("SINAN", "HIVC", "HIV em crianças", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "HIVCBR{YY}.dbc")]
+    [InlineData("SINAN", "HIVE", "HIV em crianças expostas", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2015", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "HIVEBR{YY}.dbc")]
+    [InlineData("SINAN", "HIVG", "HIV em gestante", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "HIVGBR{YY}.dbc")]
+    [InlineData("SINAN", "IEXO", "Intoxicação Exógena", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2006", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "IEXOBR{YY}.dbc")]
+    [InlineData("SINAN", "LEIV", "Leishmaniose Visceral", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2000", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "LEIVBR{YY}.dbc")]
+    [InlineData("SINAN", "LTAN", "Leishmaniose Tegumentar Americana", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2000", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "LTANBR{YY}.dbc")]
+    [InlineData("SINAN", "LEPT", "Leptospirose", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2000", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "LEPTBR{YY}.dbc")]
+    [InlineData("SINAN", "MALA", "Malária", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2004", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "MALABR{YY}.dbc")]
+    [InlineData("SINAN", "MENI", "Meningite", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "MENIBR{YY}.dbc")]
+    [InlineData("SINAN", "PFAN", "Paralisia Flácida Aguda", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "PFANBR{YY}.dbc")]
+    [InlineData("SINAN", "PEST", "Peste", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "PESTBR{YY}.dbc")]
+    [InlineData("SINAN", "RAIV", "Raiva", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "RAIVBR{YY}.dbc")]
+    [InlineData("SINAN", "ROTA", "Rotavírus", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2009", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "ROTABR{YY}.dbc")]
+    [InlineData("SINAN", "SIFA", "Sífilis Adquirida", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2010", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "SIFABR{YY}.dbc")]
+    [InlineData("SINAN", "SIFC", "Sífilis Congênita", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "SIFCBR{YY}.dbc")]
+    [InlineData("SINAN", "SIFG", "Sífilis em Gestante", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "SIFGBR{YY}.dbc")]
+    [InlineData("SINAN", "SRC", "Síndrome da Rubéola Congênia", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "SRCBR{YY}.dbc")]
+    [InlineData("SINAN", "SDTA", "Surto Doenças Transmitidas por Alimentos", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "SDTABR{YY}.dbc")]
+    [InlineData("SINAN", "TETA", "Tétano Acidental", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "TETABR{YY}.dbc")]
+    [InlineData("SINAN", "TETN", "Tétano Neonatal", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2014", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "TETNBR{YY}.dbc")]
+    [InlineData("SINAN", "TOXC", "Toxoplasmose Congênita", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2019", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "TOXCBR{YY}.dbc")]
+    [InlineData("SINAN", "TOXG", "Toxoplasmose Gestacional", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2019", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "TOXGBR{YY}.dbc")]
+    [InlineData("SINAN", "NTRA", "Notificação de Tracoma", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2010", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "NTRABR{YY}.dbc")]
+    [InlineData("SINAN", "TRAC", "Inquérito de Tracoma", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2009", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "TRACBR{YY}.dbc")]
+    [InlineData("SINAN", "TUBE", "Tuberculose", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2001", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "TUBEBR{YY}.dbc")]
+    [InlineData("SINAN", "VARC", "Varicela", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "VARCBR{YY}.dbc")]
+    [InlineData("SINAN", "VIOL", "Violência doméstica, sexual e/ou outras violências", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2009", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "VIOLBR{YY}.dbc")]
+    [InlineData("SINAN", "ZIKA", "Zika Vírus", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2015", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "ZIKABR{YY}.dbc")]
+    [InlineData("SINAN", "ACBI", "Acidente de trabalho com material biológico", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2006", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "ACBIBR{YY}.dbc")]
+    [InlineData("SINAN", "ACGR", "Acidente de trabalho", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2006", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "ACGRBR{YY}.dbc")]
+    [InlineData("SINAN", "CANC", "Cancêr relacionado ao trabalho", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "CANCBR{YY}.dbc")]
+    [InlineData("SINAN", "DERM", "Dermatoses ocupacionais", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2006", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "DERMBR{YY}.dbc")]
+    [InlineData("SINAN", "LERD", "LER/Dort", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2006", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "LERDBR{YY}.dbc")]
+    [InlineData("SINAN", "PAIR", "Perda auditiva por ruído relacionado ao trabalho", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2006", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "PAIRBR{YY}.dbc")]
+    [InlineData("SINAN", "PNEU", "Pneumoconioses realacionadas ao trabalho", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2006", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "PNEUBR{YY}.dbc")]
+    [InlineData("SINAN", "MENT", "Transtornos mentais relacionados ao trabalho", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2006", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "MENTBR{YY}.dbc")]
     public void Dataset_IsAsTheCatalogTableSays(
         string source, string code, string? officialName, DatasusCoverage coverage, DatasusPeriodicity periodicity, string firstPeriod, string directory, string? preliminaryDirectory, string fileNamePattern)
     {
@@ -93,14 +150,14 @@ public class DatasusCatalogTests
     }
 
     [Fact]
-    public void Datasets_Are53_EachOnce_GroupedBySource_InTheOrderOfTheCatalog()
+    public void Datasets_Are110_EachOnce_GroupedBySource_InTheOrderOfTheCatalog()
     {
         var datasets = DatasusCatalog.Datasets;
 
-        Assert.Equal(53, datasets.Count);
-        Assert.Equal(53, datasets.Select(dataset => dataset.ToString()).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(110, datasets.Count);
+        Assert.Equal(110, datasets.Select(dataset => dataset.ToString()).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.Equal(
-            ["SIASUS", "SIHSUS", "CNES", "SIM", "SINASC", "CIHA", "CIH", "SISPRENATAL", "SISCOLO", "SISMAMA", "PCE", "RESP", "ESUSNOTIFICA", "PO"],
+            ["SIASUS", "SIHSUS", "CNES", "SIM", "SINASC", "CIHA", "CIH", "SISPRENATAL", "SISCOLO", "SISMAMA", "PCE", "RESP", "ESUSNOTIFICA", "PO", "SINAN"],
             datasets.Select(dataset => dataset.Source).Distinct());
         Assert.Equal(
             [
@@ -118,14 +175,21 @@ public class DatasusCatalogTests
                 "RESP: RESP",
                 "ESUSNOTIFICA: DCCR",
                 "PO: PO",
+                "SINAN: ANIM, ANTR, AIDA, AIDC, BOTU, COLE, COQU, DENG, DIFT, DCRJ, CHAG, EXAN, ESQU, ESPO, CHIK, FMAC, FTIF, HANS, HANT, HEPA, HIVA, HIVC, HIVE, HIVG, IEXO, LEIV, LTAN, LEPT, MALA, MENI, PFAN, PEST, RAIV, ROTA, SIFA, SIFC, SIFG, SRC, SDTA, TETA, TETN, TOXC, TOXG, NTRA, TRAC, TUBE, VARC, VIOL, ZIKA, ACBI, ACGR, CANC, DERM, LERD, PAIR, PNEU, MENT",
             ],
             datasets.GroupBy(dataset => dataset.Source).Select(group => group.Key + ": " + string.Join(", ", group.Select(dataset => dataset.Code))));
 
-        // Eleven have one file for the whole country and none by state; the other 42 have files by state.
+        // 68 have one file for the whole country and none by state: every one of SINAN and eleven
+        // of other sources. The other 42 have files by state, and four of these one for the whole country too.
         Assert.Equal(
             ["SIHSUS-CH", "SIHSUS-CM", "SIHSUS-MT", "SIM-DOEXT", "SIM-DOFET", "SIM-DOINF", "SIM-DOMAT", "SIM-DOREXT", "SINASC-DNEX", "ESUSNOTIFICA-DCCR", "PO-PO"],
-            datasets.Where(dataset => dataset.Coverage == DatasusCoverage.National).Select(dataset => dataset.ToString()));
+            datasets.Where(dataset => dataset.Coverage == DatasusCoverage.National && dataset.Source != "SINAN").Select(dataset => dataset.ToString()));
+        Assert.All(datasets.Where(dataset => dataset.Source == "SINAN"), dataset => Assert.Equal(DatasusCoverage.National, dataset.Coverage));
+        Assert.Equal(57, datasets.Count(dataset => dataset.Source == "SINAN"));
+        Assert.Equal(68, datasets.Count(dataset => dataset.Coverage == DatasusCoverage.National));
         Assert.Equal(42, datasets.Count(dataset => dataset.Coverage.HasFlag(DatasusCoverage.Uf)));
+        Assert.Equal(38, datasets.Count(dataset => dataset.Coverage == DatasusCoverage.Uf));
+        Assert.Equal(4, datasets.Count(dataset => dataset.Coverage == UfAndNational));
 
         // DATASUS publishes no name for three of them; every other one has a name.
         Assert.Equal(["SIHSUS-CH", "SIHSUS-CM", "SIHSUS-MT"], datasets.Where(dataset => dataset.OfficialName is null).Select(dataset => dataset.ToString()));
@@ -138,8 +202,8 @@ public class DatasusCatalogTests
         var groups = typeof(DatasusCatalog).GetNestedTypes(BindingFlags.Public);
         var properties = groups.SelectMany(group => group.GetProperties(BindingFlags.Public | BindingFlags.Static).Select(property => (Group: group, Property: property))).ToList();
 
-        Assert.Equal(["Cih", "Ciha", "Cnes", "EsusNotifica", "Pce", "Po", "Resp", "SiaSus", "SihSus", "Sim", "Sinasc", "SisColo", "SisMama", "SisPrenatal"], groups.Select(group => group.Name).OrderBy(name => name, StringComparer.Ordinal));
-        Assert.Equal(53, properties.Count);
+        Assert.Equal(["Cih", "Ciha", "Cnes", "EsusNotifica", "Pce", "Po", "Resp", "SiaSus", "SihSus", "Sim", "Sinan", "Sinasc", "SisColo", "SisMama", "SisPrenatal"], groups.Select(group => group.Name).OrderBy(name => name, StringComparer.Ordinal));
+        Assert.Equal(110, properties.Count);
         foreach (var (group, property) in properties)
         {
             var dataset = Assert.IsType<DatasusDataset>(property.GetValue(null));
@@ -261,7 +325,6 @@ public class DatasusCatalogTests
     // A source the catalog does not have: the message lists the sources, and no code.
     [Theory]
     [InlineData("SIA", "PA")]              // the source is SIASUS
-    [InlineData("SINAN", "DENG")]          // files for the whole country only
     [InlineData("IBGE", "POP")]            // on the server, as .zip files
     [InlineData("SIHSUS-RD", "")]
     [InlineData("", "SIHSUS-RD")]
@@ -275,7 +338,7 @@ public class DatasusCatalogTests
 
         Assert.Equal("source", exception.ParamName);
         Assert.StartsWith(
-            $"The catalog has no source '{source}'. It has: SIASUS, SIHSUS, CNES, SIM, SINASC, CIHA, CIH, SISPRENATAL, SISCOLO, SISMAMA, PCE, RESP, ESUSNOTIFICA, PO. {GetMessageEnd}",
+            $"The catalog has no source '{source}'. It has: SIASUS, SIHSUS, CNES, SIM, SINASC, CIHA, CIH, SISPRENATAL, SISCOLO, SISMAMA, PCE, RESP, ESUSNOTIFICA, PO, SINAN. {GetMessageEnd}",
             exception.Message,
             StringComparison.Ordinal);
     }

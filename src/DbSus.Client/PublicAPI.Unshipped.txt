@@ -10,6 +10,7 @@ DbSus.Client.DatasusCatalog.Resp
 DbSus.Client.DatasusCatalog.SiaSus
 DbSus.Client.DatasusCatalog.SihSus
 DbSus.Client.DatasusCatalog.Sim
+DbSus.Client.DatasusCatalog.Sinan
 DbSus.Client.DatasusCatalog.Sinasc
 DbSus.Client.DatasusCatalog.SisColo
 DbSus.Client.DatasusCatalog.SisMama
@@ -199,6 +200,63 @@ static DbSus.Client.DatasusCatalog.Sim.DOFET.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Sim.DOINF.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Sim.DOMAT.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Sim.DOREXT.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.ACBI.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.ACGR.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.AIDA.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.AIDC.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.ANIM.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.ANTR.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.BOTU.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.CANC.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.CHAG.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.CHIK.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.COLE.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.COQU.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.DCRJ.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.DENG.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.DERM.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.DIFT.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.ESPO.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.ESQU.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.EXAN.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.FMAC.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.FTIF.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.HANS.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.HANT.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.HEPA.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.HIVA.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.HIVC.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.HIVE.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.HIVG.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.IEXO.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.LEIV.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.LEPT.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.LERD.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.LTAN.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.MALA.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.MENI.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.MENT.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.NTRA.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.PAIR.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.PEST.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.PFAN.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.PNEU.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.RAIV.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.ROTA.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.SDTA.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.SIFA.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.SIFC.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.SIFG.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.SRC.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.TETA.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.TETN.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.TOXC.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.TOXG.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.TRAC.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.TUBE.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.VARC.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.VIOL.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.ZIKA.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Sinasc.DN.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Sinasc.DNEX.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SisColo.CC.get -> DbSus.Client.DatasusDataset!

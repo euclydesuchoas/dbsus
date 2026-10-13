@@ -3,20 +3,20 @@ using System.Diagnostics.CodeAnalysis;
 namespace DbSus.Client;
 
 /// <summary>
-/// A partial catalog of the file types DATASUS lists: 53 of SIASUS, SIHSUS, CNES, SIM, SINASC,
-/// CIHA, CIH, SISPRENATAL, SISCOLO, SISMAMA, PCE, RESP, ESUSNOTIFICA and PO, each as a
+/// A partial catalog of the file types DATASUS lists: 110 of SIASUS, SIHSUS, CNES, SIM, SINASC,
+/// CIHA, CIH, SISPRENATAL, SISCOLO, SISMAMA, PCE, RESP, ESUSNOTIFICA, PO and SINAN, each as a
 /// <see cref="DatasusDataset"/>. Use a property, e.g. <c>DatasusCatalog.SihSus.RD</c>, or look one
 /// up by text with <see cref="Get"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Many of the file types DATASUS lists are not here: those of SINAN, for one, and SIASUS-BI.
-/// A file type that is missing here may still be on the server.
+/// Not everything DATASUS lists is here: SIASUS-BI, for one, is not. A file type that is
+/// missing here may still be on the server.
 /// </para>
 /// <para>
 /// Of the file types here, 42 have one file per state, and four of these also have a file for
-/// the whole country (SIM-DO, SINASC-DN, PCE and RESP); the other 11 have a file for the whole
-/// country only (see <see cref="DatasusDataset.Coverage"/> and
+/// the whole country (SIM-DO, SINASC-DN, PCE and RESP); the other 68, the 57 of SINAN among
+/// them, have a file for the whole country only (see <see cref="DatasusDataset.Coverage"/> and
 /// <see cref="DatasusDataset.GetNationalPath"/>).
 /// </para>
 /// <para>
@@ -50,6 +50,12 @@ public static class DatasusCatalog
         Resp.RESP,
         EsusNotifica.DCCR,
         Po.PO,
+        Sinan.ANIM, Sinan.ANTR, Sinan.AIDA, Sinan.AIDC, Sinan.BOTU, Sinan.COLE, Sinan.COQU, Sinan.DENG, Sinan.DIFT, Sinan.DCRJ,
+        Sinan.CHAG, Sinan.EXAN, Sinan.ESQU, Sinan.ESPO, Sinan.CHIK, Sinan.FMAC, Sinan.FTIF, Sinan.HANS, Sinan.HANT, Sinan.HEPA,
+        Sinan.HIVA, Sinan.HIVC, Sinan.HIVE, Sinan.HIVG, Sinan.IEXO, Sinan.LEIV, Sinan.LTAN, Sinan.LEPT, Sinan.MALA, Sinan.MENI,
+        Sinan.PFAN, Sinan.PEST, Sinan.RAIV, Sinan.ROTA, Sinan.SIFA, Sinan.SIFC, Sinan.SIFG, Sinan.SRC, Sinan.SDTA, Sinan.TETA,
+        Sinan.TETN, Sinan.TOXC, Sinan.TOXG, Sinan.NTRA, Sinan.TRAC, Sinan.TUBE, Sinan.VARC, Sinan.VIOL, Sinan.ZIKA, Sinan.ACBI,
+        Sinan.ACGR, Sinan.CANC, Sinan.DERM, Sinan.LERD, Sinan.PAIR, Sinan.PNEU, Sinan.MENT,
     ];
 
     // Declared after Datasets: static fields are initialized in the order they are written.
@@ -416,5 +422,193 @@ public static class DatasusCatalog
     {
         /// <summary>Gets PO-PO, <i>Painel de Oncologia</i>, from 2013 on.</summary>
         public static DatasusDataset PO { get; } = DatasusDataset.CountryOnly("PO", "PO", "Painel de Oncologia", DatasusPeriod.OfYear(2013), "/painel_oncologia/Dados", null, "POBR", 4);
+    }
+
+    /// <summary>
+    /// SINAN (<i>Sistema de Informação de Agravos de Notificação</i>). Yearly files for the whole
+    /// country, one file type per notifiable condition; the most recent years are published in a
+    /// folder of preliminary data.
+    /// </summary>
+    /// <remarks>
+    /// The year in which a notifiable condition passes from the folder of preliminary data to the
+    /// one of final data differs from one condition to another, and some are in one of the two
+    /// folders only. The first period of each file type is the year of its first file in either
+    /// folder, as the server listed them in October 2026.
+    /// </remarks>
+    public static class Sinan
+    {
+        /// <summary>Gets SINAN-ANIM, <i>Acidente por Animais Peçonhentos</i>.</summary>
+        public static DatasusDataset ANIM { get; } = Of("ANIM", "Acidente por Animais Peçonhentos", 2007);
+
+        /// <summary>Gets SINAN-ANTR, <i>Atendimento Antirrabico</i>.</summary>
+        public static DatasusDataset ANTR { get; } = Of("ANTR", "Atendimento Antirrabico", 2006);
+
+        /// <summary>Gets SINAN-AIDA, <i>AIDS em adultos</i>.</summary>
+        public static DatasusDataset AIDA { get; } = Of("AIDA", "AIDS em adultos", 2007);
+
+        /// <summary>Gets SINAN-AIDC, <i>AIDS em crianças</i>.</summary>
+        public static DatasusDataset AIDC { get; } = Of("AIDC", "AIDS em crianças", 2007);
+
+        /// <summary>Gets SINAN-BOTU, <i>Botulismo</i>.</summary>
+        public static DatasusDataset BOTU { get; } = Of("BOTU", "Botulismo", 2007);
+
+        /// <summary>Gets SINAN-COLE, <i>Cólera</i>.</summary>
+        public static DatasusDataset COLE { get; } = Of("COLE", "Cólera", 2007);
+
+        /// <summary>Gets SINAN-COQU, <i>Coqueluche</i>.</summary>
+        public static DatasusDataset COQU { get; } = Of("COQU", "Coqueluche", 2007);
+
+        /// <summary>Gets SINAN-DENG, <i>Dengue</i>.</summary>
+        public static DatasusDataset DENG { get; } = Of("DENG", "Dengue", 2000);
+
+        /// <summary>Gets SINAN-DIFT, <i>Difteria</i>.</summary>
+        public static DatasusDataset DIFT { get; } = Of("DIFT", "Difteria", 2007);
+
+        /// <summary>Gets SINAN-DCRJ, <i>Doença de Creutzfeldt-Jakob (DCJ)</i>.</summary>
+        public static DatasusDataset DCRJ { get; } = Of("DCRJ", "Doença de Creutzfeldt-Jakob (DCJ)", 2007);
+
+        /// <summary>Gets SINAN-CHAG, <i>Doença de Chagas Aguda</i>.</summary>
+        public static DatasusDataset CHAG { get; } = Of("CHAG", "Doença de Chagas Aguda", 2000);
+
+        /// <summary>Gets SINAN-EXAN, <i>Doença exantemáticas</i>.</summary>
+        public static DatasusDataset EXAN { get; } = Of("EXAN", "Doença exantemáticas", 2007);
+
+        /// <summary>Gets SINAN-ESQU, <i>Esquistossomose</i>.</summary>
+        public static DatasusDataset ESQU { get; } = Of("ESQU", "Esquistossomose", 2007);
+
+        /// <summary>Gets SINAN-ESPO, <i>Esporotricose (Epizootia)</i>.</summary>
+        public static DatasusDataset ESPO { get; } = Of("ESPO", "Esporotricose (Epizootia)", 2013);
+
+        /// <summary>Gets SINAN-CHIK, <i>Febre de Chikungunya</i>.</summary>
+        public static DatasusDataset CHIK { get; } = Of("CHIK", "Febre de Chikungunya", 2014);
+
+        /// <summary>Gets SINAN-FMAC, <i>Febre Maculosa</i>.</summary>
+        public static DatasusDataset FMAC { get; } = Of("FMAC", "Febre Maculosa", 2007);
+
+        /// <summary>Gets SINAN-FTIF, <i>Febre Tifóide</i>.</summary>
+        public static DatasusDataset FTIF { get; } = Of("FTIF", "Febre Tifóide", 2007);
+
+        /// <summary>Gets SINAN-HANS, <i>Hanseníase</i>.</summary>
+        public static DatasusDataset HANS { get; } = Of("HANS", "Hanseníase", 2001);
+
+        /// <summary>Gets SINAN-HANT, <i>Hantavirose</i>.</summary>
+        public static DatasusDataset HANT { get; } = Of("HANT", "Hantavirose", 1999);
+
+        /// <summary>Gets SINAN-HEPA, <i>Hepatites Virais</i>.</summary>
+        public static DatasusDataset HEPA { get; } = Of("HEPA", "Hepatites Virais", 2007);
+
+        /// <summary>Gets SINAN-HIVA, <i>HIV em adultos</i>.</summary>
+        public static DatasusDataset HIVA { get; } = Of("HIVA", "HIV em adultos", 2007);
+
+        /// <summary>Gets SINAN-HIVC, <i>HIV em crianças</i>.</summary>
+        public static DatasusDataset HIVC { get; } = Of("HIVC", "HIV em crianças", 2007);
+
+        /// <summary>Gets SINAN-HIVE, <i>HIV em crianças expostas</i>.</summary>
+        public static DatasusDataset HIVE { get; } = Of("HIVE", "HIV em crianças expostas", 2015);
+
+        /// <summary>Gets SINAN-HIVG, <i>HIV em gestante</i>.</summary>
+        public static DatasusDataset HIVG { get; } = Of("HIVG", "HIV em gestante", 2007);
+
+        /// <summary>Gets SINAN-IEXO, <i>Intoxicação Exógena</i>.</summary>
+        public static DatasusDataset IEXO { get; } = Of("IEXO", "Intoxicação Exógena", 2006);
+
+        /// <summary>Gets SINAN-LEIV, <i>Leishmaniose Visceral</i>.</summary>
+        public static DatasusDataset LEIV { get; } = Of("LEIV", "Leishmaniose Visceral", 2000);
+
+        /// <summary>Gets SINAN-LTAN, <i>Leishmaniose Tegumentar Americana</i>.</summary>
+        public static DatasusDataset LTAN { get; } = Of("LTAN", "Leishmaniose Tegumentar Americana", 2000);
+
+        /// <summary>Gets SINAN-LEPT, <i>Leptospirose</i>.</summary>
+        public static DatasusDataset LEPT { get; } = Of("LEPT", "Leptospirose", 2000);
+
+        /// <summary>Gets SINAN-MALA, <i>Malária</i>.</summary>
+        public static DatasusDataset MALA { get; } = Of("MALA", "Malária", 2004);
+
+        /// <summary>Gets SINAN-MENI, <i>Meningite</i>.</summary>
+        public static DatasusDataset MENI { get; } = Of("MENI", "Meningite", 2007);
+
+        /// <summary>Gets SINAN-PFAN, <i>Paralisia Flácida Aguda</i>.</summary>
+        public static DatasusDataset PFAN { get; } = Of("PFAN", "Paralisia Flácida Aguda", 2007);
+
+        /// <summary>Gets SINAN-PEST, <i>Peste</i>.</summary>
+        public static DatasusDataset PEST { get; } = Of("PEST", "Peste", 2007);
+
+        /// <summary>Gets SINAN-RAIV, <i>Raiva</i>.</summary>
+        public static DatasusDataset RAIV { get; } = Of("RAIV", "Raiva", 2007);
+
+        /// <summary>Gets SINAN-ROTA, <i>Rotavírus</i>.</summary>
+        public static DatasusDataset ROTA { get; } = Of("ROTA", "Rotavírus", 2009);
+
+        /// <summary>Gets SINAN-SIFA, <i>Sífilis Adquirida</i>.</summary>
+        public static DatasusDataset SIFA { get; } = Of("SIFA", "Sífilis Adquirida", 2010);
+
+        /// <summary>Gets SINAN-SIFC, <i>Sífilis Congênita</i>.</summary>
+        public static DatasusDataset SIFC { get; } = Of("SIFC", "Sífilis Congênita", 2007);
+
+        /// <summary>Gets SINAN-SIFG, <i>Sífilis em Gestante</i>.</summary>
+        public static DatasusDataset SIFG { get; } = Of("SIFG", "Sífilis em Gestante", 2007);
+
+        /// <summary>Gets SINAN-SRC, <i>Síndrome da Rubéola Congênia</i>.</summary>
+        public static DatasusDataset SRC { get; } = Of("SRC", "Síndrome da Rubéola Congênia", 2007);
+
+        /// <summary>Gets SINAN-SDTA, <i>Surto Doenças Transmitidas por Alimentos</i>.</summary>
+        public static DatasusDataset SDTA { get; } = Of("SDTA", "Surto Doenças Transmitidas por Alimentos", 2007);
+
+        /// <summary>Gets SINAN-TETA, <i>Tétano Acidental</i>.</summary>
+        public static DatasusDataset TETA { get; } = Of("TETA", "Tétano Acidental", 2007);
+
+        /// <summary>Gets SINAN-TETN, <i>Tétano Neonatal</i>.</summary>
+        public static DatasusDataset TETN { get; } = Of("TETN", "Tétano Neonatal", 2014);
+
+        /// <summary>Gets SINAN-TOXC, <i>Toxoplasmose Congênita</i>.</summary>
+        public static DatasusDataset TOXC { get; } = Of("TOXC", "Toxoplasmose Congênita", 2019);
+
+        /// <summary>Gets SINAN-TOXG, <i>Toxoplasmose Gestacional</i>.</summary>
+        public static DatasusDataset TOXG { get; } = Of("TOXG", "Toxoplasmose Gestacional", 2019);
+
+        /// <summary>Gets SINAN-NTRA, <i>Notificação de Tracoma</i>.</summary>
+        public static DatasusDataset NTRA { get; } = Of("NTRA", "Notificação de Tracoma", 2010);
+
+        /// <summary>Gets SINAN-TRAC, <i>Inquérito de Tracoma</i>.</summary>
+        public static DatasusDataset TRAC { get; } = Of("TRAC", "Inquérito de Tracoma", 2009);
+
+        /// <summary>Gets SINAN-TUBE, <i>Tuberculose</i>.</summary>
+        public static DatasusDataset TUBE { get; } = Of("TUBE", "Tuberculose", 2001);
+
+        /// <summary>Gets SINAN-VARC, <i>Varicela</i>.</summary>
+        public static DatasusDataset VARC { get; } = Of("VARC", "Varicela", 2007);
+
+        /// <summary>Gets SINAN-VIOL, <i>Violência doméstica, sexual e/ou outras violências</i>.</summary>
+        public static DatasusDataset VIOL { get; } = Of("VIOL", "Violência doméstica, sexual e/ou outras violências", 2009);
+
+        /// <summary>Gets SINAN-ZIKA, <i>Zika Vírus</i>.</summary>
+        public static DatasusDataset ZIKA { get; } = Of("ZIKA", "Zika Vírus", 2015);
+
+        /// <summary>Gets SINAN-ACBI, <i>Acidente de trabalho com material biológico</i>.</summary>
+        public static DatasusDataset ACBI { get; } = Of("ACBI", "Acidente de trabalho com material biológico", 2006);
+
+        /// <summary>Gets SINAN-ACGR, <i>Acidente de trabalho</i>.</summary>
+        public static DatasusDataset ACGR { get; } = Of("ACGR", "Acidente de trabalho", 2006);
+
+        /// <summary>Gets SINAN-CANC, <i>Cancêr relacionado ao trabalho</i>.</summary>
+        public static DatasusDataset CANC { get; } = Of("CANC", "Cancêr relacionado ao trabalho", 2007);
+
+        /// <summary>Gets SINAN-DERM, <i>Dermatoses ocupacionais</i>.</summary>
+        public static DatasusDataset DERM { get; } = Of("DERM", "Dermatoses ocupacionais", 2006);
+
+        /// <summary>Gets SINAN-LERD, <i>LER/Dort</i>.</summary>
+        public static DatasusDataset LERD { get; } = Of("LERD", "LER/Dort", 2006);
+
+        /// <summary>Gets SINAN-PAIR, <i>Perda auditiva por ruído relacionado ao trabalho</i>.</summary>
+        public static DatasusDataset PAIR { get; } = Of("PAIR", "Perda auditiva por ruído relacionado ao trabalho", 2006);
+
+        /// <summary>Gets SINAN-PNEU, <i>Pneumoconioses realacionadas ao trabalho</i>.</summary>
+        public static DatasusDataset PNEU { get; } = Of("PNEU", "Pneumoconioses realacionadas ao trabalho", 2006);
+
+        /// <summary>Gets SINAN-MENT, <i>Transtornos mentais relacionados ao trabalho</i>.</summary>
+        public static DatasusDataset MENT { get; } = Of("MENT", "Transtornos mentais relacionados ao trabalho", 2006);
+
+        private static DatasusDataset Of(string code, string officialName, int firstYear) =>
+            DatasusDataset.CountryOnly("SINAN", code, officialName, DatasusPeriod.OfYear(firstYear), "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", code + "BR", 2);
     }
 }

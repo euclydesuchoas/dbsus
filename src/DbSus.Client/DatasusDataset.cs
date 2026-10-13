@@ -167,8 +167,9 @@ public sealed class DatasusDataset
     /// <c>/SIM/CID9/DORES/DORBR95.dbc</c> for 1995 and <c>/SIM/CID10/DORES/DOBR1996.dbc</c> for 1996.
     /// </para>
     /// <para>
-    /// The path is where the final file is published. For the most recent years of SIM, SINASC and
-    /// ESUSNOTIFICA, the file may still be in the folder of preliminary data instead: use
+    /// The path is where the final file is published. For the most recent years of SIM, SINASC,
+    /// ESUSNOTIFICA and SINAN, the file may still be in the folder of preliminary data instead, and
+    /// some file types of SINAN are in that folder only: use
     /// <see cref="DatasusClient.FindNationalTableAsync"/>, which looks in both and tells which one
     /// it found.
     /// </para>

@@ -24,7 +24,7 @@ foreach (string candidate in deaths.GetCandidatePaths(DatasusUf.RR, DatasusPerio
 
 - **Only the shape of the request is checked:** a month for a monthly file type, a year for a yearly one, a real state. Whether the file exists is never checked: DATASUS publishes late, leaves gaps, and does not have every state in every period. A path built here may name a file that is not on the server; opening it then fails with `FileNotFoundException`.
 - **Older folder layouts are built for nine file types.** For SIASUS-PA, SIHSUS RD, SP and RJ, SIM DO, DOEXT, DOFET and DOINF, and SINASC-DN, a period before the layout in use now gets the folder and the file name it had then (see "Older layouts" below). A period before the dataset's `FirstPeriod` fails with `ArgumentOutOfRangeException`.
-- **The file for the whole country has methods of its own.** SIM-DO, SINASC-DN, PCE and RESP have, beside the files of the states, one file per year for the whole country: `GetNationalPath` builds its path, and `GetPath` never does. Eleven other file types have a file for the whole country and none by state, and are reached with the same methods (see "Files for the whole country" below).
+- **The file for the whole country has methods of its own.** SIM-DO, SINASC-DN, PCE and RESP have, beside the files of the states, one file per year for the whole country: `GetNationalPath` builds its path, and `GetPath` never does. Another 68, the 57 of SINAN among them, have a file for the whole country and none by state, and are reached with the same methods (see "Files for the whole country" below).
 - **The name is built in upper case, with a lower-case extension.** The server lists some names in another case (see "Letter case" below).
 
 ## Finding and opening a table
@@ -62,12 +62,12 @@ var tables = await client.ListTablesAsync(DatasusCatalog.Cnes.LT, DatasusPeriod.
 
 ## The file types in the catalog
 
-In the file names, `{CODE}` is the code of the file type, `{UF}` is the two-letter abbreviation of the state, `{YY}` and `{YYYY}` are the year with two or four digits, and `{MM}` is the month with two digits. A yearly name with `{YY}` (PCE, RESP, ESUSNOTIFICA-DCCR and the five SIM file types for the whole country only) has the same limit of a hundred years as a monthly one (see "Series that have ended" below).
+In the file names, `{CODE}` is the code of the file type, `{UF}` is the two-letter abbreviation of the state, `{YY}` and `{YYYY}` are the year with two or four digits, and `{MM}` is the month with two digits. A yearly name with `{YY}` (PCE, RESP, ESUSNOTIFICA-DCCR, the five SIM file types for the whole country only and every one of SINAN) has the same limit of a hundred years as a monthly one (see "Series that have ended" below).
 
 - **Official name** is the name under which DATASUS publishes the file type, in Portuguese and spelled as DATASUS spells it (`DatasusDataset.OfficialName`). It is `null` for SIHSUS CH, CM and MT, shown in the tables as "(none published)": the file transfer page of the DATASUS website does not list them, and the documents and definition files of the server that were searched do not name them.
 - **From** is the first period the catalog accepts (`DatasusDataset.FirstPeriod`): the start of the oldest folder layout it knows for the file type (see "Older layouts" below), not the first period with data. CNES-LT, for example, has files from 2005-10 only, SIASUS-ABO from 2014-01 and SIASUS-AMP from 2016-03; of the file types for the whole country only, SIHSUS CH and CM have files from 2019-01, SIM-DOREXT from 2013 and SINASC-DNEX from 2014.
 
-The tables below say, for each of the 53 file types, what was checked in October 2026: `read` means that one real file was read whole with DbSus (decompressed, its CRC-32 checked, every field of every record), usually a small and old one, and some held a single record; `header`, that a header alone was read, or that the file read had no record; `names`, that only the names were seen in a listing. From the `PRELIM` folders, two files were read in the same way in October 2026: SIM-DO and SINASC-DN of Roraima, both of 2026. That says nothing about other periods, or about other files of those folders.
+The tables below say, for each of the 110 file types, what was checked in October 2026: `read` means that one real file was read whole with DbSus (decompressed, its CRC-32 checked, every field of every record), usually a small and old one, and some held a single record; `header`, that a header alone was read, or that the file read had no record; `names`, that only the names were seen in a listing. From the `PRELIM` folders, two files were read in the same way in October 2026: SIM-DO and SINASC-DN of Roraima, both of 2026. That says nothing about other periods, or about other files of those folders. In twelve SINAN files, some fields did not convert (see SINAN below).
 
 ### SIASUS
 
@@ -282,13 +282,118 @@ Folder `/painel_oncologia/Dados`, file name `POBR{YYYY}.dbc`.
 
 One file per year for the whole country, and none by state. The folder has no date in its name: **From** is the first year with files in the listings of October 2026, which showed one file for each year from 2013 to 2026. `POBR2013.dbc` (180,883 records, 23 fields) was read whole in October 2026.
 
+### SINAN
+
+Folder `/SINAN/DADOS/FINAIS`, and `/SINAN/DADOS/PRELIM` for preliminary years; file name `{CODE}BR{YY}.dbc`.
+
+One file type per notifiable condition, each with one file per year for the whole country, and none by state.
+
+| Source | Code | Official name | Coverage | Published | From | Checked |
+|---|---|---|---|---|---|---|
+| SINAN | ANIM | Acidente por Animais Peçonhentos | country | yearly | 2007 | read |
+| SINAN | ANTR | Atendimento Antirrabico | country | yearly | 2006 | read |
+| SINAN | AIDA | AIDS em adultos | country | yearly | 2007 | read |
+| SINAN | AIDC | AIDS em crianças | country | yearly | 2007 | read |
+| SINAN | BOTU | Botulismo | country | yearly | 2007 | read |
+| SINAN | COLE | Cólera | country | yearly | 2007 | read |
+| SINAN | COQU | Coqueluche | country | yearly | 2007 | read |
+| SINAN | DENG | Dengue | country | yearly | 2000 | read |
+| SINAN | DIFT | Difteria | country | yearly | 2007 | read |
+| SINAN | DCRJ | Doença de Creutzfeldt-Jakob (DCJ) | country | yearly | 2007 | read |
+| SINAN | CHAG | Doença de Chagas Aguda | country | yearly | 2000 | read |
+| SINAN | EXAN | Doença exantemáticas | country | yearly | 2007 | read |
+| SINAN | ESQU | Esquistossomose | country | yearly | 2007 | read |
+| SINAN | ESPO | Esporotricose (Epizootia) | country | yearly | 2013 | read |
+| SINAN | CHIK | Febre de Chikungunya | country | yearly | 2014 | read |
+| SINAN | FMAC | Febre Maculosa | country | yearly | 2007 | read |
+| SINAN | FTIF | Febre Tifóide | country | yearly | 2007 | read |
+| SINAN | HANS | Hanseníase | country | yearly | 2001 | read |
+| SINAN | HANT | Hantavirose | country | yearly | 1999 | read |
+| SINAN | HEPA | Hepatites Virais | country | yearly | 2007 | read |
+| SINAN | HIVA | HIV em adultos | country | yearly | 2007 | read |
+| SINAN | HIVC | HIV em crianças | country | yearly | 2007 | read |
+| SINAN | HIVE | HIV em crianças expostas | country | yearly | 2015 | read |
+| SINAN | HIVG | HIV em gestante | country | yearly | 2007 | read |
+| SINAN | IEXO | Intoxicação Exógena | country | yearly | 2006 | read |
+| SINAN | LEIV | Leishmaniose Visceral | country | yearly | 2000 | read |
+| SINAN | LTAN | Leishmaniose Tegumentar Americana | country | yearly | 2000 | read |
+| SINAN | LEPT | Leptospirose | country | yearly | 2000 | read |
+| SINAN | MALA | Malária | country | yearly | 2004 | read |
+| SINAN | MENI | Meningite | country | yearly | 2007 | read |
+| SINAN | PFAN | Paralisia Flácida Aguda | country | yearly | 2007 | read |
+| SINAN | PEST | Peste | country | yearly | 2007 | read |
+| SINAN | RAIV | Raiva | country | yearly | 2007 | read |
+| SINAN | ROTA | Rotavírus | country | yearly | 2009 | read |
+| SINAN | SIFA | Sífilis Adquirida | country | yearly | 2010 | read |
+| SINAN | SIFC | Sífilis Congênita | country | yearly | 2007 | read |
+| SINAN | SIFG | Sífilis em Gestante | country | yearly | 2007 | read |
+| SINAN | SRC | Síndrome da Rubéola Congênia | country | yearly | 2007 | read |
+| SINAN | SDTA | Surto Doenças Transmitidas por Alimentos | country | yearly | 2007 | read |
+| SINAN | TETA | Tétano Acidental | country | yearly | 2007 | read |
+| SINAN | TETN | Tétano Neonatal | country | yearly | 2014 | read |
+| SINAN | TOXC | Toxoplasmose Congênita | country | yearly | 2019 | read |
+| SINAN | TOXG | Toxoplasmose Gestacional | country | yearly | 2019 | read |
+| SINAN | NTRA | Notificação de Tracoma | country | yearly | 2010 | read |
+| SINAN | TRAC | Inquérito de Tracoma | country | yearly | 2009 | read |
+| SINAN | TUBE | Tuberculose | country | yearly | 2001 | read |
+| SINAN | VARC | Varicela | country | yearly | 2007 | read |
+| SINAN | VIOL | Violência doméstica, sexual e/ou outras violências | country | yearly | 2009 | read |
+| SINAN | ZIKA | Zika Vírus | country | yearly | 2015 | read |
+| SINAN | ACBI | Acidente de trabalho com material biológico | country | yearly | 2006 | read |
+| SINAN | ACGR | Acidente de trabalho | country | yearly | 2006 | read |
+| SINAN | CANC | Cancêr relacionado ao trabalho | country | yearly | 2007 | read |
+| SINAN | DERM | Dermatoses ocupacionais | country | yearly | 2006 | read |
+| SINAN | LERD | LER/Dort | country | yearly | 2006 | read |
+| SINAN | PAIR | Perda auditiva por ruído relacionado ao trabalho | country | yearly | 2006 | read |
+| SINAN | PNEU | Pneumoconioses realacionadas ao trabalho | country | yearly | 2006 | read |
+| SINAN | MENT | Transtornos mentais relacionados ao trabalho | country | yearly | 2006 | read |
+
+- **From.** The two folders have no date in their names: **From** is the year of the first file of the file type in the listings of October 2026, in either folder.
+- **Final and preliminary.** In those listings, 41 of the 57 had files in both folders, three in the final one only (ESPO, LEIV and LTAN) and 13 in the preliminary one only; no year of a condition was in both folders. The year in which a condition passes from the preliminary folder to the final one differs from one condition to another (the final folder had SDTA up to 2018 and DENG up to 2025), so the catalog does not know it: `GetNationalCandidatePaths` gives the final path and then the preliminary one, and `FindNationalTableAsync` tries them in that order.
+- **Conditions whose files are only in the preliminary folder.** In the listings of October 2026, thirteen SINAN file types had files in `/SINAN/DADOS/PRELIM` and none in `/SINAN/DADOS/FINAIS`: AIDA, AIDC, EXAN, HEPA, HIVA, HIVC, HIVE, HIVG, SIFA, SIFC, SIFG, SRC and VARC. `OpenNationalReaderAsync` opens final data only, so for them it fails with a `FileNotFoundException` that says that only the preliminary table exists. Preliminary data is read by choice: find the table, see that it is preliminary, and open it.
+
+```csharp
+using System;
+using DbSus.Client;
+
+await using var client = new DatasusClient(new DatasusClientOptions { CacheDirectory = "datasus-cache" });
+
+DatasusTableInfo table = await client.FindNationalTableAsync(DatasusCatalog.Sinan.HIVA, DatasusPeriod.OfYear(2024));
+Console.WriteLine($"{table.Path}, preliminary: {table.IsPreliminary}");   // /SINAN/DADOS/PRELIM/HIVABR24.dbc, preliminary: True
+using var reader = await client.OpenReaderAsync(table);
+```
+
+- **Gaps and a stray name.** In the listings of October 2026, SDTA had no file of 2014, and COLE none of 2023 (its final files went up to 2022 and its preliminary ones were of 2024 and 2025). `/SINAN/DADOS/FINAIS` also had `LERBR19.dbc`, of the same size as `LERDBR19.dbc`; it is of no file type, and the catalog does not read it.
+- **Checked.** In October 2026 one file with records was read whole of each of the 57, usually the smallest of the file type: 562,831 records in all, from 1 to 172,855 (`DENGBR00.dbc`). Of COLE, the first three files tried (`COLEBR07.dbc`, `COLEBR08.dbc` and `COLEBR09.dbc`) had a header and no record, and so had the first five of TETN (`TETNBR15.dbc`, `TETNBR18.dbc`, `TETNBR19.dbc`, `TETNBR21.dbc` and `TETNBR20.dbc`); the files read of the two are `COLEBR18.dbc` and `TETNBR14.dbc`, with one record each. Every file had fields of type `C`; all but `HANTBR99.dbc` had fields of type `D`, which no file read of another source had; and `SRCBR26.dbc` had one field of type `F`.
+- **Fields that did not convert.** In twelve of the files read, of ANIM, AIDA, AIDC, HEPA, HIVA, HIVC, HIVE, HIVG, SIFA, SIFC, SIFG and SDTA, 68 fields of type `N` or `D` held, in some or all of the records, bytes that are not a number or a date. In 66 of them the field was filled with asterisks from end to end. In `SDTABR20.dbc`, the date field `DTTRANSSE` held groups of two digits separated by slashes in 12 records, and the numeric field `AGENTE_ET1` a letter in 2. By default the reader throws `FormatException` on such a field; `DbfReadOptions.UnconvertibleValues` reads it as null instead ("Values that do not convert", in [Reading DBC and DBF files](https://github.com/euclydesuchoas/dbsus/blob/main/docs/reading.md), says what each member of the reader does). The twelve files were read again with the option in October 2026, through the client. With `Null`, the twelve were read to the end with no exception, and 1,068,504 values of the 68 fields were null. With `AsterisksAsNull`, eleven were read to the end with no exception, with the values of the 66 fields null, and `SDTABR20.dbc` threw `FormatException` in its two other fields, in 14 records. The CRC-32 of every file matched. The table says, for each file, the fields and, in parentheses, the type of the field and the number of records in which it did not convert. This is of the one file read of each file type: it says nothing of other years, and whether the asterisks stand for a value that is missing is not written in any document that was read.
+
+| File read | Records | Fields that did not convert |
+|---|---|---|
+| `ANIMBR07.dbc` | 103,757 | `ANO_NASC` (N, 5,923), `NU_AMPOLAS` (N, 82,951), `NU_AMPOL_1` (N, 99,410), `NU_AMPOL_8` (N, 98,987), `NU_AMPOL_6` (N, 99,716), `NU_AMPOL_4` (N, 100,730), `NU_AMPO_7` (N, 100,434), `NU_AMPO_5` (N, 99,952), `NU_AMPOL_9` (N, 93,637), `NU_AMPOL_3` (N, 100,748) |
+| `AIDABR24.dbc` | 21,096 | `DT_NOTIFIC` (D, 10,622), `NU_IDADE_N` (N, 6), `ANTDTTRANS` (D, 21,059), `DTTRIAGEM` (D, 14,285), `DT_CONFIRM` (D, 13,611), `DT_RAPIDO` (D, 16,712), `DT_OBITO` (D, 19,836) |
+| `AIDCBR24.dbc` | 104 | `DT_NOTIFIC` (D, 102), `IDADE_MAE` (N, 104), `ANTDTTRANS` (D, 104), `DT_TRIA_11` (D, 104), `DTCONFIRMA` (D, 104), `DTRAPIDO1` (D, 104), `DT_PCR_1` (D, 104), `DT_PCR_2` (D, 104), `DT_PCR_3` (D, 104), `EVO_DT_OBI` (D, 104) |
+| `HEPABR20.dbc` | 21,597 | `DT_INVEST` (D, 27), `DT_ACIDENT` (D, 19,957), `DT_COLETA` (D, 18,830), `COLETAMARC` (D, 2,867), `DT_ENCERRA` (D, 68) |
+| `HIVABR07.dbc` | 3,414 | `NU_IDADE_N` (N, 38), `ANTDTTRANS` (D, 3,368), `DTTRIAGEM` (D, 383), `DT_CONFIRM` (D, 414), `DT_RAPIDO` (D, 3,174), `DT_OBITO` (D, 3,231) |
+| `HIVCBR24.dbc` | 1 | `IDADE_MAE` (N, 1), `ANTDTTRANS` (D, 1), `DT_TRIA_11` (D, 1), `DTCONFIRMA` (D, 1), `DTRAPIDO1` (D, 1), `DT_PCR_1` (D, 1), `DT_PCR_2` (D, 1), `DT_PCR_3` (D, 1), `EVO_DT_OBI` (D, 1) |
+| `HIVEBR24.dbc` | 1,089 | `NU_IDADE_N` (N, 104), `DT_INVEST` (D, 1,089), `DT_OBITO` (D, 1,089), `DT_ENCERRA` (D, 1,089) |
+| `HIVGBR24.dbc` | 3,598 | `PRE_DT_RET` (D, 1,650) |
+| `SIFABR10.dbc` | 2,543 | `DT_INVEST` (D, 1,569), `DT_OBITO` (D, 2,542), `DT_ENCERRA` (D, 205) |
+| `SIFCBR07.dbc` | 5,410 | `ANT_IDADE` (N, 142), `LAB_TITU_2` (N, 643), `LAB_DT3` (D, 456), `TRA_DT` (D, 2,459), `LABC_TIT_1` (N, 2,135), `LABC_DT_1` (D, 1,232), `LABC_DT` (D, 5,373), `LABC_TIT_2` (N, 5,249), `LABC_DT_2` (D, 4,046), `DT_OBITO` (D, 5,125) |
+| `SIFGBR07.dbc` | 5,722 | `DTTESTE1` (D, 270) |
+| `SDTABR20.dbc` | 292 | `DTTRANSSE` (D, 12), `AGENTE_ET1` (N, 2) |
+
+- **Names.** The official names are those of the file transfer page of the DATASUS website. The definition files of `/SINAN/AUXILIAR/TAB_SINANNET.zip` and the documents of `/SINAN/DOCS/Docs_TAB_SINAN.zip`, as they were on the server in October 2026, give other names to four file types:
+  - **NTRA and TRAC.** The website calls NTRA "Notificação de Tracoma" and TRAC "Inquérito de Tracoma". The definition file that tabulates `NTRA*` is titled "INQUÉRITOS DE TRACOMA", and the one that tabulates `TRAC*`, "Casos positivos de tracoma". Each file read has the fields of the definition of its own name: `NTRABR21.dbc` (66 records, 22 fields) has 8 of the 9 fields that the first one names, the counts `NU_CASOEXA` and `NU_CASOPOS` among them, and no field of sex or age; `TRACBR21.dbc` (63 records, 29 fields) has 15 of the 18 that the second one names, `CS_SEXO` and `NU_IDADE_N` among them. No document that was read says why the website and the definition files name the two differently.
+  - **ACGR.** The website calls it "Acidente de trabalho"; the definition file that tabulates `Acgr*` is titled "INVESTIGAÇÃO DE ACIDENTE DE TRABALHO GRAVE", and `ACGRBR06.dbc` has 41 of the 44 fields that it names.
+  - **ESPO.** The website calls it "Esporotricose (Epizootia)". No definition file tabulates `ESPO*`. The one of epizootics tabulates `EPIZ` and names 42 fields, of which `ESPOBR13.dbc` has 5; the data dictionary titled "Esporotricose (Epizootia)" names 16 of the 17 fields of that file.
+
 ## What to know about these files
 
 - **Split tables.** In the listings of October 2026, SIASUS-PA was split into lettered parts (`PAMG2407a.dbc`, `PAMG2407b.dbc`, up to `d`) in five states: São Paulo in most months since 2011-12, Minas Gerais and Rio de Janeiro in every month since 2021-01, Rio Grande do Sul in some months since 2025-09, and Paraná from 2026-03 to 2026-05. `GetPath` gives the name without a part letter, `PAMG2407.dbc`; `FindTableAsync`, `FindPartsAsync` and `OpenReaderAsync` find the parts from it (see [downloading with DbSus.Client](https://github.com/euclydesuchoas/dbsus/blob/main/docs/client.md)).
-- **Preliminary years.** SIM and SINASC publish the most recent years in a folder of preliminary data until they are closed. In the listings of October 2026, the final folders went from 1996 to 2024 and the preliminary ones held 2025 and 2026. The SIM file types for the whole country only, SINASC-DNEX and ESUSNOTIFICA-DCCR have a folder of preliminary data too (see their tables above). Which years are preliminary changes, so the catalog does not know it: `GetCandidatePaths` gives the final path and then the preliminary one, and `FindTableAsync` tries them in that order. For a year that is not in the final folder yet, such as the current one, it sends two more `SIZE` requests per table: when the listing of the final folder does not show the file, it asks the server for the file and for a first lettered part before it looks in the preliminary folder. The preliminary folder is optional. If the server answers `550` to its listing (FTP uses `550` both for a folder that does not exist and for one that may not be read), `ListTablesAsync` returns the tables of the final folder only, and `FindTableAsync`, when it finds no table, says in its `FileNotFoundException` that the preliminary folder could not be listed. A `550` to the listing of the final folder, and any other permanent reply to either listing, is a `DatasusRequestRefusedException`. For SIM and SINASC, Ordinance SVS No. 116 of 11 February 2009, art. 37 (`/SIM/CID10/DOCS/Legislacao_PDF.pdf`, p. 117), says that the data of a year are released as preliminary between 30 June and 30 August of the following year, and as official by 30 December of that year; it does not name the folders.
+- **Preliminary years.** SIM and SINASC publish the most recent years in a folder of preliminary data until they are closed. In the listings of October 2026, the final folders went from 1996 to 2024 and the preliminary ones held 2025 and 2026. The SIM file types for the whole country only, SINASC-DNEX, ESUSNOTIFICA-DCCR and every one of SINAN have a folder of preliminary data too (see their tables above). Which years are preliminary changes, so the catalog does not know it: `GetCandidatePaths` gives the final path and then the preliminary one, and `FindTableAsync` tries them in that order. For a year that is not in the final folder yet, such as the current one, it sends two more `SIZE` requests per table: when the listing of the final folder does not show the file, it asks the server for the file and for a first lettered part before it looks in the preliminary folder. The preliminary folder is optional. If the server answers `550` to its listing (FTP uses `550` both for a folder that does not exist and for one that may not be read), `ListTablesAsync` returns the tables of the final folder only, and `FindTableAsync`, when it finds no table, says in its `FileNotFoundException` that the preliminary folder could not be listed. A `550` to the listing of the final folder, and any other permanent reply to either listing, is a `DatasusRequestRefusedException`. For SIM and SINASC, Ordinance SVS No. 116 of 11 February 2009, art. 37 (`/SIM/CID10/DOCS/Legislacao_PDF.pdf`, p. 117), says that the data of a year are released as preliminary between 30 June and 30 August of the following year, and as official by 30 December of that year; it does not name the folders. For SINAN, the manual of rules and routines of the system (2nd edition, 2007; `MANUAL/Manual_Normas e Rotinas_2ª_edicao.pdf` in `/SINAN/DOCS/Docs_TAB_SINAN.zip`), section 4.5.4, says that, for the conditions of the first list of that section, the database of a year is closed for statistics by 30 October of the following year; it names neither the folder `FINAIS` nor the folder `PRELIM`, and does not say that one of them holds the closed database.
 - **Letter case.** The server lists most names in upper case with a lower-case extension, but not all: in the listings of October 2026, `DORR2011.DBC`, `DNRR2010.DBC`, `AQPA1001.DBC` and `sppa1001.dbc` were listed like that. `GetPath` always builds the name in upper case with a lower-case extension; the listing has the real case, which is what `FindTableAsync` and `ListTablesAsync` return. In October 2026 the server ignored case: a file listed as `DORR2011.DBC` answered under `dorr2011.dbc` too.
 - **Gaps.** In the listings of October 2026, SIASUS-PA, SIHSUS RD and SP, CNES LT, EQ, ST, PF, HB, DC and EP, SIM-DO and SINASC-DN had no missing period between the first and the last file of each state. The other file types missed some state-months; SIASUS-AR had no file of Roraima, and CNES-EF none of Roraima or the Federal District. Some file types had files of fewer states: SIASUS-AMP of 13, SIASUS AB and ABO of 18, CNES-EE of 23, SIASUS-SAD of 25 and CIHA of 26 (none of Roraima). The latest months also arrive state by state: for several file types, the last month listed was not there for every state.
-- **Series that have ended.** In the listings of October 2026, the last files of SIASUS-AN were of 2014-10 and those of SIASUS-SAD of 2018-10. CNES-EE had, after 2018-12, files of 2019-12 and one file of 2021-07. SIASUS-AB had no file of 2016-11, of 2016-12, or from 2017-05 to 2024-12. Four sources had no file after a month long past: CIH-CR had files from 2008-01 to 2011-04, of 24 states, four months beyond the 2010-12 that the name of its folder suggests; SISPRENATAL-PN from 2012-01 to 2014-12; SISCOLO CC and HC from 2006-01 to 2015-10; and SISMAMA CM, HM and MM from 2009-01 to 2015-07. SIHSUS-MT, for the whole country, had files from 1995-01 to 1997-05 only. The catalog builds a path for any month from **From** on, whether the file is there or not, up to ninety-nine years after the year in which the folder layout in use now starts (2107 for SIASUS, SIHSUS and CIH, 2094 for SIHSUS-MT, 2104 for CNES, 2110 for CIHA, 2111 for SISPRENATAL, 2105 for SISCOLO, 2108 for SISMAMA): the file name carries two digits of the year, and a later month would get the name of an earlier one, so it fails with `ArgumentOutOfRangeException`. The same holds for the yearly names with two digits of the year: PCE is built up to 2094, RESP up to 2114, the five SIM file types for the whole country only up to 2095 and ESUSNOTIFICA-DCCR up to 2122.
+- **Series that have ended.** In the listings of October 2026, the last files of SIASUS-AN were of 2014-10 and those of SIASUS-SAD of 2018-10. CNES-EE had, after 2018-12, files of 2019-12 and one file of 2021-07. SIASUS-AB had no file of 2016-11, of 2016-12, or from 2017-05 to 2024-12. Four sources had no file after a month long past: CIH-CR had files from 2008-01 to 2011-04, of 24 states, four months beyond the 2010-12 that the name of its folder suggests; SISPRENATAL-PN from 2012-01 to 2014-12; SISCOLO CC and HC from 2006-01 to 2015-10; and SISMAMA CM, HM and MM from 2009-01 to 2015-07. SIHSUS-MT, for the whole country, had files from 1995-01 to 1997-05 only. The catalog builds a path for any month from **From** on, whether the file is there or not, up to ninety-nine years after the year in which the folder layout in use now starts (2107 for SIASUS, SIHSUS and CIH, 2094 for SIHSUS-MT, 2104 for CNES, 2110 for CIHA, 2111 for SISPRENATAL, 2105 for SISCOLO, 2108 for SISMAMA): the file name carries two digits of the year, and a later month would get the name of an earlier one, so it fails with `ArgumentOutOfRangeException`. The same holds for the yearly names with two digits of the year: PCE is built up to 2094, RESP up to 2114, the five SIM file types for the whole country only up to 2095, ESUSNOTIFICA-DCCR up to 2122, and each SINAN file type up to ninety-nine years after its **From** (2098 for HANT, 2118 for TOXC and TOXG).
 - **Files with no records.** Some files hold a header and no record at all, as two SIHSUS files of Acre in 2009-09 did in October 2026 (`SPAC0909.dbc`, `RJAC0909.dbc`). They open as an empty table.
 - **Files that are not data.** The folders also hold a few other files, which are not part of any dataset: a placeholder named like `HBufAAmm.dbc` in five CNES folders, and two `.zip` files in the SIHSUS folder.
 - **Size of the folders.** `/SIASUS/200801_/Dados` holds every SIASUS file type and listed 54,478 files; `/SIHSUS/200801_/Dados` listed 22,915; each CNES folder, up to 6,831; `/CIHA/201101_/Dados`, 4,798.
@@ -319,7 +424,7 @@ The `R` of `DOR` stands for residence: the TAB user manual `/SIM/CID9/DOCS/MTAB1
 
 Four file types have, beside the files of the states, one file per year for the whole country, in the same folders. `GetNationalPath` and `GetNationalCandidatePaths` build its path, and `FindNationalTableAsync`, `ListNationalTablesAsync` and `OpenNationalReaderAsync` find, list and open it. Such a table has no state (`DatasusTableInfo.Uf` is `null`), and the methods by state never return it: leaving the state out never opens the file for the whole country.
 
-Eleven other file types have a file for the whole country and none by state: SIHSUS CH, CM and MT, SIM DOEXT, DOFET, DOINF, DOMAT and DOREXT, SINASC-DNEX, ESUSNOTIFICA-DCCR and PO. The same methods build, find, list and open their files; their folders and file names are in the tables of "The file types in the catalog" above. The table below is of the four that also have files by state.
+Another 68 have a file for the whole country and none by state: the 57 of SINAN, and SIHSUS CH, CM and MT, SIM DOEXT, DOFET, DOINF, DOMAT and DOREXT, SINASC-DNEX, ESUSNOTIFICA-DCCR and PO. The same methods build, find, list and open their files; their folders and file names are in the tables of "The file types in the catalog" above. The table below is of the four that also have files by state.
 
 | File type | Periods | Folder | File name | Checked |
 |---|---|---|---|---|
@@ -370,13 +475,13 @@ var years = await client.ListNationalTablesAsync(DatasusCatalog.Resp.RESP, Datas
 
 These are on the server and are reached with the path as a string. For most of them only the names were seen. Where a file was opened, the item says so: a header alone, or one small file read whole (decompressed, its CRC-32 checked, every field of every record).
 
-- **SINAN.** Every file is for the whole country, with a two-digit year: `/SINAN/DADOS/FINAIS/DENGBR25.dbc`, and `/SINAN/DADOS/PRELIM` for preliminary years. The year in which a notifiable condition passes from preliminary to final differs from one condition to another. The file transfer page of the DATASUS website lists a file type `INFL`; the server had no file of it, and the form of that page returned none.
+- **SINAN `INFL`.** The file transfer page of the DATASUS website lists a SINAN file type `INFL`; in October 2026 the server had no file of it, and the form of that page returned none.
 - **SIASUS-BI.** Since 2023-05, in MG, RJ and SP, its files have a `_1`, `_2` or `_3` suffix (`BIMG2305_1.dbc`), sometimes next to a file without a suffix. DbSus does not treat them as parts of one table.
 - **SISCAN.** `/SISCAN/SISCAN` has `.csv` files for the whole country, by year, from 2013 to 2025, and no `.dbc`.
 - **IBGE.** `.zip` files, not `.dbc`: `/IBGE/POP/POPBR{YY}.zip`, `/IBGE/POPSVS/POPSBR{YY}.zip` and `/IBGE/POPTCU/POPTBR{YY}.zip`.
 - **PNI.** `/PNI/DADOS` has files with the `.DBF` extension, not `.dbc`: `CPNI` and `DPNI`, by state and year, from 1994 to 2019. None was opened. The file transfer page does not list PNI.
 - **Folders that look like leftovers.** `/SINASC/NOV` and `/SINASC/ANT` repeat names of the folders above, some with other sizes, and `/SIM/1996_` and `/SIM/1997_1995` are empty.
-- **Documented but not on the server (October 2026).** Definition files and documents on the server name file types of which the listings showed no file: CMD `PR` and `CT`, the older SIASUS APAC files (`TA`, `OP`, `PC`, `PF`, `PQ`, `PR`), SIHSUS `MA`, SINAN `DENGON` and SIM `DOIuuaa`.
+- **Documented but not on the server (October 2026).** Definition files and documents on the server name file types of which the listings showed no file: CMD `PR` and `CT`, the older SIASUS APAC files (`TA`, `OP`, `PC`, `PF`, `PQ`, `PR`), SIHSUS `MA`, SINAN `DENGON`, SIM `DOIuuaa` and seven file types that definition files of `/SINAN/AUXILIAR/TAB_SINANNET.zip` tabulate: yellow fever (`FAma*`), West Nile fever (`NILO*`), epizootics (`EPIZ`), outbreak notification (`NSurt*`), outbreak worksheet (`PSurt*`), negative notification (`NNEGA*`) and influenza (`INFL*`).
 
 This is what the listings of October 2026 showed, not everything on the server: some folders were seen and not listed, and one refused its listing.
 
