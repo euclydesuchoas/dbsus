@@ -291,10 +291,10 @@ public class DatasusCatalogTests
         Assert.Same(DatasusCatalog.SihSus.RD, dataset);
     }
 
-    // The end of both messages: the catalog is partial, and the message says so without claiming
-    // that the file exists.
+    // The end of both messages: a file type that the catalog does not have may still be on the
+    // server, and the message says so without claiming that the file exists.
     private const string GetMessageEnd =
-        "The catalog is partial. A file type that is not in it may still be on the server: use its path as a string. "
+        "A file type that is not in the catalog may still be on the server: use its path as a string. "
         + "What the catalog leaves out is described in https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md";
 
     private static readonly string[] NotInTheMessageOfCnes = ["SIASUS", "SIHSUS", "SINASC", "RD, SP", "PA, AD", "DOEXT"];
@@ -321,6 +321,7 @@ public class DatasusCatalogTests
 
         Assert.Equal("code", exception.ParamName);
         Assert.StartsWith($"The catalog has no dataset '{source}-{code}'. Of {sourceInTheCatalog} it has: {codes}. {GetMessageEnd}", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("partial", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     // A source the catalog does not have: the message lists the sources, and no code.
@@ -342,6 +343,7 @@ public class DatasusCatalogTests
             $"The catalog has no source '{source}'. It has: SIASUS, SIHSUS, CNES, SIM, SINASC, CIHA, CIH, SISPRENATAL, SISCOLO, SISMAMA, PCE, RESP, ESUSNOTIFICA, PO, SINAN. {GetMessageEnd}",
             exception.Message,
             StringComparison.Ordinal);
+        Assert.DoesNotContain("partial", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     // The message has what was asked for and nothing of the rest of the catalog.

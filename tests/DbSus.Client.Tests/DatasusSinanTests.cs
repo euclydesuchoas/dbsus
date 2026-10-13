@@ -370,7 +370,7 @@ public sealed class DatasusSinanTests : IDisposable
         Assert.False(DatasusCatalog.TryGet("SINAN_P", "DENG", out _));
 
         // The message lists the codes of SINAN and of no other source. QQQQ is a made-up code.
-        var ofSinan = "Of SINAN it has: " + string.Join(", ", Codes) + ". The catalog is partial. ";
+        var ofSinan = "Of SINAN it has: " + string.Join(", ", Codes) + ". A file type that is not in the catalog may still be on the server: ";
         var listed = Assert.Throws<ArgumentException>(() => DatasusCatalog.Get("SINAN", "INFL"));
         var madeUp = Assert.Throws<ArgumentException>(() => DatasusCatalog.Get("sinan", "QQQQ"));
         var noSource = Assert.Throws<ArgumentException>(() => DatasusCatalog.Get("SINAN_P", "DENG"));
@@ -380,7 +380,7 @@ public sealed class DatasusSinanTests : IDisposable
         Assert.DoesNotContain("SIASUS", listed.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("RD, SP", listed.Message, StringComparison.Ordinal);
         Assert.StartsWith("The catalog has no source 'SINAN_P'. It has: SIASUS, SIHSUS, ", noSource.Message, StringComparison.Ordinal);
-        Assert.Contains(", ESUSNOTIFICA, PO, SINAN. The catalog is partial. ", noSource.Message, StringComparison.Ordinal);
+        Assert.Contains(", ESUSNOTIFICA, PO, SINAN. A file type that is not in the catalog may still be on the server: ", noSource.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("DENG,", noSource.Message, StringComparison.Ordinal);
     }
 

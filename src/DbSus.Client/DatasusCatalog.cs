@@ -3,10 +3,10 @@ using System.Diagnostics.CodeAnalysis;
 namespace DbSus.Client;
 
 /// <summary>
-/// A partial catalog of the file types DATASUS lists: 111 of SIASUS, SIHSUS, CNES, SIM, SINASC,
+/// The file types of DATASUS that the catalog knows: 111 of SIASUS, SIHSUS, CNES, SIM, SINASC,
 /// CIHA, CIH, SISPRENATAL, SISCOLO, SISMAMA, PCE, RESP, ESUSNOTIFICA, PO and SINAN, each as a
 /// <see cref="DatasusDataset"/>. Use a property, e.g. <c>DatasusCatalog.SihSus.RD</c>, or look one
-/// up by text with <see cref="Get"/>.
+/// up by text with <see cref="Get"/>. The paths guide says what the catalog leaves out.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -78,16 +78,16 @@ public static class DatasusCatalog
         }
 
         // The message has what was asked for and no more: the codes of one source, or the sources.
-        const string Partial = "The catalog is partial. A file type that is not in it may still be on the server: use its path as a string. What the catalog leaves out is described in ";
+        const string Elsewhere = "A file type that is not in the catalog may still be on the server: use its path as a string. What the catalog leaves out is described in ";
         var ofSource = Datasets.Where(item => string.Equals(item.Source, source, StringComparison.OrdinalIgnoreCase)).ToList();
         if (ofSource.Count == 0)
         {
             var sources = string.Join(", ", Datasets.Select(item => item.Source).Distinct());
-            throw new ArgumentException($"The catalog has no source '{source}'. It has: {sources}. {Partial}{DatasusDataset.PathsGuide}", nameof(source));
+            throw new ArgumentException($"The catalog has no source '{source}'. It has: {sources}. {Elsewhere}{DatasusDataset.PathsGuide}", nameof(source));
         }
 
         var codes = string.Join(", ", ofSource.Select(item => item.Code));
-        throw new ArgumentException($"The catalog has no dataset '{source}-{code}'. Of {ofSource[0].Source} it has: {codes}. {Partial}{DatasusDataset.PathsGuide}", nameof(code));
+        throw new ArgumentException($"The catalog has no dataset '{source}-{code}'. Of {ofSource[0].Source} it has: {codes}. {Elsewhere}{DatasusDataset.PathsGuide}", nameof(code));
     }
 
     /// <summary>Looks a dataset up by its source and code, ignoring case.</summary>
