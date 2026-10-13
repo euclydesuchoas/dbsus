@@ -129,8 +129,10 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// <see cref="DbfEncodingSource.Fallback"/> means that the file did not say which code page it
     /// uses, or said it in a way that this library or this runtime does not know, and that the
     /// text is read with the fallback code page: 1252, unless
-    /// <see cref="DbfReadOptions.FallbackEncoding"/> is set. Code page 1252 was the correct one in
-    /// the CNES files in which this was checked. When certainty is needed, set
+    /// <see cref="DbfReadOptions.FallbackEncoding"/> is set. In October 2026 the evidence that
+    /// 1252 is right for LDID 0 was four bytes in one CNES file, and in the files marked 0x35 and
+    /// 0x25, which fall back too, no text with a byte above 0x7F was seen (see
+    /// <see cref="DbfReadOptions.FallbackEncoding"/>). When certainty is needed, set
     /// <see cref="DbfReadOptions.Encoding"/>. For a table in parts, the first part decides; every
     /// other part must select the same code page.
     /// </remarks>

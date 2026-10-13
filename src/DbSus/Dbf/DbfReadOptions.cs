@@ -32,9 +32,12 @@ public sealed class DbfReadOptions
     /// LDID is 0 or unknown. When <see langword="null"/>, code page 1252 is used.
     /// </summary>
     /// <remarks>
-    /// Code page 1252 is the default because it is the only encoding confirmed so far in DATASUS
-    /// files with accented text, including files whose LDID is 0. This remains to be validated
-    /// across more sources. See <see cref="Encoding"/> for how to obtain a code-page encoding.
+    /// Code page 1252 is the default. What was counted in DATASUS files in October 2026: text
+    /// marked with LDID 0x02 reads as code page 850 in one file, and text marked 0x03 as code
+    /// page 1252 in two, as declared; for LDID 0, the evidence is four bytes in one CNES file,
+    /// which read as code page 1252; in the files marked 0x57, 0x58, 0x35 and 0x25, no text with
+    /// a byte above 0x7F was seen, so their code page is not validated. See
+    /// <see cref="Encoding"/> for how to obtain a code-page encoding.
     /// </remarks>
     public Encoding? FallbackEncoding { get; set; }
 
