@@ -2,7 +2,7 @@
 
 The only DATASUS files committed to this repository. Every other sample is fetched into `tests/data/local/` by `tools/fetch-samples` and never committed, because DATASUS microdata can hold personal data.
 
-These two files are small, publicly distributed CNES tables with **establishment-level data only**: every record has `PF_PJ = 3` (legal entity), and the fields are CNES codes, municipality codes, administrative classifications, CNPJs of legal entities and equipment or bed counts. No field identifies a natural person. All records were inspected before committing (2026-09-30).
+These two files are small, publicly distributed CNES tables with **establishment-level data only**: every record is that of a legal entity (one field has the same content in all of them), and the fields are CNES codes, municipality codes, administrative classifications, CNPJs of legal entities and equipment or bed counts. No field identifies a natural person. All records were inspected before committing (2026-09-30).
 
 | File | Content | Origin (ftp.datasus.gov.br) | Size | SHA-256 |
 |---|---|---|---|---|
