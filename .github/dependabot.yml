@@ -1,0 +1,45 @@
+# Dependabot keeps up to date what the build uses and the packages do not ship: the packages of
+# the tests, of the benchmarks and of the analyzers, and the actions of the workflows.
+#
+# It leaves alone the dependencies that the published packages declare. Their versions are
+# minimums chosen for compatibility (docs/compatibility.md): FluentFTP in Directory.Packages.props,
+# and System.Memory, System.Text.Encoding.CodePages and Microsoft.Bcl.AsyncInterfaces in
+# src/Directory.Packages.props. Raising one of them is a decision, not maintenance. They are
+# ignored by name, which also keeps Dependabot from the newer versions of the last three that
+# the tests use (Directory.Packages.props): those are raised by hand. The newest FluentFTP is
+# tested every week by the "FluentFTP latest" workflow.
+#
+# NuGet minor and patch updates come grouped in one pull request, and major updates in pull
+# requests of their own. The actions come grouped in one pull request.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: build
+    # An outside application with versions set on purpose: the oldest ones the packages accept.
+    exclude-paths:
+      - tests/package-consumer/**
+    ignore:
+      - dependency-name: FluentFTP
+      - dependency-name: System.Memory
+      - dependency-name: System.Text.Encoding.CodePages
+      - dependency-name: Microsoft.Bcl.AsyncInterfaces
+    groups:
+      build-and-tests:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ["*"]
