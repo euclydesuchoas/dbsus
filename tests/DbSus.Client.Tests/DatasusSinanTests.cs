@@ -29,19 +29,19 @@ public sealed class DatasusSinanTests : IDisposable
 
     // The count of the catalog, by what each file type covers, computed from the catalog itself.
     [Fact]
-    public void Catalog_Has110FileTypesOf15Sources_And68OfThemAreForTheWholeCountryOnly()
+    public void Catalog_Has111FileTypesOf15Sources_And68OfThemAreForTheWholeCountryOnly()
     {
         var datasets = DatasusCatalog.Datasets;
 
-        Assert.Equal(110, datasets.Count);
+        Assert.Equal(111, datasets.Count);
         Assert.Equal(15, datasets.Select(dataset => dataset.Source).Distinct().Count());
         Assert.Equal("SINAN", datasets.Select(dataset => dataset.Source).Distinct().Last());
-        Assert.Equal(38, datasets.Count(dataset => dataset.Coverage == DatasusCoverage.Uf));
+        Assert.Equal(39, datasets.Count(dataset => dataset.Coverage == DatasusCoverage.Uf));
         Assert.Equal(4, datasets.Count(dataset => dataset.Coverage == (DatasusCoverage.Uf | DatasusCoverage.National)));
         Assert.Equal(68, datasets.Count(dataset => dataset.Coverage == DatasusCoverage.National));
         Assert.Equal(57, Sinan.Count);
         Assert.Equal(Codes, Sinan.Select(dataset => dataset.Code));
-        Assert.Equal(53, datasets.TakeWhile(dataset => dataset.Source != "SINAN").Count());
+        Assert.Equal(54, datasets.TakeWhile(dataset => dataset.Source != "SINAN").Count());
     }
 
     [Fact]

@@ -243,6 +243,10 @@ public sealed class DatasusDataset
     internal static DatasusDataset Monthly(string source, string code, string officialName, string directory, int firstYear, int firstMonth) =>
         new(source, code, officialName, DatasusCoverage.Uf, new DatasusEra(DatasusPeriod.OfMonth(firstYear, firstMonth), null, directory, null, code, null, 2));
 
+    // A monthly file type whose table, when it is split, has numbered parts (NAME_1.dbc, NAME_2.dbc).
+    internal static DatasusDataset MonthlyInNumberedParts(string source, string code, string officialName, string directory, int firstYear, int firstMonth) =>
+        new(source, code, officialName, DatasusCoverage.Uf, new DatasusEra(DatasusPeriod.OfMonth(firstYear, firstMonth), null, directory, null, code, null, 2, numberedParts: true));
+
     // The file for the whole country, when the file type has one, has BR in place of the state.
     internal static DatasusDataset Yearly(string source, string code, string officialName, DatasusCoverage coverage, string directory, string? preliminaryDirectory, int firstYear, int yearDigits = 4) =>
         new(source, code, officialName, coverage, new DatasusEra(DatasusPeriod.OfYear(firstYear), null, directory, preliminaryDirectory, code, NationalStem(coverage, code), yearDigits));

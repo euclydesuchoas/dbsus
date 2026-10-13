@@ -3,18 +3,18 @@ using System.Diagnostics.CodeAnalysis;
 namespace DbSus.Client;
 
 /// <summary>
-/// A partial catalog of the file types DATASUS lists: 110 of SIASUS, SIHSUS, CNES, SIM, SINASC,
+/// A partial catalog of the file types DATASUS lists: 111 of SIASUS, SIHSUS, CNES, SIM, SINASC,
 /// CIHA, CIH, SISPRENATAL, SISCOLO, SISMAMA, PCE, RESP, ESUSNOTIFICA, PO and SINAN, each as a
 /// <see cref="DatasusDataset"/>. Use a property, e.g. <c>DatasusCatalog.SihSus.RD</c>, or look one
 /// up by text with <see cref="Get"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Not everything DATASUS lists is here: SIASUS-BI, for one, is not. A file type that is
-/// missing here may still be on the server.
+/// Not everything on the DATASUS server is here: the files that are not <c>.dbc</c> files, for
+/// one, are not. A file type that is missing here may still be on the server.
 /// </para>
 /// <para>
-/// Of the file types here, 42 have one file per state, and four of these also have a file for
+/// Of the file types here, 43 have one file per state, and four of these also have a file for
 /// the whole country (SIM-DO, SINASC-DN, PCE and RESP); the other 68, the 57 of SINAN among
 /// them, have a file for the whole country only (see <see cref="DatasusDataset.Coverage"/> and
 /// <see cref="DatasusDataset.GetNationalPath"/>).
@@ -36,7 +36,7 @@ public static class DatasusCatalog
     public static IReadOnlyList<DatasusDataset> Datasets { get; } =
     [
         SiaSus.PA, SiaSus.AD, SiaSus.AM, SiaSus.AQ, SiaSus.AR, SiaSus.PS, SiaSus.ATD, SiaSus.ACF,
-        SiaSus.AB, SiaSus.ABO, SiaSus.AN, SiaSus.SAD, SiaSus.AMP,
+        SiaSus.AB, SiaSus.ABO, SiaSus.AN, SiaSus.SAD, SiaSus.AMP, SiaSus.BI,
         SihSus.RD, SihSus.SP, SihSus.RJ, SihSus.ER, SihSus.CH, SihSus.CM, SihSus.MT,
         Cnes.LT, Cnes.EQ, Cnes.ST, Cnes.PF, Cnes.SR, Cnes.HB, Cnes.DC, Cnes.EP, Cnes.EF, Cnes.GM, Cnes.IN, Cnes.RC, Cnes.EE,
         Sim.DO, Sim.DOEXT, Sim.DOFET, Sim.DOINF, Sim.DOMAT, Sim.DOREXT,
@@ -113,7 +113,11 @@ public static class DatasusCatalog
         return index;
     }
 
-    /// <summary>SIASUS, the outpatient information system (<i>Sistema de Informações Ambulatoriais do SUS</i>). Monthly files, one per state.</summary>
+    /// <summary>
+    /// SIASUS, the outpatient information system (<i>Sistema de Informações Ambulatoriais do SUS</i>).
+    /// Monthly files, one per state; in the larger states the table of SIASUS-PA is split into
+    /// lettered parts, and the one of SIASUS-BI into numbered parts.
+    /// </summary>
     public static class SiaSus
     {
         private const string Directory = "/SIASUS/200801_/Dados";
@@ -160,6 +164,14 @@ public static class DatasusCatalog
 
         /// <summary>Gets SIASUS-AMP, <i>Laudo de Acompanhamento Multiprofissional</i>.</summary>
         public static DatasusDataset AMP { get; } = DatasusDataset.Monthly("SIASUS", "AMP", "Laudo de Acompanhamento Multiprofissional", Directory, 2008, 1);
+
+        /// <summary>
+        /// Gets SIASUS-BI, <i>Produção Ambulatorial Individualizado</i>. Split into numbered parts in
+        /// the larger states (<c>BIMG2312_1.dbc</c>, <c>BIMG2312_2.dbc</c>): the client reads the
+        /// numbered parts as the table and leaves aside the file without a number of the same state
+        /// and month, when the server has both.
+        /// </summary>
+        public static DatasusDataset BI { get; } = DatasusDataset.MonthlyInNumberedParts("SIASUS", "BI", "Produção Ambulatorial Individualizado", Directory, 2008, 1);
     }
 
     /// <summary>

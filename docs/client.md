@@ -35,7 +35,7 @@ using var reader = await client.OpenReaderAsync("/SIASUS/200801_/Dados/PAMG2407.
 
 ## By dataset, state and period
 
-For 110 file types, `DatasusCatalog` builds the path, and the client finds, lists and opens the table, from a dataset, a state and a period:
+For 111 file types, `DatasusCatalog` builds the path, and the client finds, lists and opens the table, from a dataset, a state and a period:
 
 ```csharp
 using System;
@@ -60,6 +60,7 @@ using var reader = await client.OpenReaderAsync(DatasusCatalog.SiaSus.PA, Datasu
 - `OpenReaderAsync(dataset, uf, period)` opens final data only; `FindTableAsync` looks in the folder of final data and then in the folder of preliminary data, and says which.
 - `ListTablesAsync` shows what the directory listing shows, which can be incomplete or out of date; `FindTableAsync` asks the server for the file itself.
 - SIM-DO, SINASC-DN, PCE and RESP also have one file per year for the whole country, with methods of its own: `GetNationalPath`, `FindNationalTableAsync`, `ListNationalTablesAsync` and `OpenNationalReaderAsync` (final data only). Such a table has no state (`DatasusTableInfo.Uf` is `null`), and the methods by state never return it. Another 68 (every one of SINAN, SIM-DOFET and PO among them) have a file for the whole country and none by state: they are reached with the same methods, and the methods by state fail for them with `ArgumentException`. In October 2026, thirteen SINAN file types had files in the folder of preliminary data only: for them `OpenNationalReaderAsync` fails, and the table is found with `FindNationalTableAsync` and opened by choice.
+- A table of SIASUS-BI of a large state is in numbered parts (`BIMG2312_1.dbc`, `BIMG2312_2.dbc`), sometimes beside a file without a number. The methods that take a dataset read the numbered parts as one table and leave that file aside; `FindPartsAsync` and `OpenReaderAsync` with a path know lettered parts only, and for them each of those names is a file of its own.
 
 The file types, their folders and names, and what the catalog leaves out are in [DATASUS paths and file names](https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md).
 

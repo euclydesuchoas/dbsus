@@ -184,6 +184,7 @@ static DbSus.Client.DatasusCatalog.SiaSus.AN.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.AQ.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.AR.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.ATD.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.SiaSus.BI.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.PA.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.PS.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.SiaSus.SAD.get -> DbSus.Client.DatasusDataset!

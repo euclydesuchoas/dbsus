@@ -13,7 +13,9 @@ public sealed partial class DatasusClient
 
     /// <summary>
     /// Lists the tables of a dataset in a range of periods, from the server's directory listing:
-    /// one entry per table, with the parts of a split table grouped together.
+    /// one entry per table, with the parts of a split table grouped together. For SIASUS-BI, whose
+    /// parts are numbered, a table with numbered parts is those parts, and the file without a
+    /// number of the same state and month is left out.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -145,7 +147,11 @@ public sealed partial class DatasusClient
     /// <remarks>
     /// Each candidate is looked for as <see cref="FindPartsAsync"/> does: in the folder's listing,
     /// and then by asking the server for the file itself (and for the part after the last one
-    /// listed), so an incomplete or out-of-date listing does not hide the table. This is the way to
+    /// listed), so an incomplete or out-of-date listing does not hide the table. For SIASUS-BI the
+    /// parts are numbered (<c>BIMG2312_1.dbc</c>, <c>BIMG2312_2.dbc</c>), a rule that
+    /// <see cref="FindPartsAsync"/> does not have: when the server has numbered parts they are the
+    /// table, and the file without a number is left aside; a number missing before the last one is
+    /// a <see cref="FileNotFoundException"/>. This is the way to
     /// know whether a table exists and which files it has; pass the result to
     /// <see cref="OpenReaderAsync(DatasusTableInfo, DbfReadOptions, DbcReadOptions, CancellationToken)"/>
     /// to read it, or its parts to <see cref="DownloadAsync"/>.
@@ -243,6 +249,7 @@ public sealed partial class DatasusClient
     /// Finds the table of one state and period in the folder of <b>final</b> data, downloads its
     /// parts and opens them as one <see cref="DbfReader"/>, like
     /// <see cref="OpenReaderAsync(string, DbfReadOptions, DbcReadOptions, CancellationToken)"/>.
+    /// The parts are the ones <see cref="FindTableAsync"/> finds: for SIASUS-BI, the numbered ones.
     /// </summary>
     /// <remarks>
     /// Preliminary data is never opened here. To read a year that SIM or SINASC still publish as
@@ -425,6 +432,7 @@ public sealed partial class DatasusClient
             {
                 DatasusUf? entryUf = null;
                 char? part = null;
+                int? number = null;
                 DatasusPeriod period;
                 if (entry.IsDirectory)
                 {
@@ -440,7 +448,11 @@ public sealed partial class DatasusClient
                 }
                 else
                 {
-                    if (!era.TryParseFileName(entry.Name, out var state, out period, out part) || (uf is { } wanted && state != wanted))
+                    DatasusUf state;
+                    var ofTheEra = era.NumberedParts
+                        ? era.TryParseNumberedFileName(entry.Name, out state, out period, out number)
+                        : era.TryParseFileName(entry.Name, out state, out period, out part);
+                    if (!ofTheEra || (uf is { } wanted && state != wanted))
                     {
                         continue;
                     }
@@ -462,7 +474,7 @@ public sealed partial class DatasusClient
                     continue; // already found in the folder of final data, which comes first
                 }
 
-                files.Add(entry, part);
+                files.Add(entry, part, number);
             }
         }
     }
@@ -470,11 +482,11 @@ public sealed partial class DatasusClient
     // The table of one file name, final or preliminary, or the exception that says it is not there.
     private async Task<DatasusTableInfo> FindCoreAsync(DatasusDataset dataset, DatasusEra era, string fileName, DatasusUf? uf, string? ufName, DatasusPeriod period, CancellationToken cancellationToken)
     {
-        var table = await FindInAsync(dataset, era.Directory, fileName, uf, period, isPreliminary: false, cancellationToken).ConfigureAwait(false);
+        var table = await FindInAsync(dataset, era, era.Directory, fileName, uf, period, isPreliminary: false, cancellationToken).ConfigureAwait(false);
         DatasusRequestRefusedException? notListed = null;
         if (table is null && era.PreliminaryDirectory is not null)
         {
-            (table, notListed) = await FindPreliminaryAsync(dataset, era.PreliminaryDirectory, fileName, uf, period, cancellationToken).ConfigureAwait(false);
+            (table, notListed) = await FindPreliminaryAsync(dataset, era, era.PreliminaryDirectory, fileName, uf, period, cancellationToken).ConfigureAwait(false);
         }
 
         return table ?? throw NoTable(dataset, era, ufName, period, fileName, notListed);
@@ -485,7 +497,7 @@ public sealed partial class DatasusClient
         DatasusDataset dataset, DatasusEra era, string fileName, DatasusUf? uf, string? ufName, DatasusPeriod period, string findMethod, DbfReadOptions? dbfOptions, DbcReadOptions? dbcOptions, CancellationToken cancellationToken)
     {
         var finalPath = era.Directory + "/" + fileName;
-        var table = await FindInAsync(dataset, era.Directory, fileName, uf, period, isPreliminary: false, cancellationToken).ConfigureAwait(false);
+        var table = await FindInAsync(dataset, era, era.Directory, fileName, uf, period, isPreliminary: false, cancellationToken).ConfigureAwait(false);
         if (table is not null)
         {
             return await OpenPartsAsync(table.Parts, dbfOptions, dbcOptions, cancellationToken).ConfigureAwait(false);
@@ -494,7 +506,7 @@ public sealed partial class DatasusClient
         DatasusRequestRefusedException? notListed = null;
         if (era.PreliminaryDirectory is not null)
         {
-            (var preliminary, notListed) = await FindPreliminaryAsync(dataset, era.PreliminaryDirectory, fileName, uf, period, cancellationToken).ConfigureAwait(false);
+            (var preliminary, notListed) = await FindPreliminaryAsync(dataset, era, era.PreliminaryDirectory, fileName, uf, period, cancellationToken).ConfigureAwait(false);
             if (preliminary is not null)
             {
                 throw new FileNotFoundException(
@@ -509,20 +521,102 @@ public sealed partial class DatasusClient
 
     // One candidate folder: the table there, confirmed with the server, or null when it has none.
     // The state is null for the table for the whole country.
-    private async Task<DatasusTableInfo?> FindInAsync(DatasusDataset dataset, string directory, string fileName, DatasusUf? uf, DatasusPeriod period, bool isPreliminary, CancellationToken cancellationToken)
+    private async Task<DatasusTableInfo?> FindInAsync(DatasusDataset dataset, DatasusEra era, string directory, string fileName, DatasusUf? uf, DatasusPeriod period, bool isPreliminary, CancellationToken cancellationToken)
     {
         var remote = RemotePath.Parse(directory + "/" + fileName, Root);
+        if (era.NumberedParts)
+        {
+            var numbered = await FindNumberedPartsOrNullAsync(remote, cancellationToken).ConfigureAwait(false);
+            return numbered is null
+                ? null
+                : new DatasusTableInfo(dataset, uf, period, isPreliminary, directory + "/" + (numbered[0].Name.Length == fileName.Length ? numbered[0].Name : DatasusEra.WithoutPartNumber(numbered[0].Name)), numbered);
+        }
+
         var parts = await FindPartsOrNullAsync(remote, nameof(fileName), cancellationToken).ConfigureAwait(false);
         return parts is null ? null : new DatasusTableInfo(dataset, uf, period, isPreliminary, TablePath(directory, parts[0].Name, hasPartLetter: parts[0].Name.Length != fileName.Length), parts);
     }
 
+    // The files of a table of an era of numbered parts (SIASUS-BI): the numbered parts when the
+    // server has any, in the order of their numbers, and then the file without a number is left
+    // aside; or that file alone; or null when the server has neither. It is a rule of the
+    // catalog: FindPartsAsync, by path, follows the rules of DbSusFile.FindParts, which has
+    // lettered parts only.
+    private async Task<IReadOnlyList<DatasusFileInfo>?> FindNumberedPartsOrNullAsync(RemotePath remote, CancellationToken cancellationToken)
+    {
+        const int MostParts = 999;
+        var unsplitName = remote.Name;
+        var extension = Path.GetExtension(unsplitName);
+        var baseName = unsplitName.Substring(0, unsplitName.Length - extension.Length);
+        var parent = remote.Parent(Root);
+        var listing = await ListInternalAsync(parent, cancellationToken).ConfigureAwait(false);
+        var prefix = parent.Relative == "/" ? "/" : parent.Relative + "/";
+
+        // The parts are numbered from 1, with none missing before the last one.
+        var names = NumberedPartNaming.Select(
+            listing.Where(entry => !entry.IsDirectory).Select(entry => entry.Name),
+            baseName,
+            extension,
+            out var unsplit,
+            (missing, message) => new FileNotFoundException(message, prefix + missing));
+        var found = new Dictionary<string, RemoteFileInfo>(StringComparer.OrdinalIgnoreCase);
+        if (names.Count > 0 || unsplit is null)
+        {
+            // The parts after the last one listed, if the listing missed them; and, when the
+            // listing shows neither a part nor the file, the first part.
+            for (var number = names.Count + 1; number <= MostParts; number++)
+            {
+                var name = NumberedPartNaming.Name(baseName, number, extension);
+                if (await TryGetRemoteInfoAsync(remote.Sibling(Root, name), cancellationToken).ConfigureAwait(false) is not { } info)
+                {
+                    break;
+                }
+
+                names.Add(name);
+                found[name] = info;
+            }
+        }
+
+        if (names.Count == 0)
+        {
+            // No numbered part: the file without a number is the table, if the server has it.
+            if (unsplit is not null)
+            {
+                names.Add(unsplit);
+            }
+            else if (await TryGetRemoteInfoAsync(remote, cancellationToken).ConfigureAwait(false) is { } info)
+            {
+                names.Add(unsplitName);
+                found[unsplitName] = info;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        if (found.Count > 0)
+        {
+            _listings.TryRemove(parent.Full, out _);
+        }
+
+        var parts = new List<DatasusFileInfo>(names.Count);
+        foreach (var name in names)
+        {
+            var part = remote.Sibling(Root, name);
+            var info = found.TryGetValue(name, out var known) ? known : await GetRemoteInfoAsync(part, cancellationToken).ConfigureAwait(false);
+            parts.Add(new DatasusFileInfo(part.Relative, name, info.Size, info.LastModifiedUtc, isDirectory: false));
+        }
+
+        return parts;
+    }
+
     // The preliminary candidate: the table there, or no table and, when the folder could not be
     // listed, the server's refusal, so that the caller can say that the folder was not searched.
-    private async Task<(DatasusTableInfo? Table, DatasusRequestRefusedException? NotListed)> FindPreliminaryAsync(DatasusDataset dataset, string directory, string fileName, DatasusUf? uf, DatasusPeriod period, CancellationToken cancellationToken)
+    private async Task<(DatasusTableInfo? Table, DatasusRequestRefusedException? NotListed)> FindPreliminaryAsync(DatasusDataset dataset, DatasusEra era, string directory, string fileName, DatasusUf? uf, DatasusPeriod period, CancellationToken cancellationToken)
     {
         var (_, notListed) = await ListPreliminaryAsync(directory, cancellationToken).ConfigureAwait(false);
         return notListed is null
-            ? (await FindInAsync(dataset, directory, fileName, uf, period, isPreliminary: true, cancellationToken).ConfigureAwait(false), null)
+            ? (await FindInAsync(dataset, era, directory, fileName, uf, period, isPreliminary: true, cancellationToken).ConfigureAwait(false), null)
             : (null, notListed);
     }
 
@@ -572,14 +666,30 @@ public sealed partial class DatasusClient
     // The files of one table, as a listing shows them.
     private sealed class TableFiles(string directory, bool isPreliminary)
     {
-        private readonly List<(char? Part, RemoteEntry Entry)> _files = [];
+        private readonly List<(char? Part, int? Number, RemoteEntry Entry)> _files = [];
 
         public bool IsPreliminary => isPreliminary;
 
-        public void Add(RemoteEntry entry, char? part) => _files.Add((part, entry));
+        public void Add(RemoteEntry entry, char? part, int? number) => _files.Add((part, number, entry));
 
         public DatasusTableInfo ToTable(DatasusDataset dataset, DatasusUf? uf, DatasusPeriod period)
         {
+            // Numbered parts are the table, in the order of their numbers, and the file without a
+            // number of the same table is left out.
+            if (_files.Exists(static file => file.Number is not null))
+            {
+                _files.RemoveAll(static file => file.Number is null);
+                _files.Sort(static (x, y) => x.Number!.Value.CompareTo(y.Number!.Value));
+                var numbered = new DatasusFileInfo[_files.Count];
+                for (var i = 0; i < numbered.Length; i++)
+                {
+                    var entry = _files[i].Entry;
+                    numbered[i] = new DatasusFileInfo(directory + "/" + entry.Name, entry.Name, entry.Size, null, isDirectory: false);
+                }
+
+                return new DatasusTableInfo(dataset, uf, period, isPreliminary, directory + "/" + DatasusEra.WithoutPartNumber(numbered[0].Name), numbered);
+            }
+
             // A file without a part letter first, then the parts by letter.
             _files.Sort(static (x, y) => (x.Part ?? '\0').CompareTo(y.Part ?? '\0'));
             var parts = new DatasusFileInfo[_files.Count];

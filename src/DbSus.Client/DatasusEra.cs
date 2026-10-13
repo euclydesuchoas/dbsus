@@ -24,7 +24,8 @@ internal sealed class DatasusEra
     /// <param name="statePrefix">The letters before the state in the name of the file of a state, or <see langword="null"/> when the era has no such file.</param>
     /// <param name="nationalStem">The letters before the period in the name of the file for the whole country, or <see langword="null"/> when the era has no such file.</param>
     /// <param name="yearDigits">The digits of the year in a file name: 2 or 4 for a yearly file, always 2 for a monthly one.</param>
-    public DatasusEra(DatasusPeriod firstPeriod, DatasusPeriod? lastPeriod, string directory, string? preliminaryDirectory, string? statePrefix, string? nationalStem, int yearDigits)
+    /// <param name="numberedParts">Whether a split table of the era has numbered parts (<c>_1</c>, <c>_2</c>) instead of lettered ones.</param>
+    public DatasusEra(DatasusPeriod firstPeriod, DatasusPeriod? lastPeriod, string directory, string? preliminaryDirectory, string? statePrefix, string? nationalStem, int yearDigits, bool numberedParts = false)
     {
         if (statePrefix is null && nationalStem is null)
         {
@@ -48,6 +49,7 @@ internal sealed class DatasusEra
         StatePrefix = statePrefix;
         NationalStem = nationalStem;
         YearDigits = yearDigits;
+        NumberedParts = numberedParts;
     }
 
     /// <summary>Gets the first period of the era.</summary>
@@ -84,6 +86,13 @@ internal sealed class DatasusEra
     public DatasusPeriodicity Periodicity => FirstPeriod.Periodicity;
 
     /// <summary>
+    /// Gets a value indicating whether a table of the era that is split has numbered parts
+    /// (<c>BIMG2312_1.dbc</c>, <c>BIMG2312_2.dbc</c>) instead of lettered ones. When it has, the
+    /// file without a number of the same state and period, if there is one, is not a part.
+    /// </summary>
+    public bool NumberedParts { get; }
+
+    /// <summary>
     /// Gets the file name pattern of the era: that of the file of a state when there is one, e.g.
     /// <c>PA{UF}{YY}{MM}.dbc</c> or <c>DO{UF}{YYYY}.dbc</c>, and otherwise that of the file for
     /// the whole country.
@@ -111,6 +120,16 @@ internal sealed class DatasusEra
     /// Returns a file name without its part letter, which is the character before the extension.
     /// </summary>
     public static string WithoutPartLetter(string fileName) => fileName.Remove(fileName.Length - Extension.Length - 1, 1);
+
+    /// <summary>
+    /// Returns a file name without its part number: without what goes from the underscore to the
+    /// extension.
+    /// </summary>
+    public static string WithoutPartNumber(string fileName)
+    {
+        var underscore = fileName.LastIndexOf('_');
+        return fileName.Remove(underscore, fileName.Length - Extension.Length - underscore);
+    }
 
     /// <summary>Whether the period belongs to the era.</summary>
     public bool Contains(DatasusPeriod period) => period >= FirstPeriod && (LastPeriod is not { } last || period <= last);
@@ -144,7 +163,8 @@ internal sealed class DatasusEra
     /// <summary>
     /// Reads the state, the period and the part letter from a file name of this era, ignoring case.
     /// The name must be exactly the prefix, the abbreviation of a state, the digits of the period,
-    /// at most one part letter, and the extension; anything else is not a file of this era.
+    /// at most one part letter, and the extension; anything else is not a file of this era. In an
+    /// era of numbered parts no name has a part letter: see <see cref="TryParseNumberedFileName"/>.
     /// </summary>
     /// <param name="fileName">A file name, without a folder.</param>
     /// <param name="uf">The state.</param>
@@ -175,7 +195,7 @@ internal sealed class DatasusEra
         if (length == withoutPart + 1)
         {
             var letter = fileName[prefix.Length + withoutPart];
-            if (letter is not ((>= 'a' and <= 'z') or (>= 'A' and <= 'Z')))
+            if (NumberedParts || letter is not ((>= 'a' and <= 'z') or (>= 'A' and <= 'Z')))
             {
                 return false;
             }
@@ -183,6 +203,64 @@ internal sealed class DatasusEra
             part = char.ToLowerInvariant(letter);
         }
 
+        return true;
+    }
+
+    /// <summary>
+    /// Reads the state, the period and the part number from a file name of an era of numbered
+    /// parts, ignoring case. The name must be exactly the prefix, the abbreviation of a state, the
+    /// digits of the period, at most an underscore and a number, and the extension. The number is
+    /// one or more digits, from 1 on, with no zero in front. Anything else is not a file of this
+    /// era; in an era of lettered parts, nothing is.
+    /// </summary>
+    /// <param name="fileName">A file name, without a folder.</param>
+    /// <param name="uf">The state.</param>
+    /// <param name="period">The period.</param>
+    /// <param name="number">The part number, or <see langword="null"/> for the file without a number.</param>
+    public bool TryParseNumberedFileName(string fileName, out DatasusUf uf, out DatasusPeriod period, out int? number)
+    {
+        uf = default;
+        period = default;
+        number = null;
+        if (!NumberedParts || StatePrefix is not { } prefix)
+        {
+            return false;
+        }
+
+        var end = prefix.Length + 2 + PeriodDigits;
+        var suffix = fileName.Length - end - Extension.Length;
+        if (suffix < 0
+            || !fileName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            || !fileName.EndsWith(Extension, StringComparison.OrdinalIgnoreCase)
+            || !DatasusUfNames.TryParse(fileName, prefix.Length, out uf)
+            || !TryReadPeriod(fileName, prefix.Length + 2, out period))
+        {
+            return false;
+        }
+
+        if (suffix == 0)
+        {
+            return true;
+        }
+
+        // An underscore and a number of at most nine digits, which fits an int.
+        if (suffix is < 2 or > 10 || fileName[end] != '_' || fileName[end + 1] is not (>= '1' and <= '9'))
+        {
+            return false;
+        }
+
+        var value = 0;
+        for (var index = end + 1; index < end + suffix; index++)
+        {
+            if (fileName[index] is not (>= '0' and <= '9'))
+            {
+                return false;
+            }
+
+            value = (value * 10) + (fileName[index] - '0');
+        }
+
+        number = value;
         return true;
     }
 

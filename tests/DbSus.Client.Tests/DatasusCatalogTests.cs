@@ -27,6 +27,7 @@ public class DatasusCatalogTests
     [InlineData("SIASUS", "AN", "APAC de Nefrologia", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "AN{UF}{YY}{MM}.dbc")]
     [InlineData("SIASUS", "SAD", "Atenção Domiciliar", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "SAD{UF}{YY}{MM}.dbc")]
     [InlineData("SIASUS", "AMP", "Laudo de Acompanhamento Multiprofissional", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "AMP{UF}{YY}{MM}.dbc")]
+    [InlineData("SIASUS", "BI", "Produção Ambulatorial Individualizado", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "2008-01", "/SIASUS/200801_/Dados", null, "BI{UF}{YY}{MM}.dbc")]
     [InlineData("SIHSUS", "RD", "AIH Reduzida", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "1992-01", "/SIHSUS/200801_/Dados", null, "RD{UF}{YY}{MM}.dbc")]
     [InlineData("SIHSUS", "SP", "Serviços Profissionais", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "1992-01", "/SIHSUS/200801_/Dados", null, "SP{UF}{YY}{MM}.dbc")]
     [InlineData("SIHSUS", "RJ", "AIH Rejeitadas", DatasusCoverage.Uf, DatasusPeriodicity.Monthly, "1992-01", "/SIHSUS/200801_/Dados", null, "RJ{UF}{YY}{MM}.dbc")]
@@ -150,18 +151,18 @@ public class DatasusCatalogTests
     }
 
     [Fact]
-    public void Datasets_Are110_EachOnce_GroupedBySource_InTheOrderOfTheCatalog()
+    public void Datasets_Are111_EachOnce_GroupedBySource_InTheOrderOfTheCatalog()
     {
         var datasets = DatasusCatalog.Datasets;
 
-        Assert.Equal(110, datasets.Count);
-        Assert.Equal(110, datasets.Select(dataset => dataset.ToString()).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(111, datasets.Count);
+        Assert.Equal(111, datasets.Select(dataset => dataset.ToString()).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.Equal(
             ["SIASUS", "SIHSUS", "CNES", "SIM", "SINASC", "CIHA", "CIH", "SISPRENATAL", "SISCOLO", "SISMAMA", "PCE", "RESP", "ESUSNOTIFICA", "PO", "SINAN"],
             datasets.Select(dataset => dataset.Source).Distinct());
         Assert.Equal(
             [
-                "SIASUS: PA, AD, AM, AQ, AR, PS, ATD, ACF, AB, ABO, AN, SAD, AMP",
+                "SIASUS: PA, AD, AM, AQ, AR, PS, ATD, ACF, AB, ABO, AN, SAD, AMP, BI",
                 "SIHSUS: RD, SP, RJ, ER, CH, CM, MT",
                 "CNES: LT, EQ, ST, PF, SR, HB, DC, EP, EF, GM, IN, RC, EE",
                 "SIM: DO, DOEXT, DOFET, DOINF, DOMAT, DOREXT",
@@ -180,15 +181,15 @@ public class DatasusCatalogTests
             datasets.GroupBy(dataset => dataset.Source).Select(group => group.Key + ": " + string.Join(", ", group.Select(dataset => dataset.Code))));
 
         // 68 have one file for the whole country and none by state: every one of SINAN and eleven
-        // of other sources. The other 42 have files by state, and four of these one for the whole country too.
+        // of other sources. The other 43 have files by state, and four of these one for the whole country too.
         Assert.Equal(
             ["SIHSUS-CH", "SIHSUS-CM", "SIHSUS-MT", "SIM-DOEXT", "SIM-DOFET", "SIM-DOINF", "SIM-DOMAT", "SIM-DOREXT", "SINASC-DNEX", "ESUSNOTIFICA-DCCR", "PO-PO"],
             datasets.Where(dataset => dataset.Coverage == DatasusCoverage.National && dataset.Source != "SINAN").Select(dataset => dataset.ToString()));
         Assert.All(datasets.Where(dataset => dataset.Source == "SINAN"), dataset => Assert.Equal(DatasusCoverage.National, dataset.Coverage));
         Assert.Equal(57, datasets.Count(dataset => dataset.Source == "SINAN"));
         Assert.Equal(68, datasets.Count(dataset => dataset.Coverage == DatasusCoverage.National));
-        Assert.Equal(42, datasets.Count(dataset => dataset.Coverage.HasFlag(DatasusCoverage.Uf)));
-        Assert.Equal(38, datasets.Count(dataset => dataset.Coverage == DatasusCoverage.Uf));
+        Assert.Equal(43, datasets.Count(dataset => dataset.Coverage.HasFlag(DatasusCoverage.Uf)));
+        Assert.Equal(39, datasets.Count(dataset => dataset.Coverage == DatasusCoverage.Uf));
         Assert.Equal(4, datasets.Count(dataset => dataset.Coverage == UfAndNational));
 
         // DATASUS publishes no name for three of them; every other one has a name.
@@ -203,7 +204,7 @@ public class DatasusCatalogTests
         var properties = groups.SelectMany(group => group.GetProperties(BindingFlags.Public | BindingFlags.Static).Select(property => (Group: group, Property: property))).ToList();
 
         Assert.Equal(["Cih", "Ciha", "Cnes", "EsusNotifica", "Pce", "Po", "Resp", "SiaSus", "SihSus", "Sim", "Sinan", "Sinasc", "SisColo", "SisMama", "SisPrenatal"], groups.Select(group => group.Name).OrderBy(name => name, StringComparer.Ordinal));
-        Assert.Equal(110, properties.Count);
+        Assert.Equal(111, properties.Count);
         foreach (var (group, property) in properties)
         {
             var dataset = Assert.IsType<DatasusDataset>(property.GetValue(null));
@@ -305,7 +306,7 @@ public class DatasusCatalogTests
     [InlineData("SIHSUS", "XX", "SIHSUS", "RD, SP, RJ, ER, CH, CM, MT")]
     [InlineData("sihsus", "xx", "SIHSUS", "RD, SP, RJ, ER, CH, CM, MT")]
     [InlineData("SIHSUS", " RD", "SIHSUS", "RD, SP, RJ, ER, CH, CM, MT")]
-    [InlineData("SIASUS", "BI", "SIASUS", "PA, AD, AM, AQ, AR, PS, ATD, ACF, AB, ABO, AN, SAD, AMP")]   // on the server, but not in the catalog
+    [InlineData("SIASUS", "XX", "SIASUS", "PA, AD, AM, AQ, AR, PS, ATD, ACF, AB, ABO, AN, SAD, AMP, BI")]
     [InlineData("SISMAMA", "QQ", "SISMAMA", "CM, HM, MM")]                                               // a made-up code, which no source uses
     [InlineData("SISCOLO", "CM", "SISCOLO", "CC, HC")]                                                   // a code of another source
     [InlineData("SIM", "", "SIM", "DO, DOEXT, DOFET, DOINF, DOMAT, DOREXT")]

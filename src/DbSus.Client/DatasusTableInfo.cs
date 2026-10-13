@@ -46,7 +46,8 @@ public sealed class DatasusTableInfo
     /// <summary>
     /// Gets the path of the table, relative to <see cref="DatasusClientOptions.RootPath"/> and with
     /// the name in the letter case the server lists it in. For a table split into parts it is the
-    /// name without a part letter, which is not a file by itself; the files are in <see cref="Parts"/>.
+    /// name without a part letter or a part number, which is not a file of the table; the files are
+    /// in <see cref="Parts"/>.
     /// </summary>
     public string Path { get; }
 
