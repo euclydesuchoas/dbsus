@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace DbSus.Client;
 
 /// <summary>
-/// The file types of DATASUS that the catalog knows: 111 of SIASUS, SIHSUS, CNES, SIM, SINASC,
+/// The file types of DATASUS that the catalog knows: 112 of SIASUS, SIHSUS, CNES, SIM, SINASC,
 /// CIHA, CIH, SISPRENATAL, SISCOLO, SISMAMA, PCE, RESP, ESUSNOTIFICA, PO and SINAN, each as a
 /// <see cref="DatasusDataset"/>. Use a property, e.g. <c>DatasusCatalog.SihSus.RD</c>, or look one
 /// up by text with <see cref="Get"/>. The paths guide says what the catalog leaves out.
@@ -15,9 +15,13 @@ namespace DbSus.Client;
 /// </para>
 /// <para>
 /// Of the file types here, 43 have one file per state, and four of these also have a file for
-/// the whole country (SIM-DO, SINASC-DN, PCE and RESP); the other 68, the 57 of SINAN among
+/// the whole country (SIM-DO, SINASC-DN, PCE and RESP); the other 69, the 58 of SINAN among
 /// them, have a file for the whole country only (see <see cref="DatasusDataset.Coverage"/> and
 /// <see cref="DatasusDataset.GetNationalPath"/>).
+/// </para>
+/// <para>
+/// One file type is here although no file of it was known on the server in October 2026:
+/// SINAN-INFL (see <see cref="Sinan.INFL"/>). Of each of the other 111, a real file was read.
 /// </para>
 /// <para>
 /// Nine of the file types also have the folder layout that came before the one in use now:
@@ -52,7 +56,7 @@ public static class DatasusCatalog
         Po.PO,
         Sinan.ANIM, Sinan.ANTR, Sinan.AIDA, Sinan.AIDC, Sinan.BOTU, Sinan.COLE, Sinan.COQU, Sinan.DENG, Sinan.DIFT, Sinan.DCRJ,
         Sinan.CHAG, Sinan.EXAN, Sinan.ESQU, Sinan.ESPO, Sinan.CHIK, Sinan.FMAC, Sinan.FTIF, Sinan.HANS, Sinan.HANT, Sinan.HEPA,
-        Sinan.HIVA, Sinan.HIVC, Sinan.HIVE, Sinan.HIVG, Sinan.IEXO, Sinan.LEIV, Sinan.LTAN, Sinan.LEPT, Sinan.MALA, Sinan.MENI,
+        Sinan.HIVA, Sinan.HIVC, Sinan.HIVE, Sinan.HIVG, Sinan.INFL, Sinan.IEXO, Sinan.LEIV, Sinan.LTAN, Sinan.LEPT, Sinan.MALA, Sinan.MENI,
         Sinan.PFAN, Sinan.PEST, Sinan.RAIV, Sinan.ROTA, Sinan.SIFA, Sinan.SIFC, Sinan.SIFG, Sinan.SRC, Sinan.SDTA, Sinan.TETA,
         Sinan.TETN, Sinan.TOXC, Sinan.TOXG, Sinan.NTRA, Sinan.TRAC, Sinan.TUBE, Sinan.VARC, Sinan.VIOL, Sinan.ZIKA, Sinan.ACBI,
         Sinan.ACGR, Sinan.CANC, Sinan.DERM, Sinan.LERD, Sinan.PAIR, Sinan.PNEU, Sinan.MENT,
@@ -445,7 +449,8 @@ public static class DatasusCatalog
     /// The year in which a notifiable condition passes from the folder of preliminary data to the
     /// one of final data differs from one condition to another, and some are in one of the two
     /// folders only. The first period of each file type is the year of its first file in either
-    /// folder, as the server listed them in October 2026.
+    /// folder, as the server listed them in October 2026. One file type, <see cref="INFL"/>, had no
+    /// file in either folder.
     /// </remarks>
     public static class Sinan
     {
@@ -520,6 +525,33 @@ public static class DatasusCatalog
 
         /// <summary>Gets SINAN-HIVG, <i>HIV em gestante</i>.</summary>
         public static DatasusDataset HIVG { get; } = Of("HIVG", "HIV em gestante", 2007);
+
+        /// <summary>
+        /// Gets SINAN-INFL, <i>Influenza Pandêmica</i>. <b>No file of this file type was known on the
+        /// server in October 2026.</b>
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The file transfer page of the DATASUS website lists this file type, and that is why the
+        /// catalog has it. The server had no file of it in either folder of SINAN, and the form of
+        /// that page returned none for any year from 1999 to 2026.
+        /// </para>
+        /// <para>
+        /// The folders and the file name, <c>INFLBR{YY}.dbc</c>, are those of the other SINAN file
+        /// types, by their pattern: nothing of it was seen on the server. The first period, 1999,
+        /// is the earliest one of the SINAN file types, since no file says when this one starts.
+        /// If DATASUS publishes the file elsewhere or under another name, the paths built here will
+        /// not find it.
+        /// </para>
+        /// <para>
+        /// <see cref="DatasusClient.FindNationalTableAsync"/> and
+        /// <see cref="DatasusClient.OpenNationalReaderAsync"/> fail with a
+        /// <see cref="FileNotFoundException"/> whose message says that no file was known.
+        /// </para>
+        /// </remarks>
+        public static DatasusDataset INFL { get; } = Of("INFL", "Influenza Pandêmica", 1999).WithNoFileNote(
+            "No file of SINAN-INFL was known on the server in October 2026: the catalog has this file type because the file transfer page of the DATASUS website lists it, "
+            + "with the folders and the file name of the other SINAN file types.");
 
         /// <summary>Gets SINAN-IEXO, <i>Intoxicação Exógena</i>.</summary>
         public static DatasusDataset IEXO { get; } = Of("IEXO", "Intoxicação Exógena", 2006);

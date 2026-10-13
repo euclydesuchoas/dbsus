@@ -92,6 +92,7 @@ public class DatasusCatalogTests
     [InlineData("SINAN", "HIVC", "HIV em crianças", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "HIVCBR{YY}.dbc")]
     [InlineData("SINAN", "HIVE", "HIV em crianças expostas", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2015", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "HIVEBR{YY}.dbc")]
     [InlineData("SINAN", "HIVG", "HIV em gestante", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2007", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "HIVGBR{YY}.dbc")]
+    [InlineData("SINAN", "INFL", "Influenza Pandêmica", DatasusCoverage.National, DatasusPeriodicity.Yearly, "1999", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "INFLBR{YY}.dbc")]
     [InlineData("SINAN", "IEXO", "Intoxicação Exógena", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2006", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "IEXOBR{YY}.dbc")]
     [InlineData("SINAN", "LEIV", "Leishmaniose Visceral", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2000", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "LEIVBR{YY}.dbc")]
     [InlineData("SINAN", "LTAN", "Leishmaniose Tegumentar Americana", DatasusCoverage.National, DatasusPeriodicity.Yearly, "2000", "/SINAN/DADOS/FINAIS", "/SINAN/DADOS/PRELIM", "LTANBR{YY}.dbc")]
@@ -151,12 +152,12 @@ public class DatasusCatalogTests
     }
 
     [Fact]
-    public void Datasets_Are111_EachOnce_GroupedBySource_InTheOrderOfTheCatalog()
+    public void Datasets_Are112_EachOnce_GroupedBySource_InTheOrderOfTheCatalog()
     {
         var datasets = DatasusCatalog.Datasets;
 
-        Assert.Equal(111, datasets.Count);
-        Assert.Equal(111, datasets.Select(dataset => dataset.ToString()).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(112, datasets.Count);
+        Assert.Equal(112, datasets.Select(dataset => dataset.ToString()).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.Equal(
             ["SIASUS", "SIHSUS", "CNES", "SIM", "SINASC", "CIHA", "CIH", "SISPRENATAL", "SISCOLO", "SISMAMA", "PCE", "RESP", "ESUSNOTIFICA", "PO", "SINAN"],
             datasets.Select(dataset => dataset.Source).Distinct());
@@ -176,18 +177,18 @@ public class DatasusCatalogTests
                 "RESP: RESP",
                 "ESUSNOTIFICA: DCCR",
                 "PO: PO",
-                "SINAN: ANIM, ANTR, AIDA, AIDC, BOTU, COLE, COQU, DENG, DIFT, DCRJ, CHAG, EXAN, ESQU, ESPO, CHIK, FMAC, FTIF, HANS, HANT, HEPA, HIVA, HIVC, HIVE, HIVG, IEXO, LEIV, LTAN, LEPT, MALA, MENI, PFAN, PEST, RAIV, ROTA, SIFA, SIFC, SIFG, SRC, SDTA, TETA, TETN, TOXC, TOXG, NTRA, TRAC, TUBE, VARC, VIOL, ZIKA, ACBI, ACGR, CANC, DERM, LERD, PAIR, PNEU, MENT",
+                "SINAN: ANIM, ANTR, AIDA, AIDC, BOTU, COLE, COQU, DENG, DIFT, DCRJ, CHAG, EXAN, ESQU, ESPO, CHIK, FMAC, FTIF, HANS, HANT, HEPA, HIVA, HIVC, HIVE, HIVG, INFL, IEXO, LEIV, LTAN, LEPT, MALA, MENI, PFAN, PEST, RAIV, ROTA, SIFA, SIFC, SIFG, SRC, SDTA, TETA, TETN, TOXC, TOXG, NTRA, TRAC, TUBE, VARC, VIOL, ZIKA, ACBI, ACGR, CANC, DERM, LERD, PAIR, PNEU, MENT",
             ],
             datasets.GroupBy(dataset => dataset.Source).Select(group => group.Key + ": " + string.Join(", ", group.Select(dataset => dataset.Code))));
 
-        // 68 have one file for the whole country and none by state: every one of SINAN and eleven
+        // 69 have one file for the whole country and none by state: every one of SINAN and eleven
         // of other sources. The other 43 have files by state, and four of these one for the whole country too.
         Assert.Equal(
             ["SIHSUS-CH", "SIHSUS-CM", "SIHSUS-MT", "SIM-DOEXT", "SIM-DOFET", "SIM-DOINF", "SIM-DOMAT", "SIM-DOREXT", "SINASC-DNEX", "ESUSNOTIFICA-DCCR", "PO-PO"],
             datasets.Where(dataset => dataset.Coverage == DatasusCoverage.National && dataset.Source != "SINAN").Select(dataset => dataset.ToString()));
         Assert.All(datasets.Where(dataset => dataset.Source == "SINAN"), dataset => Assert.Equal(DatasusCoverage.National, dataset.Coverage));
-        Assert.Equal(57, datasets.Count(dataset => dataset.Source == "SINAN"));
-        Assert.Equal(68, datasets.Count(dataset => dataset.Coverage == DatasusCoverage.National));
+        Assert.Equal(58, datasets.Count(dataset => dataset.Source == "SINAN"));
+        Assert.Equal(69, datasets.Count(dataset => dataset.Coverage == DatasusCoverage.National));
         Assert.Equal(43, datasets.Count(dataset => dataset.Coverage.HasFlag(DatasusCoverage.Uf)));
         Assert.Equal(39, datasets.Count(dataset => dataset.Coverage == DatasusCoverage.Uf));
         Assert.Equal(4, datasets.Count(dataset => dataset.Coverage == UfAndNational));
@@ -204,7 +205,7 @@ public class DatasusCatalogTests
         var properties = groups.SelectMany(group => group.GetProperties(BindingFlags.Public | BindingFlags.Static).Select(property => (Group: group, Property: property))).ToList();
 
         Assert.Equal(["Cih", "Ciha", "Cnes", "EsusNotifica", "Pce", "Po", "Resp", "SiaSus", "SihSus", "Sim", "Sinan", "Sinasc", "SisColo", "SisMama", "SisPrenatal"], groups.Select(group => group.Name).OrderBy(name => name, StringComparer.Ordinal));
-        Assert.Equal(111, properties.Count);
+        Assert.Equal(112, properties.Count);
         foreach (var (group, property) in properties)
         {
             var dataset = Assert.IsType<DatasusDataset>(property.GetValue(null));
@@ -258,8 +259,9 @@ public class DatasusCatalogTests
             Assert.Equal(dataset.Periodicity == DatasusPeriodicity.Monthly ? "monthly" : "yearly", cells[5]);
             Assert.Equal(dataset.FirstPeriod.ToString(), cells[6]);
 
-            // What was checked of the file type: a whole file read, a header alone, or only the names in a listing.
-            Assert.True(cells[7] is "read" or "header" or "names", $"{dataset}: \"{cells[7]}\"");
+            // What was checked of the file type: a whole file read, a header alone, or only the names in a
+            // listing; and, for the one file type of which the server had no file, that there was none.
+            Assert.True(dataset.ToString() == "SINAN-INFL" ? cells[7] == "**no file**" : cells[7] is "read" or "header" or "names", $"{dataset}: \"{cells[7]}\"");
 
             // The folder and the file name are said once per table, in the line under the heading
             // above it; a source whose file types are in more than one folder has more than one heading.

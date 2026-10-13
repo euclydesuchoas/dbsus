@@ -66,6 +66,20 @@ public sealed class DatasusDataset
     internal DatasusEra CurrentEra => Eras[Eras.Count - 1];
 
     /// <summary>
+    /// Gets, for a file type of which the server had no file when the catalog was written, the
+    /// sentence that says so, which ends the message of a table not found; otherwise
+    /// <see langword="null"/>.
+    /// </summary>
+    internal string? NoFileNote { get; private set; }
+
+    // For a file type that is in the catalog by the pattern of its name alone.
+    internal DatasusDataset WithNoFileNote(string note)
+    {
+        NoFileNote = note;
+        return this;
+    }
+
+    /// <summary>
     /// Builds the path of the file of one state and period, relative to
     /// <see cref="DatasusClientOptions.RootPath"/>, e.g. <c>/SIHSUS/200801_/Dados/RDSP2407.dbc</c>.
     /// </summary>

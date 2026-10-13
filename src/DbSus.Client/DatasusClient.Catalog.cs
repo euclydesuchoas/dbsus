@@ -641,20 +641,23 @@ public sealed partial class DatasusClient
     private static FileNotFoundException NoTable(DatasusDataset dataset, DatasusEra era, string? ufName, DatasusPeriod period, string fileName, DatasusRequestRefusedException? preliminaryNotListed)
     {
         var finalPath = era.Directory + "/" + fileName;
+
+        // A file type of which no file was known when the catalog was written says so here.
+        var note = dataset.NoFileNote is null ? "" : " " + dataset.NoFileNote;
         if (preliminaryNotListed is not null)
         {
             // Not "final or preliminary": a folder that may not be read gets the same 550.
             return new FileNotFoundException(
                 $"The server has no final {dataset} table{OfState(ufName)} for {period}: {finalPath} does not exist, whole or in parts. "
-                + $"The folder of preliminary data, {era.PreliminaryDirectory}, was not searched, because it could not be listed: {preliminaryNotListed.Message}",
+                + $"The folder of preliminary data, {era.PreliminaryDirectory}, was not searched, because it could not be listed: {preliminaryNotListed.Message}{note}",
                 finalPath,
                 preliminaryNotListed);
         }
 
         return new FileNotFoundException(
-            era.PreliminaryDirectory is null
+            (era.PreliminaryDirectory is null
                 ? $"The server has no {dataset} table{OfState(ufName)} for {period}: {finalPath} does not exist, whole or in parts."
-                : $"The server has no {dataset} table{OfState(ufName)} for {period}, final or preliminary: neither {finalPath} nor {era.PreliminaryDirectory}/{fileName} exists.",
+                : $"The server has no {dataset} table{OfState(ufName)} for {period}, final or preliminary: neither {finalPath} nor {era.PreliminaryDirectory}/{fileName} exists.") + note,
             finalPath);
     }
 

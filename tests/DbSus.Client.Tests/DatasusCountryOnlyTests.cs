@@ -6,7 +6,7 @@ namespace DbSus.Client.Tests;
 
 // Eleven file types that have one file for the whole country and none by state: five of SIM,
 // SINASC-DNEX, SIHSUS CH, CM and MT, ESUSNOTIFICA-DCCR and PO-PO. The file names are real ones,
-// as the DATASUS server listed them in October 2026. The 57 of SINAN are in DatasusSinanTests.
+// as the DATASUS server listed them in October 2026. The 58 of SINAN are in DatasusSinanTests.
 public sealed class DatasusCountryOnlyTests : IDisposable
 {
     private const string SimNow = "/SIM/CID10/DOFET";
@@ -329,7 +329,7 @@ public sealed class DatasusCountryOnlyTests : IDisposable
             });
         }
 
-        Assert.Equal(68, DatasusCatalog.Datasets.Count(dataset => dataset.Coverage == DatasusCoverage.National));
+        Assert.Equal(69, DatasusCatalog.Datasets.Count(dataset => dataset.Coverage == DatasusCoverage.National));
         Assert.Equal(0, _fixture.Server.ListCalls + _fixture.Server.InfoCalls);
     }
 

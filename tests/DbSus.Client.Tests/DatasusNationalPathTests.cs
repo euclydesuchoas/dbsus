@@ -215,6 +215,6 @@ public class DatasusNationalPathTests
         Assert.Equal(
             ["SIM-DO", "SINASC-DN", "PCE-PCE", "RESP-RESP"],
             DatasusCatalog.Datasets.Where(dataset => dataset.Coverage == (DatasusCoverage.Uf | DatasusCoverage.National)).Select(dataset => dataset.ToString()));
-        Assert.Equal(72, DatasusCatalog.Datasets.Count(dataset => dataset.Coverage.HasFlag(DatasusCoverage.National)));
+        Assert.Equal(73, DatasusCatalog.Datasets.Count(dataset => dataset.Coverage.HasFlag(DatasusCoverage.National)));
     }
 }

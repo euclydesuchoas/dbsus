@@ -230,6 +230,7 @@ static DbSus.Client.DatasusCatalog.Sinan.HIVC.get -> DbSus.Client.DatasusDataset
 static DbSus.Client.DatasusCatalog.Sinan.HIVE.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Sinan.HIVG.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Sinan.IEXO.get -> DbSus.Client.DatasusDataset!
+static DbSus.Client.DatasusCatalog.Sinan.INFL.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Sinan.LEIV.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Sinan.LEPT.get -> DbSus.Client.DatasusDataset!
 static DbSus.Client.DatasusCatalog.Sinan.LERD.get -> DbSus.Client.DatasusDataset!

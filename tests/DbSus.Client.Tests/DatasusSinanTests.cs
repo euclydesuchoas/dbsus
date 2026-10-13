@@ -3,9 +3,10 @@ using Xunit;
 
 namespace DbSus.Client.Tests;
 
-// SINAN: 57 file types, one per notifiable condition, each with one file per year for the whole
+// SINAN: 58 file types, one per notifiable condition, each with one file per year for the whole
 // country and none by state. The file names are real ones, as the DATASUS server listed them in
-// October 2026.
+// October 2026, but for INFL: the server had no file of it, and its names here follow the pattern
+// of the other 57.
 public sealed class DatasusSinanTests : IDisposable
 {
     private const string Final = "/SINAN/DADOS/FINAIS";
@@ -15,7 +16,7 @@ public sealed class DatasusSinanTests : IDisposable
     private static readonly string[] Codes =
     [
         "ANIM", "ANTR", "AIDA", "AIDC", "BOTU", "COLE", "COQU", "DENG", "DIFT", "DCRJ", "CHAG", "EXAN", "ESQU", "ESPO", "CHIK", "FMAC", "FTIF", "HANS", "HANT",
-        "HEPA", "HIVA", "HIVC", "HIVE", "HIVG", "IEXO", "LEIV", "LTAN", "LEPT", "MALA", "MENI", "PFAN", "PEST", "RAIV", "ROTA", "SIFA", "SIFC", "SIFG", "SRC",
+        "HEPA", "HIVA", "HIVC", "HIVE", "HIVG", "INFL", "IEXO", "LEIV", "LTAN", "LEPT", "MALA", "MENI", "PFAN", "PEST", "RAIV", "ROTA", "SIFA", "SIFC", "SIFG", "SRC",
         "SDTA", "TETA", "TETN", "TOXC", "TOXG", "NTRA", "TRAC", "TUBE", "VARC", "VIOL", "ZIKA", "ACBI", "ACGR", "CANC", "DERM", "LERD", "PAIR", "PNEU", "MENT",
     ];
 
@@ -29,17 +30,17 @@ public sealed class DatasusSinanTests : IDisposable
 
     // The count of the catalog, by what each file type covers, computed from the catalog itself.
     [Fact]
-    public void Catalog_Has111FileTypesOf15Sources_And68OfThemAreForTheWholeCountryOnly()
+    public void Catalog_Has112FileTypesOf15Sources_And69OfThemAreForTheWholeCountryOnly()
     {
         var datasets = DatasusCatalog.Datasets;
 
-        Assert.Equal(111, datasets.Count);
+        Assert.Equal(112, datasets.Count);
         Assert.Equal(15, datasets.Select(dataset => dataset.Source).Distinct().Count());
         Assert.Equal("SINAN", datasets.Select(dataset => dataset.Source).Distinct().Last());
         Assert.Equal(39, datasets.Count(dataset => dataset.Coverage == DatasusCoverage.Uf));
         Assert.Equal(4, datasets.Count(dataset => dataset.Coverage == (DatasusCoverage.Uf | DatasusCoverage.National)));
-        Assert.Equal(68, datasets.Count(dataset => dataset.Coverage == DatasusCoverage.National));
-        Assert.Equal(57, Sinan.Count);
+        Assert.Equal(69, datasets.Count(dataset => dataset.Coverage == DatasusCoverage.National));
+        Assert.Equal(58, Sinan.Count);
         Assert.Equal(Codes, Sinan.Select(dataset => dataset.Code));
         Assert.Equal(54, datasets.TakeWhile(dataset => dataset.Source != "SINAN").Count());
     }
@@ -179,11 +180,11 @@ public sealed class DatasusSinanTests : IDisposable
     }
 
     // Names of the two folders, or like them, that are of no file type of the catalog. LERBR19.dbc
-    // was listed in October 2026 beside LERDBR19.dbc; the website lists INFL, and the server had no
-    // file of it.
+    // was listed in October 2026 beside LERDBR19.dbc.
     [Theory]
     [InlineData("LERBR19.dbc")]
-    [InlineData("INFLBR19.dbc")]
+    [InlineData("INFBR19.dbc")]
+    [InlineData("INFLUBR19.dbc")]
     [InlineData("SRCSBR24.dbc")]
     [InlineData("SRBR24.dbc")]
     [InlineData("DENGONBR24.dbc")]
@@ -362,19 +363,19 @@ public sealed class DatasusSinanTests : IDisposable
         Assert.Same(DatasusCatalog.Sinan.SRC, DatasusCatalog.Get("Sinan", "Src"));
         Assert.Equal("SINAN-LERD", DatasusCatalog.Sinan.LERD.ToString());
 
-        // INFL is listed by the DATASUS website and had no file on the server in October 2026; LER
-        // is the stem of one stray file. Neither is a file type of the catalog.
-        Assert.False(DatasusCatalog.TryGet("SINAN", "INFL", out _));
+        // LER is the stem of one stray file, and not a file type of the catalog. INFL is one,
+        // though the server had no file of it in October 2026.
+        Assert.True(DatasusCatalog.TryGet("SINAN", "INFL", out _));
         Assert.False(DatasusCatalog.TryGet("SINAN", "LER", out _));
         Assert.False(DatasusCatalog.TryGet("SINAN", "DENGBR", out _));
         Assert.False(DatasusCatalog.TryGet("SINAN_P", "DENG", out _));
 
         // The message lists the codes of SINAN and of no other source. QQQQ is a made-up code.
         var ofSinan = "Of SINAN it has: " + string.Join(", ", Codes) + ". A file type that is not in the catalog may still be on the server: ";
-        var listed = Assert.Throws<ArgumentException>(() => DatasusCatalog.Get("SINAN", "INFL"));
+        var listed = Assert.Throws<ArgumentException>(() => DatasusCatalog.Get("SINAN", "LER"));
         var madeUp = Assert.Throws<ArgumentException>(() => DatasusCatalog.Get("sinan", "QQQQ"));
         var noSource = Assert.Throws<ArgumentException>(() => DatasusCatalog.Get("SINAN_P", "DENG"));
-        Assert.StartsWith("The catalog has no dataset 'SINAN-INFL'. " + ofSinan, listed.Message, StringComparison.Ordinal);
+        Assert.StartsWith("The catalog has no dataset 'SINAN-LER'. " + ofSinan, listed.Message, StringComparison.Ordinal);
         Assert.StartsWith("The catalog has no dataset 'sinan-QQQQ'. " + ofSinan, madeUp.Message, StringComparison.Ordinal);
         Assert.Equal("code", madeUp.ParamName);
         Assert.DoesNotContain("SIASUS", listed.Message, StringComparison.Ordinal);
@@ -382,6 +383,81 @@ public sealed class DatasusSinanTests : IDisposable
         Assert.StartsWith("The catalog has no source 'SINAN_P'. It has: SIASUS, SIHSUS, ", noSource.Message, StringComparison.Ordinal);
         Assert.Contains(", ESUSNOTIFICA, PO, SINAN. A file type that is not in the catalog may still be on the server: ", noSource.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("DENG,", noSource.Message, StringComparison.Ordinal);
+    }
+
+    // INFL is in the catalog because the file transfer page of the DATASUS website lists it. The
+    // server had no file of it in October 2026: its folders and its file name are those of the
+    // other SINAN file types, by their pattern, and no name here is the name of a file that was seen.
+    [Fact]
+    public void Infl_IsAFileTypeLikeTheOthersOfSinan_ByThePatternOfTheirNames()
+    {
+        var infl = DatasusCatalog.Get("SINAN", "INFL");
+        var era = Assert.Single(infl.Eras);
+
+        Assert.Same(infl, DatasusCatalog.Get("sinan", "infl"));
+        Assert.Same(infl, typeof(DatasusCatalog.Sinan).GetProperty("INFL")!.GetValue(null));
+        Assert.Equal("SINAN-INFL", infl.ToString());
+        Assert.Equal("Influenza Pandêmica", infl.OfficialName);
+        Assert.Equal(DatasusCoverage.National, infl.Coverage);
+        Assert.Equal(DatasusPeriodicity.Yearly, infl.Periodicity);
+        Assert.Equal((Final, Preliminary), (era.Directory, era.PreliminaryDirectory));
+        Assert.Equal("INFLBR{YY}.dbc", era.NationalFileNamePattern);
+
+        // In the catalog it comes where the website has it, between HIVG and IEXO.
+        Assert.Equal(["HIVG", "INFL", "IEXO"], Sinan.Select(dataset => dataset.Code).SkipWhile(code => code != "HIVG").Take(3));
+
+        var year = DatasusPeriod.OfYear(2009);
+        Assert.Equal(Final + "/INFLBR09.dbc", infl.GetNationalPath(year));
+        Assert.Equal([Final + "/INFLBR09.dbc", Preliminary + "/INFLBR09.dbc"], infl.GetNationalCandidatePaths(year));
+        Assert.True(era.TryParseNationalFileName("INFLBR09.dbc", out var period));
+        Assert.Equal(year, period);
+        Assert.True(era.TryParseNationalFileName("inflbr09.DBC", out period));
+        Assert.Equal(year, period);
+        Assert.Throws<NotSupportedException>(() => infl.GetPath(DatasusUf.SP, year));
+    }
+
+    // No file of INFL says when it starts. Its first period is the earliest one of the SINAN file
+    // types, the year of the oldest file of the two folders, so that no year they hold is refused.
+    [Fact]
+    public void Infl_FirstPeriod_IsTheEarliestOneOfSinan()
+    {
+        var infl = DatasusCatalog.Get("SINAN", "INFL");
+        var earliest = Sinan.Where(dataset => dataset.Code != "INFL").Min(dataset => dataset.FirstPeriod.Year);
+
+        Assert.Equal(1999, earliest);
+        Assert.Equal(DatasusPeriod.OfYear(earliest), infl.FirstPeriod);
+        Assert.Equal(Final + "/INFLBR99.dbc", infl.GetNationalPath(DatasusPeriod.OfYear(1999)));
+        Assert.Equal(Final + "/INFLBR98.dbc", infl.GetNationalPath(DatasusPeriod.OfYear(2098)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => infl.GetNationalPath(DatasusPeriod.OfYear(1998)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => infl.GetNationalPath(DatasusPeriod.OfYear(2099)));
+    }
+
+    // The server has no file of INFL: the table is not found, and the message says that no file of
+    // it was known, which it says of no other file type.
+    [Fact]
+    public async Task Infl_TableThatTheServerDoesNotHave_IsNotFound_AndTheMessageSaysThatNoFileWasKnown()
+    {
+        Add(Final, ("DENGBR09.dbc", 1), ("HIVGBR09.dbc", 2), ("IEXOBR09.dbc", 3));
+        Add(Preliminary, ("AIDABR09.dbc", 4));
+        var client = _fixture.Client();
+        var infl = DatasusCatalog.Get("SINAN", "INFL");
+        var year = DatasusPeriod.OfYear(2009);
+        const string Note =
+            " No file of SINAN-INFL was known on the server in October 2026: the catalog has this file type because the file transfer page of the DATASUS website lists it, "
+            + "with the folders and the file name of the other SINAN file types.";
+
+        var find = await Assert.ThrowsAsync<FileNotFoundException>(() => client.FindNationalTableAsync(infl, year, Ct));
+        var open = await Assert.ThrowsAsync<FileNotFoundException>(() => client.OpenNationalReaderAsync(infl, year, cancellationToken: Ct));
+        var listed = await client.ListNationalTablesAsync(infl, DatasusPeriod.OfYear(1999), DatasusPeriod.OfYear(2026), Ct);
+        var other = await Assert.ThrowsAsync<FileNotFoundException>(() => client.FindNationalTableAsync(DatasusCatalog.Sinan.CHIK, DatasusPeriod.OfYear(2024), Ct));
+
+        Assert.Equal(
+            "The server has no SINAN-INFL table of the whole country for 2009, final or preliminary: neither /SINAN/DADOS/FINAIS/INFLBR09.dbc nor /SINAN/DADOS/PRELIM/INFLBR09.dbc exists." + Note,
+            find.Message);
+        Assert.Equal(find.Message, open.Message);
+        Assert.Equal(Final + "/INFLBR09.dbc", find.FileName);
+        Assert.Empty(listed);
+        Assert.DoesNotContain("was known on the server", other.Message, StringComparison.Ordinal);
     }
 
     private void Add(string directory, params (string Name, int Size)[] files)
