@@ -15,6 +15,7 @@ internal sealed class FakeServer
     private readonly ConcurrentQueue<Func<Exception>> _connectFailures = new();
     private readonly ConcurrentQueue<Func<Exception>> _operationFailures = new();
     private readonly ConcurrentQueue<long> _transferFaults = new();
+    private readonly ConcurrentQueue<int> _extraBytes = new();
     private int _activeConnections;
     private int _maxActiveConnections;
     private int _connectionsOpened;
@@ -79,6 +80,15 @@ internal sealed class FakeServer
 
     /// <summary>The next transfer drops the connection after serving <paramref name="bytes"/> bytes.</summary>
     public void FailNextTransferAfter(long bytes) => _transferFaults.Enqueue(bytes);
+
+    /// <summary>The next <paramref name="transfers"/> transfers send <paramref name="bytes"/> bytes after the end of the file.</summary>
+    public void SendExtraBytes(int transfers, int bytes)
+    {
+        for (var i = 0; i < transfers; i++)
+        {
+            _extraBytes.Enqueue(bytes);
+        }
+    }
 
     public IDatasusConnectionFactory Factory() => new Factory_(this);
 
@@ -157,7 +167,8 @@ internal sealed class FakeServer
             }
 
             long? failAfter = server._transferFaults.TryDequeue(out var bytes) ? bytes : null;
-            return Task.FromResult<Stream>(new TransferStream(server, file.Content, offset, failAfter));
+            var extra = server._extraBytes.TryDequeue(out var more) ? more : 0;
+            return Task.FromResult<Stream>(new TransferStream(server, file.Content, offset, failAfter, extra));
         }
 
         public void Dispose()
@@ -170,10 +181,11 @@ internal sealed class FakeServer
         }
     }
 
-    private sealed class TransferStream(FakeServer server, byte[] content, long offset, long? failAfter) : Stream
+    private sealed class TransferStream(FakeServer server, byte[] content, long offset, long? failAfter, int extra) : Stream
     {
         private long _position = offset;
         private long _served;
+        private int _extraLeft = extra;
 
         public override bool CanRead => true;
 
@@ -205,6 +217,20 @@ internal sealed class FakeServer
             if (failAfter is { } cap)
             {
                 available = (int)Math.Min(available, cap - _served);
+            }
+
+            if (available <= 0 && _extraLeft > 0 && failAfter is null)
+            {
+                // Bytes the file does not have, as a server that sends too much would.
+                var junk = Math.Min(Math.Min(count, 4096), _extraLeft);
+                for (var i = 0; i < junk; i++)
+                {
+                    buffer[offset + i] = 0xEE;
+                }
+
+                _extraLeft -= junk;
+                Interlocked.Add(ref server._bytesServed, junk);
+                return junk;
             }
 
             if (available <= 0)

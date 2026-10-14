@@ -645,6 +645,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     {
         var existing = File.Exists(partialPath) ? new FileInfo(partialPath).Length : 0;
         EnsureDiskSpace(Path.GetDirectoryName(partialPath)!, remote, Math.Max(0, info.Size - existing));
+        var sentTooMuch = false;
         return _retry.RunAsync($"Downloading {remote.Relative}", remote.Relative, async token =>
         {
             var offset = File.Exists(partialPath) ? new FileInfo(partialPath).Length : 0;
@@ -655,9 +656,10 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
             }
 
             using var lease = await _pool.AcquireAsync(token).ConfigureAwait(false);
-            if (offset > 0)
+            if (offset > 0 || sentTooMuch)
             {
-                // Resume only if the server still has the same version; otherwise start over.
+                // Resume only if the server still has the same version; otherwise start over. After a
+                // transfer that sent more than the size, the file may have grown: ask again first.
                 await EnsureSameVersionAsync(lease, remote, info, partialPath, token).ConfigureAwait(false);
             }
 
@@ -665,13 +667,20 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
             {
                 // The .partial is opened before the transfer, so a path that cannot be written fails
                 // before any data is requested.
-                using var target = OpenPartial(remote, partialPath);
-                using var source = await lease.Connection.OpenReadAsync(remote.Full, offset, token).ConfigureAwait(false);
-                var buffer = new byte[81920];
-                int read;
-                while ((read = await ReadNetworkAsync(source, buffer, 0, buffer.Length, token).ConfigureAwait(false)) > 0)
+                bool more;
+                using (var target = OpenPartial(remote, partialPath))
+                using (var source = await lease.Connection.OpenReadAsync(remote.Full, offset, token).ConfigureAwait(false))
                 {
-                    await target.WriteAsync(buffer, 0, read, token).ConfigureAwait(false);
+                    more = await CopyAtMostAsync(source, target, info.Size - offset, token).ConfigureAwait(false);
+                }
+
+                if (more)
+                {
+                    // What came beyond the size was never written; the connection is not reused.
+                    sentTooMuch = true;
+                    FileLocks.TryDelete(partialPath);
+                    throw new TransientTransportException(
+                        $"The server sent more than the {info.Size} bytes of {remote.Relative} that it announced; the partial download was discarded.");
                 }
             }
 
@@ -686,6 +695,32 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
             lease.Keep();
             return true;
         }, cancellationToken);
+    }
+
+    // Copies at most `remaining` bytes and tells whether the source had more. It asks for one byte
+    // beyond what remains, to tell an exact end from a server that sends too much; that byte, and
+    // anything after it, is never written.
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1835", Justification = "net472 and netstandard2.0 have no Memory-based Stream overloads.")]
+    private static async Task<bool> CopyAtMostAsync(Stream source, Stream target, long remaining, CancellationToken cancellationToken)
+    {
+        var buffer = new byte[81920];
+        while (true)
+        {
+            var count = (int)Math.Min(buffer.Length, remaining + 1);
+            var read = await ReadNetworkAsync(source, buffer, 0, count, cancellationToken).ConfigureAwait(false);
+            if (read == 0)
+            {
+                return false;
+            }
+
+            if (read > remaining)
+            {
+                return true;
+            }
+
+            await target.WriteAsync(buffer, 0, read, cancellationToken).ConfigureAwait(false);
+            remaining -= read;
+        }
     }
 
     private FileStream OpenPartial(RemotePath remote, string partialPath)
