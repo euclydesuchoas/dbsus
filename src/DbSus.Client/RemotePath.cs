@@ -12,11 +12,13 @@ namespace DbSus.Client;
 internal sealed class RemotePath
 {
     private static readonly char[] InvalidCharacters = ['<', '>', ':', '"', '|', '?', '*', '\\'];
+    // The device names of Windows, the superscript digits one, two and three included, and the
+    // console names.
     private static readonly HashSet<string> ReservedNames = new(StringComparer.OrdinalIgnoreCase)
     {
-        "CON", "PRN", "AUX", "NUL",
-        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+        "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$",
+        "COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "COM¹", "COM²", "COM³",
+        "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9", "LPT¹", "LPT²", "LPT³",
     };
 
     private RemotePath(string root, IReadOnlyList<string> segments)
@@ -134,7 +136,8 @@ internal sealed class RemotePath
             throw Invalid(path, $"segment '{segment}' starts or ends with a space or ends with a dot");
         }
 
-        var stem = segment.Split('.')[0];
+        // Windows ignores spaces at the end of the stem, so "CON .dbc" is the device too.
+        var stem = segment.Split('.')[0].TrimEnd(' ');
         if (ReservedNames.Contains(stem))
         {
             throw Invalid(path, $"segment '{segment}' is a reserved device name on Windows");
