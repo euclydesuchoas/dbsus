@@ -11,7 +11,7 @@ DbSus is an independent project, not affiliated with the Brazilian Ministry of H
   - `DbSus`: DBC decompression and DBF reading (`DbSus.Dbc`, `DbSus.Dbf`, and the `DbSus` facade).
   - `DbSus.Client`: listing and downloading files from the DATASUS FTP server, with an optional local cache.
 - `DbSus.Dbc` and `DbSus.Dbf` do not reference each other, not even in XML doc `cref`s; only the `DbSusFile` facade knows both. The package could be split later without breaking users.
-- Not in scope for v1: writing DBC files, a source generator, a command-line tool.
+- Not in scope: writing DBC files, a source generator, a command-line tool.
 
 ## Architecture
 
@@ -21,7 +21,7 @@ DbSus is an independent project, not affiliated with the Brazilian Ministry of H
 - **Encodings:** the library never calls the global `Encoding.RegisterProvider`; it uses `CodePagesEncodingProvider.Instance` locally (on .NET Framework, `Encoding.GetEncoding`), with no side effect on the host process.
 - **Strong naming:** both assemblies are strong-named with the committed `DbSus.snk` (public key token `31b7992898fa311e`), following Microsoft's guidance for open-source libraries. The key never changes; a test pins the token.
 - **Versioning:** `AssemblyVersion` is `Major.Minor.0.0` during 0.x (every 0.x minor may break) and major-only from 1.0. Releases stay 0.x/preview until the API settles.
-- **The client depends on the core by a minimum only.** `DbSus.Client` declares `DbSus` at its own version as the lowest one accepted, with no upper bound, which is what packing a project reference gives: NuGet accepts that version or any later one. An upper bound was considered, since a 0.x minor may break the API and a later core could then be restored next to an older client; it would need a step of its own in the pack. **Open:** whether to declare one, and how the versions of the two packages go together, for 0.2.
+- **The client depends on the core by a minimum only.** `DbSus.Client` declares `DbSus` at its own version as the lowest one accepted, with no upper bound, which is what packing a project reference gives: NuGet accepts that version or any later one. An upper bound was considered, since a 0.x minor may break the API and a later core could then be restored next to an older client; it would need a step of its own in the pack. **Open:** whether to declare one, and how the versions of the two packages go together.
 
 ## Origin of the code and licenses
 
