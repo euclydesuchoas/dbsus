@@ -11,7 +11,7 @@ Both packages target `net10.0`, `net472` and `netstandard2.0`.
 | Supported | .NET 8 or later; .NET Framework 4.7.2 or later (the declared minimum; it gets the `net472` build); other `netstandard2.0` platforms |
 | Tested | The test suite runs on .NET 10 and .NET Framework 4.8.1. A package test in CI also runs on .NET 8, with the `netstandard2.0` build. |
 
-The handling of stalled reads in `DbSus.Client` was verified on .NET 10 and .NET Framework 4.8; .NET 8 and 9, Mono, Unity and Xamarin were not checked.
+The handling of stalled reads in `DbSus.Client` was verified on .NET 10 and .NET Framework 4.8.1; .NET 8 and 9, Mono, Unity and Xamarin were not checked.
 
 The code examples in the guides compile with C# 8. The optional comparison on raw bytes with a `u8` literal needs C# 11.
 
@@ -49,7 +49,7 @@ On .NET Framework, FluentFTP is strong-named and its assembly version changes wi
 
 ### What a newer FluentFTP can change
 
-The client uses FluentFTP's protected connection hooks to close a connection by force. An experiment with stand-in libraries, on .NET 10 and .NET Framework 4.8, covered two ways a version could lose them: removing a hook (a virtual method) and removing the type of its parameter. Neither failed to build or load; the client's overrides were simply no longer called, as when a version keeps the hooks but stops calling them. Other changes, such as a removed constructor or a sealed client class, can make the client fail when it loads or first uses FluentFTP (`MissingMethodException`, `TypeLoadException`). The weekly workflow described below is what detects such changes.
+The client uses FluentFTP's protected connection hooks to close a connection by force. An experiment with stand-in libraries, on .NET 10 and .NET Framework 4.8.1, covered two ways a version could lose them: removing a hook (a virtual method) and removing the type of its parameter. Neither failed to build or load; the client's overrides were simply no longer called, as when a version keeps the hooks but stops calling them. Other changes, such as a removed constructor or a sealed client class, can make the client fail when it loads or first uses FluentFTP (`MissingMethodException`, `TypeLoadException`). The weekly workflow described below is what detects such changes.
 
 - **On .NET Framework**, ending a stalled or canceled operation depends on those hooks, so the client checks that FluentFTP reported each connection. If the control connection was not reported, connecting fails. If a data connection was not reported, opening a file for reading fails before anything is read, and a listing fails right after FluentFTP has read it (its result is discarded). The error is a `NotSupportedException` that names the FluentFTP version in use and the one the client is tested with; it is not retried.
 - **On the other runtimes** there is no such check. On .NET 10, the only one of them where this was tested, canceling, the read timeout and the limit on each read of a download still ended stalled operations with the hooks switched off in a test.

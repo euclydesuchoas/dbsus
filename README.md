@@ -114,7 +114,7 @@ The CRC-32 of a `.dbc` can only be checked once the last byte has been decompres
 - On .NET Framework and .NET 8, `GetFieldValue<T>` with a nullable type (e.g. `GetFieldValue<int?>`) allocates on every call: about 24 bytes on .NET Framework 4.8.1, and 24 bytes (32 for `decimal?`) on .NET 8. The non-nullable forms do not, and on .NET 9 and .NET 10 the nullable forms do not either (measured).
 - `DatasusCatalog` covers 112 file types: 43 by state, four of which also have a file for the whole country (SIM-DO, SINASC-DN, PCE and RESP), and 69 with a file for the whole country only, the 58 of SINAN among them. One of these, SINAN-INFL, is in the catalog because the DATASUS website lists it, although no file of it was known on the server in October 2026: its folder and file name follow the pattern of the other SINAN file types. It knows the folder layout that DATASUS uses now and, for nine of them, the one before it. It checks the shape of a request (a month or a year, a real state), never whether the file exists; other files are reached with the path as a string.
 - A listing from the server can be partial if the client's read of it fails while the server still answers `226`. `FindPartsAsync` reduces the risk for split tables but does not remove it; `ListAsync` returns the listing as received.
-- The handling of stalled reads was verified on .NET 10 and .NET Framework 4.8; .NET 8 and 9, Mono, Unity and Xamarin were not checked.
+- The handling of stalled reads was verified on .NET 10 and .NET Framework 4.8.1; .NET 8 and 9, Mono, Unity and Xamarin were not checked.
 
 ## Security
 

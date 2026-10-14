@@ -29,9 +29,9 @@ Calculated from the default options, for a listing or a download whose data conn
 | opens, but no listing data arrives | `ReadTimeout` reading (60 s), then `ReadTimeout` waiting for the server's final reply (60 s): 120 s | 10 min 7.5 s to 10 min 15 s |
 | opens, but no download data arrives | `ReadTimeout` (60 s); the client then closes the connection, so there is no wait for a final reply | 5 min 7.5 s to 5 min 15 s |
 
-The same formulas were checked against a local test server with small timeouts (`ConnectTimeout` 200 ms, `ReadTimeout` 300 ms, `InitialRetryDelay` 100 ms), on .NET 10 and .NET Framework 4.8. `ReadTimeout` limits each wait for data, not a whole transfer: a download that keeps receiving data slowly is never cut by it.
+The same formulas were checked against a local test server with small timeouts (`ConnectTimeout` 200 ms, `ReadTimeout` 300 ms, `InitialRetryDelay` 100 ms), on .NET 10 and .NET Framework 4.8.1. `ReadTimeout` limits each wait for data, not a whole transfer: a download that keeps receiving data slowly is never cut by it.
 
-These waits end at their timeouts, and canceling the token ends them at once (the connection is closed and not reused). This was verified on .NET 10 and .NET Framework 4.8; .NET 8 and 9, Mono, Unity and Xamarin were not checked.
+These waits end at their timeouts, and canceling the token ends them at once (the connection is closed and not reused). This was verified on .NET 10 and .NET Framework 4.8.1; .NET 8 and 9, Mono, Unity and Xamarin were not checked.
 
 In a web request or any call with a deadline, lower `MaxRetries`, `ConnectTimeout` and `ReadTimeout`, and pass a cancellation token that carries the deadline.
 
