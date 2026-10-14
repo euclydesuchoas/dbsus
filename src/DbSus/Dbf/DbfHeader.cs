@@ -30,9 +30,12 @@ public sealed class DbfHeader
     }
 
     /// <summary>
-    /// Gets the version byte: 0x03 (dBase III without memo) in the DATASUS files seen, except one
-    /// SIASUS-ABO file, which has 0x30 and was read without error.
+    /// Gets the version byte: 0x03 for dBase III without memo.
     /// </summary>
+    /// <remarks>
+    /// It is 0x03 in the DATASUS files seen, except one SIASUS-ABO file, which has 0x30 and was
+    /// read without error.
+    /// </remarks>
     public byte Version { get; }
 
     /// <summary>

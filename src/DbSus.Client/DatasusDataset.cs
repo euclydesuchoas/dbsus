@@ -89,7 +89,7 @@ public sealed class DatasusDataset
     /// <c>/SIM/CID9/DORES/DORSP95.dbc</c> for 1995 and <c>/SIM/CID10/DORES/DOSP1996.dbc</c> for 1996.
     /// </para>
     /// <para>
-    /// The path names the file without a part letter. For a table split into parts (SIA-PA in the
+    /// The path names the file without a part letter. For a table split into parts (SIASUS-PA in the
     /// larger states), pass it to <see cref="DatasusClient.FindPartsAsync"/> or to
     /// <c>DatasusClient.OpenReaderAsync</c>, which find the parts.
     /// </para>

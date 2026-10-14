@@ -6,7 +6,7 @@ namespace DbSus;
 /// <summary>
 /// Entry point that combines the DBC and DBF layers: opens DATASUS files as a
 /// <see cref="DbfReader"/>, decompressing DBC files on the fly, and reads tables split into
-/// parts (SIA-PA's <c>a</c>, <c>b</c>, <c>c</c>, ... files) as one.
+/// parts (SIASUS-PA's <c>a</c>, <c>b</c>, <c>c</c>, ... files) as one.
 /// </summary>
 public static class DbSusFile
 {

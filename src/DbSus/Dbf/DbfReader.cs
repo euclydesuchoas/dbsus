@@ -20,7 +20,7 @@ namespace DbSus.Dbf;
 /// every record.
 /// </para>
 /// <para>
-/// A table split into parts (SIA-PA's <c>a</c>, <c>b</c>, <c>c</c>, ... files) can be read as one:
+/// A table split into parts (SIASUS-PA's <c>a</c>, <c>b</c>, <c>c</c>, ... files) can be read as one:
 /// every part's header is read and checked when the reader opens, before any record, and the
 /// parts must have identical fields (names, types, widths, decimals), record length and encoding.
 /// <see cref="RecordNumber"/> counts across parts; <see cref="PartIndex"/> tells the current part.

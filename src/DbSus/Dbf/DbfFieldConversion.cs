@@ -54,7 +54,7 @@ public sealed class DbfFieldConversion
 
     /// <summary>
     /// Converts a date stored as digits to <see cref="DateTime"/>. Supported formats:
-    /// <c>"yyyyMMdd"</c> (SIH, SIA, CNES), <c>"ddMMyyyy"</c> (SIM, SINASC), and <c>"yyyyMM"</c>, a
+    /// <c>"yyyyMMdd"</c> (SIHSUS, SIASUS, CNES), <c>"ddMMyyyy"</c> (SIM, SINASC), and <c>"yyyyMM"</c>, a
     /// year and month (such as a processing month), returned as the first day of that month.
     /// </summary>
     /// <remarks>

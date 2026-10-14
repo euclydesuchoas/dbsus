@@ -212,9 +212,10 @@ public static class DatasusCatalog
         public static DatasusDataset CM { get; } = DatasusDataset.CountryOnly("SIHSUS", "CM", null, DatasusPeriod.OfMonth(2008, 1), Directory, null, "CMBR", 2);
 
         /// <summary>
-        /// Gets SIHSUS-MT. Monthly, for the whole country only, in a folder of its own; the files
-        /// listed in October 2026 go from 1995-01 to 1997-05. DATASUS publishes no name for this file type.
+        /// Gets SIHSUS-MT. Monthly, for the whole country only, in a folder of its own. DATASUS
+        /// publishes no name for this file type.
         /// </summary>
+        /// <remarks>The files listed in October 2026 go from 1995-01 to 1997-05.</remarks>
         public static DatasusDataset MT { get; } = DatasusDataset.CountryOnly("SIHSUS", "MT", null, DatasusPeriod.OfMonth(1995, 1), "/SIHSUS/Arquivos_MTBR", null, "MTBR", 2);
     }
 
@@ -310,8 +311,9 @@ public static class DatasusCatalog
 
         /// <summary>
         /// Gets SIM-DOREXT, <i>Mortalidade de residentes no exterior</i>. Yearly, for the whole country
-        /// only. Its folder starts in 1996; the files listed in October 2026 start in 2013.
+        /// only. Its folder starts in 1996.
         /// </summary>
+        /// <remarks>The files listed in October 2026 start in 2013.</remarks>
         public static DatasusDataset DOREXT { get; } = DatasusDataset.CountryOnly(
             "SIM", "DOREXT", "Mortalidade de residentes no exterior", DatasusPeriod.OfYear(1996), CountryDirectory, CountryPreliminaryDirectory, "DOREXT", 2);
     }
@@ -333,8 +335,9 @@ public static class DatasusCatalog
 
         /// <summary>
         /// Gets SINASC-DNEX, <i>Declarações de nascidos vivos residentes no exterior</i>. Yearly, for the
-        /// whole country only. Its folder starts in 1996; the files listed in October 2026 start in 2014.
+        /// whole country only. Its folder starts in 1996.
         /// </summary>
+        /// <remarks>The files listed in October 2026 start in 2014.</remarks>
         public static DatasusDataset DNEX { get; } = DatasusDataset.CountryOnly(
             "SINASC", "DNEX", "Declarações de nascidos vivos residentes no exterior", DatasusPeriod.OfYear(1996), "/SINASC/1996_/Dados/DNRES", "/SINASC/PRELIM/DNRES", "DNEX", 4);
     }
@@ -349,8 +352,8 @@ public static class DatasusCatalog
 
     /// <summary>
     /// CIH (<i>Sistema de Comunicação de Informação Hospitalar</i>). Monthly files, one per state.
-    /// The last files listed in October 2026 are of 2011-04.
     /// </summary>
+    /// <remarks>The last files listed in October 2026 are of 2011-04.</remarks>
     public static class Cih
     {
         /// <summary>Gets CIH-CR, <i>Comunicação de Internação Hospitalar</i>, from 2008-01 on.</summary>
@@ -359,8 +362,9 @@ public static class DatasusCatalog
 
     /// <summary>
     /// SISPRENATAL (<i>Sistema de Monitoramento e Avaliação do Pré-Natal, Parto, Puerpério e Criança</i>).
-    /// Monthly files, one per state. The last files listed in October 2026 are of 2014-12.
+    /// Monthly files, one per state.
     /// </summary>
+    /// <remarks>The last files listed in October 2026 are of 2014-12.</remarks>
     public static class SisPrenatal
     {
         /// <summary>Gets SISPRENATAL-PN, <i>Pré-Natal</i>, from 2012-01 on.</summary>
@@ -369,8 +373,9 @@ public static class DatasusCatalog
 
     /// <summary>
     /// SISCOLO (<i>Sistema de Informações de Cânceres de Colo de Útero</i>). Monthly files, one per
-    /// state, from 2006-01 on. The last files listed in October 2026 are of 2015-10.
+    /// state, from 2006-01 on.
     /// </summary>
+    /// <remarks>The last files listed in October 2026 are of 2015-10.</remarks>
     public static class SisColo
     {
         private const string Directory = "/SISCAN/SISCOLO4/Dados";
@@ -384,8 +389,9 @@ public static class DatasusCatalog
 
     /// <summary>
     /// SISMAMA (<i>Sistema de Informações de Cânceres de Mama</i>). Monthly files, one per state,
-    /// from 2009-01 on. The last files listed in October 2026 are of 2015-07.
+    /// from 2009-01 on.
     /// </summary>
+    /// <remarks>The last files listed in October 2026 are of 2015-07.</remarks>
     public static class SisMama
     {
         private const string Directory = "/SISCAN/SISMAMA/Dados";
@@ -527,14 +533,14 @@ public static class DatasusCatalog
         public static DatasusDataset HIVG { get; } = Of("HIVG", "HIV em gestante", 2007);
 
         /// <summary>
-        /// Gets SINAN-INFL, <i>Influenza Pandêmica</i>. <b>No file of this file type was known on the
-        /// server in October 2026.</b>
+        /// Gets SINAN-INFL, <i>Influenza Pandêmica</i>. <b>No file of this file type was seen on the
+        /// server when the catalog was made.</b>
         /// </summary>
         /// <remarks>
         /// <para>
         /// The file transfer page of the DATASUS website lists this file type, and that is why the
-        /// catalog has it. The server had no file of it in either folder of SINAN, and the form of
-        /// that page returned none for any year from 1999 to 2026.
+        /// catalog has it. In October 2026 the server had no file of it in either folder of SINAN,
+        /// and the form of that page returned none for any year from 1999 to 2026.
         /// </para>
         /// <para>
         /// The folders and the file name, <c>INFLBR{YY}.dbc</c>, are those of the other SINAN file
