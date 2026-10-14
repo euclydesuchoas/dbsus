@@ -56,7 +56,7 @@ So `using var reader = DbfReader.Open(File.OpenRead(path));` does not leak the f
 
 ## Tables split into parts
 
-Only large SIA-PA files come in parts (`PAMG2407a.dbc`, `PAMG2407b.dbc`, …); smaller ones, such as `PAAP2004.dbc` and `PARR2407.dbc`, are a single file. `DbSusFile.FindParts` serves both cases: it returns the parts in order, or the single file. Parts are read as one table, after every part's header has been checked to have the same fields:
+Large SIASUS-PA tables come in lettered parts (`PAMG2407a.dbc`, `PAMG2407b.dbc`, …); smaller ones, such as `PAAP2004.dbc` and `PARR2407.dbc`, are a single file. `DbSusFile.FindParts` serves both cases: it returns the parts in order, or the single file. Parts are read as one table, after every part's header has been checked to have the same fields:
 
 ```csharp
 using DbSus;
@@ -88,6 +88,8 @@ using var reader = DbSusFile.OpenDbcReader(
 ```
 
 `new DbcPart(stream)` makes a part without a name (`part N` in messages).
+
+SIASUS-BI has numbered parts instead (`BIMG2312_1.dbc`, `BIMG2312_2.dbc`). `FindParts` knows lettered parts only, and for it each of those names is a file of its own: pass the paths of the numbered parts, in the order of their numbers, to `DbSusFile.OpenDbcReader`, which reads the parts in the order given. On the server, `DbSus.Client` finds them by dataset, state and period (see "By dataset, state and period" in [downloading with DbSus.Client](https://github.com/euclydesuchoas/dbsus/blob/main/docs/client.md)).
 
 ## Numbers and dates stored as text
 
@@ -277,7 +279,7 @@ using System.Threading.Tasks;
 using DbSus;
 using Microsoft.Data.SqlClient;
 
-// Illustrative (compiled, not run against a server): the tables staging.pa and dbo.pa must already exist.
+// Illustrative (not compiled or run by the check of these examples): the tables staging.pa and dbo.pa must already exist.
 using var connection = new SqlConnection(connectionString);
 await connection.OpenAsync();
 using var transaction = connection.BeginTransaction();
