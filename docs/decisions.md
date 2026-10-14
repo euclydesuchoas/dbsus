@@ -83,6 +83,8 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 
 ## API and behavior
 
+- **Parameters after a release.** An optional parameter and its default value are compiled into the caller, so a new parameter comes as a new overload, never as one more optional parameter of an existing method, which would break binary compatibility; and a default value does not change unless the changelog announces it as a breaking change.
+
 ### Naming
 
 - Parameter names follow one rule: an options parameter is `options` when the method takes one kind (`DbfReader`, `DbcFile`) and `dbfOptions` / `dbcOptions` when it takes both (`DbSusFile`, `DatasusClient`); a stream is named after its format (`dbf`, `dbc`); paths are `path` / `paths`, or `dbcPath` / `dbfPath` when a method takes two; the parts of a split table are `parts`. Renaming a parameter breaks callers that pass it by name, so the names are settled before the first release.
