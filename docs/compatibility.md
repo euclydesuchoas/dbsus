@@ -22,7 +22,7 @@ Dependencies declared by each package, per target. Each version is a minimum: an
 | Package | `net10.0` | `net472` | `netstandard2.0` |
 |---|---|---|---|
 | `DbSus` | None | `System.Memory` 4.5.3 | `System.Memory` 4.5.3, `System.Text.Encoding.CodePages` 4.4.0 |
-| `DbSus.Client` | `DbSus` (same version), FluentFTP 55.0.0 | `DbSus` (same version), FluentFTP 55.0.0, `Microsoft.Bcl.AsyncInterfaces` 1.0.0 | `DbSus` (same version), FluentFTP 55.0.0, `Microsoft.Bcl.AsyncInterfaces` 1.0.0 |
+| `DbSus.Client` | `DbSus` (the same version or later), FluentFTP 55.0.0 | `DbSus` (the same version or later), FluentFTP 55.0.0, `Microsoft.Bcl.AsyncInterfaces` 1.0.0 | `DbSus` (the same version or later), FluentFTP 55.0.0, `Microsoft.Bcl.AsyncInterfaces` 1.0.0 |
 
 For FluentFTP, see below.
 
