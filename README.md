@@ -1,5 +1,10 @@
 # DbSus
 
+[![DbSus on NuGet](https://img.shields.io/nuget/vpre/DbSus?label=DbSus)](https://www.nuget.org/packages/DbSus)
+[![DbSus.Client on NuGet](https://img.shields.io/nuget/vpre/DbSus.Client?label=DbSus.Client)](https://www.nuget.org/packages/DbSus.Client)
+[![CI](https://img.shields.io/github/actions/workflow/status/euclydesuchoas/dbsus/ci.yml?branch=main&label=CI)](https://github.com/euclydesuchoas/dbsus/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/euclydesuchoas/dbsus/blob/main/LICENSE)
+
 A .NET library for reading the `.dbc` (compressed dBase) and `.dbf` files distributed by DATASUS, in fully managed C#, with no dependency on R, Python or native binaries. DATASUS is the Ministry of Health's Department of Information and Informatics of the SUS, Brazil's public health system. It distributes data files from its health information systems, many of them as `.dbc`.
 
 > **Disclaimer:** DbSus is an independent project. It is not affiliated with, endorsed by or maintained by the Brazilian Ministry of Health (Ministério da Saúde) or DATASUS.
