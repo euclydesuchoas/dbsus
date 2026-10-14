@@ -350,4 +350,58 @@ public sealed class DatasusClientTests : IDisposable
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new DatasusClient(new DatasusClientOptions { MaxConnections = connections }));
     }
+
+    // Each option is reported by its own name, with the value given and what it must be.
+    [Theory]
+    [InlineData(nameof(DatasusClientOptions.MaxRetries), "The number of retries cannot be negative.")]
+    [InlineData(nameof(DatasusClientOptions.InitialRetryDelay), "InitialRetryDelay cannot be negative.")]
+    [InlineData(nameof(DatasusClientOptions.ConnectTimeout), "ConnectTimeout must be positive.")]
+    [InlineData(nameof(DatasusClientOptions.ReadTimeout), "ReadTimeout must be positive.")]
+    [InlineData(nameof(DatasusClientOptions.LockTimeout), "LockTimeout cannot be negative.")]
+    [InlineData(nameof(DatasusClientOptions.ListingCacheDuration), "ListingCacheDuration cannot be negative.")]
+    public void Options_InvalidValue_NamesTheOptionThatIsWrong(string option, string message)
+    {
+        var options = new DatasusClientOptions();
+        switch (option)
+        {
+            case nameof(DatasusClientOptions.MaxRetries):
+                options.MaxRetries = -1;
+                break;
+            case nameof(DatasusClientOptions.InitialRetryDelay):
+                options.InitialRetryDelay = TimeSpan.FromSeconds(-1);
+                break;
+            case nameof(DatasusClientOptions.ConnectTimeout):
+                options.ConnectTimeout = TimeSpan.Zero;
+                break;
+            case nameof(DatasusClientOptions.ReadTimeout):
+                options.ReadTimeout = TimeSpan.Zero;
+                break;
+            case nameof(DatasusClientOptions.LockTimeout):
+                options.LockTimeout = TimeSpan.FromSeconds(-1);
+                break;
+            default:
+                options.ListingCacheDuration = TimeSpan.FromSeconds(-1);
+                break;
+        }
+
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => new DatasusClient(options));
+
+        Assert.Equal(option, exception.ParamName);
+        Assert.StartsWith(message, exception.Message, StringComparison.Ordinal);
+        Assert.NotNull(exception.ActualValue);
+    }
+
+    [Fact]
+    public void Options_ZeroDelayAndDurations_AreAccepted()
+    {
+        using var client = new DatasusClient(new DatasusClientOptions
+        {
+            MaxRetries = 0,
+            InitialRetryDelay = TimeSpan.Zero,
+            LockTimeout = TimeSpan.Zero,
+            ListingCacheDuration = TimeSpan.Zero,
+        });
+
+        Assert.NotNull(client);
+    }
 }

@@ -127,15 +127,36 @@ public sealed class DatasusClientOptions
             throw new ArgumentOutOfRangeException(nameof(MaxConnections), MaxConnections, "Use 1 to 4 connections.");
         }
 
-        if (MaxRetries < 0 || InitialRetryDelay < TimeSpan.Zero || ConnectTimeout <= TimeSpan.Zero
-            || ReadTimeout <= TimeSpan.Zero || LockTimeout < TimeSpan.Zero || ListingCacheDuration < TimeSpan.Zero)
+        if (MaxRetries < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(MaxRetries), "Retries, delays and timeouts cannot be negative.");
+            throw new ArgumentOutOfRangeException(nameof(MaxRetries), MaxRetries, "The number of retries cannot be negative.");
         }
+
+        RequireNotNegative(InitialRetryDelay, nameof(InitialRetryDelay));
+        RequirePositive(ConnectTimeout, nameof(ConnectTimeout));
+        RequirePositive(ReadTimeout, nameof(ReadTimeout));
+        RequireNotNegative(LockTimeout, nameof(LockTimeout));
+        RequireNotNegative(ListingCacheDuration, nameof(ListingCacheDuration));
 
         if (MaxCacheSizeBytes is <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(MaxCacheSizeBytes), MaxCacheSizeBytes, "The cache limit must be positive.");
+        }
+    }
+
+    private static void RequireNotNegative(TimeSpan value, string name)
+    {
+        if (value < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(name, value, $"{name} cannot be negative.");
+        }
+    }
+
+    private static void RequirePositive(TimeSpan value, string name)
+    {
+        if (value <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(name, value, $"{name} must be positive.");
         }
     }
 }
