@@ -24,7 +24,7 @@ foreach (string candidate in deaths.GetCandidatePaths(DatasusUf.RR, DatasusPerio
 
 - **Only the shape of the request is checked:** a month for a monthly file type, a year for a yearly one, a real state. Whether the file exists is never checked: DATASUS publishes late, leaves gaps, and does not have every state in every period. A path built here may name a file that is not on the server; opening it then fails with `FileNotFoundException`.
 - **Older folder layouts are built for nine file types.** For SIASUS-PA, SIHSUS RD, SP and RJ, SIM DO, DOEXT, DOFET and DOINF, and SINASC-DN, a period before the layout in use now gets the folder and the file name it had then (see "Older layouts" below). A period before the dataset's `FirstPeriod` fails with `ArgumentOutOfRangeException`.
-- **The file for the whole country has methods of its own.** SIM-DO, SINASC-DN, PCE and RESP have, beside the files of the states, one file per year for the whole country: `GetNationalPath` builds its path, and `GetPath` never does. Another 68, the 57 of SINAN among them, have a file for the whole country and none by state, and are reached with the same methods (see "Files for the whole country" below).
+- **The file for the whole country has methods of its own.** SIM-DO, SINASC-DN, PCE and RESP have, beside the files of the states, one file per year for the whole country: `GetNationalPath` builds its path, and `GetPath` never does. Another 69, the 58 of SINAN among them, have a file for the whole country and none by state, and are reached with the same methods (see "Files for the whole country" below).
 - **The name is built in upper case, with a lower-case extension.** The server lists some names in another case (see "Letter case" below).
 
 ## Finding and opening a table
