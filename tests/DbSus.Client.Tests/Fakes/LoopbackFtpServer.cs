@@ -38,6 +38,7 @@ internal sealed class LoopbackFtpServer : IDisposable
     private int _controlConnections;
     private int _controlClosedByClient;
     private int _dataClosedByClient;
+    private long _extraBytesSent;
     private readonly TaskCompletionSource<bool> _closedSilently = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _silentCloses;
 
@@ -131,6 +132,16 @@ internal sealed class LoopbackFtpServer : IDisposable
 
     /// <summary>Gets or sets the whole reply to every <c>MDTM</c>; <see langword="null"/> for the normal one.</summary>
     public string? MdtmReply { get; set; }
+
+    /// <summary>
+    /// Gets or sets a number of bytes RETR sends after the end of the file, more than its SIZE
+    /// announces; <see cref="long.MaxValue"/> sends without end, until the client closes the data
+    /// connection. When the client closes it first, the reply is 426.
+    /// </summary>
+    public long? ExtraBytesAfterFile { get; set; }
+
+    /// <summary>Gets the number of bytes sent after the end of a file (see <see cref="ExtraBytesAfterFile"/>).</summary>
+    public long ExtraBytesSent => Interlocked.Read(ref _extraBytesSent);
 
     /// <summary>Gets the number of control connections accepted.</summary>
     public int ControlConnections => Volatile.Read(ref _controlConnections);
@@ -365,6 +376,11 @@ internal sealed class LoopbackFtpServer : IDisposable
         await control.WriteLineAsync("150 Opening BINARY mode data connection.").ConfigureAwait(false);
         var end = StallTransferAfter is { } stall ? Math.Min(file.Length, offset + stall) : file.Length;
         var stream = connection.GetStream();
+        if (StallTransferAfter is null && ExtraBytesAfterFile is { } extra)
+        {
+            return await SendWithExtraBytesAsync(stream, control, file, offset, extra).ConfigureAwait(false);
+        }
+
         if (StallTransferAfter is null)
         {
             stream.Write(file, (int)offset, (int)(end - offset));
@@ -397,6 +413,38 @@ internal sealed class LoopbackFtpServer : IDisposable
         }
 
         return false;
+    }
+
+    // The file and then bytes it does not have; false, with a 426, when the client closes the data
+    // connection before the server has sent them all.
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1835", Justification = "Shared with net481, which has no Memory-based overload.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031", Justification = "Any failure of the write means the client closed or reset the connection.")]
+    private async Task<bool> SendWithExtraBytesAsync(NetworkStream stream, StreamWriter control, byte[] file, long offset, long extra)
+    {
+        try
+        {
+            await stream.WriteAsync(file, (int)offset, file.Length - (int)offset, _stop.Token).ConfigureAwait(false);
+            var junk = Enumerable.Repeat((byte)0xEE, 64 * 1024).ToArray();
+            for (var left = extra; left > 0; )
+            {
+                var count = (int)Math.Min(junk.Length, left);
+                await stream.WriteAsync(junk, 0, count, _stop.Token).ConfigureAwait(false);
+                Interlocked.Add(ref _extraBytesSent, count);
+                left = extra == long.MaxValue ? long.MaxValue : left - count;
+            }
+
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        catch (Exception)
+        {
+            ClosedByClient(ref _dataClosedByClient);
+            await control.WriteLineAsync("426 Connection closed; transfer aborted.").ConfigureAwait(false);
+            return false;
+        }
     }
 
     private void ClosedByClient(ref int counter)
