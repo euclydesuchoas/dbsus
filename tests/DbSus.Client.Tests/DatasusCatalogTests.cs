@@ -152,6 +152,16 @@ public class DatasusCatalogTests
     }
 
     [Fact]
+    public void Coverage_None_IsTheDefault_AndNoDatasetHasIt()
+    {
+        Assert.Equal(0, (int)DatasusCoverage.None);
+        Assert.Equal(DatasusCoverage.None, default(DatasusCoverage));
+        Assert.Equal("None", default(DatasusCoverage).ToString());
+        Assert.Equal("Uf, National", (DatasusCoverage.Uf | DatasusCoverage.National).ToString());
+        Assert.All(DatasusCatalog.Datasets, dataset => Assert.NotEqual(DatasusCoverage.None, dataset.Coverage));
+    }
+
+    [Fact]
     public void Datasets_Are112_EachOnce_GroupedBySource_InTheOrderOfTheCatalog()
     {
         var datasets = DatasusCatalog.Datasets;

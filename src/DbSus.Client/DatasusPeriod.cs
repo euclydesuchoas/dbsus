@@ -16,6 +16,9 @@ public enum DatasusPeriodicity
 [Flags]
 public enum DatasusCoverage
 {
+    /// <summary>No area: the value of <c>default(DatasusCoverage)</c>. No file type of the catalog has it.</summary>
+    None = 0,
+
     /// <summary>One file per state (see <see cref="DatasusUf"/>).</summary>
     Uf = 1,
 

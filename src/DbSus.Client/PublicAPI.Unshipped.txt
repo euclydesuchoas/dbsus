@@ -66,6 +66,7 @@ DbSus.Client.DatasusClientOptions.VerifyOnDownload.get -> bool
 DbSus.Client.DatasusClientOptions.VerifyOnDownload.set -> void
 DbSus.Client.DatasusCoverage
 DbSus.Client.DatasusCoverage.National = 2 -> DbSus.Client.DatasusCoverage
+DbSus.Client.DatasusCoverage.None = 0 -> DbSus.Client.DatasusCoverage
 DbSus.Client.DatasusCoverage.Uf = 1 -> DbSus.Client.DatasusCoverage
 DbSus.Client.DatasusDataset
 DbSus.Client.DatasusDataset.Code.get -> string!
