@@ -1,0 +1,56 @@
+name: Bug report
+description: A problem with DbSus or DbSus.Client. A question fits here too.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not attach a file of DATASUS and do not paste the content of records.** Those files can hold personal data, and an issue is public. Give the path of the file on the server instead, and describe a value by its shape (for example, "a date field filled with asterisks"), not by its content.
+
+        For a vulnerability, do not open an issue: report it in private, as the security policy says.
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      options:
+        - DbSus
+        - DbSus.Client
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The version of the package, as in the project file or in the output of `dotnet list package`.
+    validations:
+      required: true
+  - type: input
+    id: framework
+    attributes:
+      label: Target framework and operating system
+      placeholder: net10.0 on Ubuntu, net481 on Windows
+    validations:
+      required: true
+  - type: input
+    id: path
+    attributes:
+      label: Path of the file on the server
+      description: For a problem with a file of DATASUS, its path on the FTP server. Do not attach the file.
+      placeholder: /SIHSUS/200801_/Dados/RDRR2206.dbc
+    validations:
+      required: false
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what you got. For an exception, its type, its message and its stack trace. No content of records.
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: Code that shows it
+      description: The smallest code that shows the problem, if you have it.
+      render: csharp
+    validations:
+      required: false
