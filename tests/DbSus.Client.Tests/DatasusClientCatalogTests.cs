@@ -179,7 +179,7 @@ public sealed class DatasusClientCatalogTests : IDisposable
         Assert.Equal(1, _fixture.Server.ListCalls);
 
         // Measured in October 2026: about 15 ms and 4.6 MB (some 650 bytes per table) on .NET 10,
-        // 19 ms and 4.9 MB on .NET Framework 4.8. The limits are far above that: they catch a
+        // 19 ms and 4.9 MB on .NET Framework 4.8.1. The limits are far above that: they catch a
         // change that makes the grouping quadratic or allocate for every entry of the folder.
         Assert.True(watch.Elapsed < TimeSpan.FromSeconds(5), $"Grouping {count:N0} entries took {watch.Elapsed.TotalMilliseconds:N0} ms.");
         Assert.True(allocated < 1_000L * tables.Count, $"Grouping {count:N0} entries into {tables.Count:N0} tables allocated {allocated:N0} bytes.");
