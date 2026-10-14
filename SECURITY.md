@@ -24,5 +24,6 @@ DbSus reads files that come from somewhere else, and `DbSus.Client` gets them fr
 - **The connection has no TLS.** The DATASUS server refuses it, and DbSus says so: see ["Security" in the README](https://github.com/euclydesuchoas/dbsus/blob/main/README.md#security). That belongs to the server and is not a defect to report here. The same goes for the CRC-32 of a `.dbc`, which detects accidental corruption and not deliberate tampering.
 - What the files of DATASUS hold, a file that DATASUS changed or removed, and the server being slow or out of reach.
 - An exception for a file that is not valid (`InvalidDataException`, for one) is the intended behavior.
+- Without `CacheDirectory`, downloads go to the system temporary folder, which other users of a shared machine may be able to reach. On such a machine, set `CacheDirectory` to a folder that only you can write to.
 
 A bug that is not a security matter goes in a public issue.
