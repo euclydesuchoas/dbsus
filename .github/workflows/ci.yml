@@ -44,6 +44,7 @@ jobs:
   # oldest accepted dependency versions pinned, and the net8.0 consumer once more built with SDK 8.
   packages:
     name: Package consumers (${{ matrix.os }})
+    needs: build-and-test
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
