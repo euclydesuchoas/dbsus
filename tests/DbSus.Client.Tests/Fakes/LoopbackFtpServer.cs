@@ -126,6 +126,12 @@ internal sealed class LoopbackFtpServer : IDisposable
     /// <summary>Gets or sets a command the server stops answering (it keeps the connection open).</summary>
     public string? SilentOn { get; set; }
 
+    /// <summary>Gets or sets the whole reply to every <c>SIZE</c>, e.g. <c>213 abc</c>; <see langword="null"/> for the normal one.</summary>
+    public string? SizeReply { get; set; }
+
+    /// <summary>Gets or sets the whole reply to every <c>MDTM</c>; <see langword="null"/> for the normal one.</summary>
+    public string? MdtmReply { get; set; }
+
     /// <summary>Gets the number of control connections accepted.</summary>
     public int ControlConnections => Volatile.Read(ref _controlConnections);
 
@@ -410,6 +416,8 @@ internal sealed class LoopbackFtpServer : IDisposable
         "PWD" => "257 \"/\" is the current directory.",
         "TYPE" => "200 Type set.",
         "OPTS" or "NOOP" => "200 OK.",
+        "SIZE" when SizeReply is not null => SizeReply,
+        "MDTM" when MdtmReply is not null => MdtmReply,
         "SIZE" when Files.IsEmpty => "213 10",
         "SIZE" => Files.TryGetValue(argument, out var file) ? $"213 {file.Length}" : "550 The system cannot find the file specified.",
         "MDTM" => Files.IsEmpty || Files.ContainsKey(argument) ? "213 20250808120000" : "550 The system cannot find the file specified.",

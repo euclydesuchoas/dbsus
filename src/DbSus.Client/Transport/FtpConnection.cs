@@ -133,12 +133,28 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
             // than through FluentFTP's time-zone conversion.
             var size = await Expect(session.ExecuteAsync("SIZE " + path, cancellationToken), path).ConfigureAwait(false);
             var modified = await Expect(session.ExecuteAsync("MDTM " + path, cancellationToken), path).ConfigureAwait(false);
-            return new RemoteFileInfo(
-                long.Parse(size.Message.Trim(), NumberStyles.None, CultureInfo.InvariantCulture),
-                DateTime.SpecifyKind(
-                    DateTime.ParseExact(modified.Message.Trim().Substring(0, 14), "yyyyMMddHHmmss", CultureInfo.InvariantCulture),
-                    DateTimeKind.Utc));
+            return new RemoteFileInfo(ParseSize(size.Message, path), ParseModified(modified.Message, path));
         }, cancellationToken);
+
+    // A SIZE reply that is not a size (not digits, or too large for a long) is a transport failure
+    // like a truncated transfer, never a parsing exception of the framework.
+    internal static long ParseSize(string reply, string path) =>
+        long.TryParse(reply.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var size)
+            ? size
+            : throw Malformed("SIZE", reply, path);
+
+    // MDTM is yyyyMMddHHmmss, optionally followed by a fraction of a second, which is ignored.
+    internal static DateTime ParseModified(string reply, string path)
+    {
+        var text = reply.Trim();
+        return text.Length >= 14
+               && DateTime.TryParseExact(text.Substring(0, 14), "yyyyMMddHHmmss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var modified)
+            ? DateTime.SpecifyKind(modified, DateTimeKind.Utc)
+            : throw Malformed("MDTM", reply, path);
+    }
+
+    private static TransientTransportException Malformed(string command, string reply, string path) =>
+        new($"The server answered {command} for {path} with '{reply.Trim()}', which is not a {(command == "SIZE" ? "size" : "time")}; the answer is not used.");
 
     // The client limits each read of the transfer itself (see ReadLimitStream).
     public async Task<Stream> OpenReadAsync(string path, long offset, CancellationToken cancellationToken)
