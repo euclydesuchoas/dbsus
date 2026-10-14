@@ -46,6 +46,10 @@ public sealed class DatasusClientOptions
     /// threads and processes). Lock files and empty folders stay after pruning and are removed by
     /// <see cref="DatasusClient.ClearCacheAsync"/>.
     /// </para>
+    /// <para>
+    /// Use a folder for the cache only: <see cref="DatasusClient.ClearCacheAsync"/> removes every
+    /// empty folder below it. Junctions and symbolic links inside it are never entered.
+    /// </para>
     /// </remarks>
     public string? CacheDirectory { get; set; }
 

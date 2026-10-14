@@ -110,10 +110,36 @@ internal sealed class CacheStore(string root, long? maxBytes, Func<DateTime> utc
 
         return
         [
-            .. Directory.EnumerateDirectories(Root, "*", SearchOption.AllDirectories)
+            .. DirectoriesBelow(Root)
                 .Where(directory => VersionName.IsMatch(Path.GetFileName(directory)))
                 .Select(directory => new CacheEntry(directory, Path.GetFileName(Path.GetDirectoryName(directory)!))),
         ];
+    }
+
+    /// <summary>
+    /// Tells whether a folder is a junction or a symbolic link. Enumeration and clean-up never enter
+    /// one: a link inside the cache could otherwise make them delete files outside it.
+    /// </summary>
+    internal static bool IsLink(DirectoryInfo directory) => (directory.Attributes & FileAttributes.ReparsePoint) != 0;
+
+    // Every folder below a folder, links excluded and not entered.
+    private static IEnumerable<string> DirectoriesBelow(string root)
+    {
+        var pending = new Stack<DirectoryInfo>();
+        pending.Push(new DirectoryInfo(root));
+        while (pending.Count > 0)
+        {
+            foreach (var child in pending.Pop().EnumerateDirectories())
+            {
+                if (IsLink(child))
+                {
+                    continue;
+                }
+
+                yield return child.FullName;
+                pending.Push(child);
+            }
+        }
     }
 
     /// <summary>
@@ -202,7 +228,7 @@ internal sealed class CacheStore(string root, long? maxBytes, Func<DateTime> utc
             return;
         }
 
-        foreach (var child in Directory.EnumerateDirectories(directory).ToList())
+        foreach (var child in new DirectoryInfo(directory).EnumerateDirectories().Where(child => !IsLink(child)).Select(child => child.FullName).ToList())
         {
             RemoveEmptyDirectories(child);
             if (!Directory.EnumerateFileSystemEntries(child).Any())
@@ -275,7 +301,7 @@ internal sealed class TempStore(string root, Func<DateTime> utcNow)
         }
 
         var now = utcNow();
-        foreach (var directory in Directory.EnumerateDirectories(root))
+        foreach (var directory in new DirectoryInfo(root).EnumerateDirectories().Where(child => !CacheStore.IsLink(child)).Select(child => child.FullName))
         {
             if (now - Directory.GetLastWriteTimeUtc(directory) <= CacheStore.OrphanAge)
             {
