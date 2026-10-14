@@ -131,4 +131,4 @@ To report a vulnerability of DbSus itself, in private, see the [security policy]
 
 ## License
 
-[MIT](https://github.com/euclydesuchoas/dbsus/blob/main/LICENSE). The DBC decompressor is a C# port of Mark Adler's `blast.c` (zlib license); see the [third-party notices](https://github.com/euclydesuchoas/dbsus/blob/main/THIRD-PARTY-NOTICES.md).
+[MIT](https://github.com/euclydesuchoas/dbsus/blob/main/LICENSE). The DBC decompressor is a C# port of Mark Adler's `blast.c` (zlib license); see the [third-party notices](https://github.com/euclydesuchoas/dbsus/blob/main/THIRD-PARTY-NOTICES.md). The package icon is an original design of this project and is covered by the same MIT license.
