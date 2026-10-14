@@ -20,9 +20,11 @@ dotnet add package DbSus.Client --prerelease
 | `DbSus` | Read `.dbc` and `.dbf` files you already have: decompression, a streaming `DbDataReader`, tables split into parts. |
 | `DbSus.Client` | Download from the DATASUS FTP server and read what you download. It depends on `DbSus`. |
 
+Both packages target `net10.0`, `netstandard2.0` and `net472`: they run on .NET 8 or later and on .NET Framework 4.7.2 or later. See [compatibility](https://github.com/euclydesuchoas/dbsus/blob/main/docs/compatibility.md).
+
 ## Quick start
 
-The snippets are statements: paste them into a method (the last one into an async method) or into a top-level program (C# 9 or later).
+The snippets are statements: paste them into a method (the last one into an async method) or into a top-level program (C# 9 or later). They are written in C# 8 (`using var`, `await using`): a .NET Framework project, whose default is C# 7.3, needs `<LangVersion>8.0</LangVersion>` in its project file.
 
 Read a `.dbc` (or a `.dbf`):
 
@@ -101,6 +103,10 @@ while (reader.Read())
 - [Compatibility](https://github.com/euclydesuchoas/dbsus/blob/main/docs/compatibility.md): target frameworks, runtimes, dependencies, FluentFTP versions.
 - [Changelog](https://github.com/euclydesuchoas/dbsus/blob/main/CHANGELOG.md).
 
+## Questions and problems
+
+To ask a question or to report a problem, open an issue in the repository on GitHub (the **Issues** tab) and say the package, its version, the target framework and the operating system. Do not attach a file of DATASUS and do not paste the content of records, which can hold personal data: give the path of the file on the server. To report a vulnerability, see "Security" below; to change the code, see [contributing](https://github.com/euclydesuchoas/dbsus/blob/main/CONTRIBUTING.md).
+
 ## Integrity
 
 The CRC-32 of a `.dbc` can only be checked once the last byte has been decompressed, so a mismatch is reported at the end of the data, as an `InvalidDataException`. Records returned before that cannot be trusted either. When loading into a database, write inside a transaction or into a staging table, and commit only after `Read()` has returned `false` without an exception. Details are in the [reading guide](https://github.com/euclydesuchoas/dbsus/blob/main/docs/reading.md).
@@ -109,12 +115,13 @@ The CRC-32 of a `.dbc` can only be checked once the last byte has been decompres
 
 - DbSus reads; it does not write `.dbc` files. It writes `.dbf` files only as the output of a conversion.
 - Tested with dBase III files (version 0x03). One DATASUS file with another version byte (0x30, a SIASUS-ABO file) was read without error; nothing else is known about files of that version. Field types `C`, `N`, `F`, `D` and `L` are interpreted; others, such as `M` (memo), are exposed only as their stored bytes, and memo files are not read.
-- Character encoding: the code page comes from the header's language driver ID (LDID), and LDID 0x00 (no driver) is read as code page 1252. In October 2026 the bytes above 0x7F of character fields were counted in eighteen files of the catalog. Fourteen had none outside identifier fields that are not text, so the code page changes nothing in them. A SIHSUS-RD file marked 0x02 reads as code page 850 and two SIASUS-PA files marked 0x03 as 1252, as their LDID says; for LDID 0x00 the evidence is four bytes in one CNES file, which read as 1252; in the files marked 0x57, 0x58, 0x35 and 0x25 no such text was seen, so their code page is not validated. In the DBF tables inside the auxiliary archives of the server, which are not file types of the catalog, the LDID did not tell the code page: tables marked 0x00, 0x02 or 0x03 held text of code page 850 or of 1252. When the text matters, check it. `DbfReadOptions.Encoding` overrides the code page, and `DbfReader.EncodingSource` tells where the encoding of a reader came from: the option, the LDID, or the fallback.
+- Character encoding: the code page comes from the header's language driver ID (LDID), and LDID 0x00 (no driver) is read as code page 1252. In the files of the catalog whose bytes were counted in October 2026, few had text to judge by: it read as the LDID says for 0x02 and 0x03, for 0x00 the evidence is four bytes in one file, and for the other LDIDs seen there was none. In the DBF tables inside the auxiliary archives of the server, which are not file types of the catalog, the LDID did not tell the code page. When the text matters, check it. `DbfReadOptions.Encoding` overrides the code page, and `DbfReader.EncodingSource` tells where the encoding of a reader came from: the option, the LDID, or the fallback. The counts are under "Character encoding" in the [reading guide](https://github.com/euclydesuchoas/dbsus/blob/main/docs/reading.md).
 - The reader is forward-only. It is not thread-safe, and the asynchronous methods it inherits from `DbDataReader` complete synchronously. `DatasusClient` is thread-safe.
 - On .NET Framework and .NET 8, `GetFieldValue<T>` with a nullable type (e.g. `GetFieldValue<int?>`) allocates on every call: about 24 bytes on .NET Framework 4.8.1, and 24 bytes (32 for `decimal?`) on .NET 8. The non-nullable forms do not, and on .NET 9 and .NET 10 the nullable forms do not either (measured).
-- `DatasusCatalog` covers 112 file types: 43 by state, four of which also have a file for the whole country (SIM-DO, SINASC-DN, PCE and RESP), and 69 with a file for the whole country only, the 58 of SINAN among them. One of these, SINAN-INFL, is in the catalog because the DATASUS website lists it, although no file of it was known on the server in October 2026: its folder and file name follow the pattern of the other SINAN file types. It knows the folder layout that DATASUS uses now and, for nine of them, the one before it. It checks the shape of a request (a month or a year, a real state), never whether the file exists; other files are reached with the path as a string.
+- `DatasusCatalog` covers 112 file types, in the folder layout that DATASUS uses now and, for nine of them, also in the one before it. It checks the shape of a request (a month or a year, a real state), never whether the file exists. One file type, SINAN-INFL, is in the catalog because the DATASUS website lists it, although no file of it was known on the server in October 2026. Other files are reached with the path as a string. The [paths guide](https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md) says which file types have files by state, which have a file for the whole country, and what the catalog leaves out.
 - A listing from the server can be partial if the client's read of it fails while the server still answers `226`. `FindPartsAsync` reduces the risk for split tables but does not remove it; `ListAsync` returns the listing as received.
 - The handling of stalled reads was verified on .NET 10 and .NET Framework 4.8.1; .NET 8 and 9, Mono, Unity and Xamarin were not checked.
+- On .NET Framework without long path support, a deep `CacheDirectory` can make the path of a cache entry longer than 260 characters, and the download then fails with an `IOException` before the data of the file is requested: keep `CacheDirectory` short (see "Long paths on .NET Framework" in [compatibility](https://github.com/euclydesuchoas/dbsus/blob/main/docs/compatibility.md)).
 
 ## Security
 
