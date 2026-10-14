@@ -26,6 +26,9 @@
 //
 // Links: every Markdown link in those files must be absolute; links into this repository must
 // point at an existing file on the main branch, with no #anchor (nuget.org does not resolve them).
+// The one other link into the repository accepted is the page of a workflow, in exactly the form
+// https://github.com/euclydesuchoas/dbsus/actions/workflows/<file>.yml, with no query and no anchor,
+// for a <file>.yml that exists in .github/workflows (the target of the CI badge of the README).
 //
 // Output goes to tests/doc-examples/obj/generated/ and is never committed. The process fails, with
 // the file and line, on a block it does not recognize, on a broken link, or when there is no block.
@@ -35,6 +38,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 const string RepositoryUrl = "https://github.com/euclydesuchoas/dbsus/blob/main/";
+const string WorkflowsUrl = "https://github.com/euclydesuchoas/dbsus/actions/workflows/";
 string[] KnownMarkers = ["no-check", "net-only", "netfx-only"];
 var root = FindRepositoryRoot(Directory.GetCurrentDirectory());
 var output = Path.Combine(root, "tests", "doc-examples", "obj", "generated");
@@ -177,14 +181,27 @@ static void CheckLinks(string source, string[] lines, List<string> errors)
             else if (url.Contains("github.com/euclydesuchoas/dbsus", StringComparison.Ordinal))
             {
                 var root = FindRepositoryRoot(Directory.GetCurrentDirectory());
+                if (IsWorkflowPage(url, root))
+                {
+                    continue;
+                }
+
                 if (!url.StartsWith(RepositoryUrl, StringComparison.Ordinal) || url.Contains('#', StringComparison.Ordinal)
                     || !File.Exists(Path.Combine(root, url.Substring(RepositoryUrl.Length))))
                 {
-                    errors.Add($"{location}: link '{url}' must point at an existing file under {RepositoryUrl}, without an anchor.");
+                    errors.Add($"{location}: link '{url}' must point at an existing file under {RepositoryUrl}, without an anchor, or be {WorkflowsUrl}<file>.yml for a workflow file that exists.");
                 }
             }
         }
     }
+}
+
+// The page of a workflow of this repository: exactly WorkflowsUrl and a file name ending in .yml
+// (no further segment, no query, no anchor), for a file that exists in .github/workflows.
+static bool IsWorkflowPage(string url, string root)
+{
+    var match = Regex.Match(url, @"^https://github\.com/euclydesuchoas/dbsus/actions/workflows/([A-Za-z0-9_.-]+\.yml)$");
+    return match.Success && File.Exists(Path.Combine(root, ".github", "workflows", match.Groups[1].Value));
 }
 
 static string ProgramCode(List<Block> blocks)

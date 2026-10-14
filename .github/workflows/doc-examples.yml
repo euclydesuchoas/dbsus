@@ -2,9 +2,10 @@ name: Documentation examples
 
 # Compiles the csharp blocks of README.md and docs/*.md (net10.0 and net472, C# 8, no implicit
 # usings) and runs those that need neither the network nor a database, against the committed
-# fixture; also checks that their links are absolute and point at existing files. Blocks marked
-# "csharp no-check" (Dapper, SqlBulkCopy) are left out and checked by hand. Never contacts the
-# DATASUS server. See tools/doc-examples/generate.cs.
+# fixture; also checks that their links are absolute and point at existing files (or, for the CI
+# badge, at the page of an existing workflow). Blocks marked "csharp no-check" (Dapper,
+# SqlBulkCopy) are left out and checked by hand. Never contacts the DATASUS server. See
+# tools/doc-examples/generate.cs.
 on:
   push:
     branches: [main]
