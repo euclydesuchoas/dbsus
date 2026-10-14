@@ -130,7 +130,7 @@ The CRC-32 of a `.dbc` can only be checked once the last byte has been decompres
 
 ## Security
 
-The DATASUS server lists `AUTH TLS` in its `FEAT` reply but refuses it: tried in October 2026, it answered `534 Local policy on server does not allow TLS secure connections.` DbSus therefore connects **without encryption** (plain FTP), so traffic could be observed or altered in transit. DbSus checks the size reported by the server and the **CRC-32** stored in each `.dbc`. A CRC-32 detects accidental corruption, **not deliberate tampering**: whoever alters a file can recompute it. The data is public, but if your use requires authenticity, compare against hashes obtained through a trusted channel.
+The DATASUS server lists `AUTH TLS` in its `FEAT` reply but refuses it: tried in October 2026, it answered `534 Local policy on server does not allow TLS secure connections.` DbSus therefore connects **without encryption** (plain FTP) and logs in anonymously, so no account credentials are exposed, but traffic could be observed or altered in transit. DbSus checks the size reported by the server and the **CRC-32** stored in each `.dbc`. A CRC-32 detects accidental corruption, **not deliberate tampering**: whoever alters a file can recompute it. The data is public, but if your use requires authenticity, compare against hashes obtained through a trusted channel.
 
 To report a vulnerability of DbSus itself, in private, see the [security policy](https://github.com/euclydesuchoas/dbsus/blob/main/SECURITY.md).
 
