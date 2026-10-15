@@ -41,7 +41,7 @@
   <!-- System.Text.Json is in-box on net10.0; the net481 test target needs the package. -->
   <ItemGroup Label="Tests">
     <PackageVersion Include="System.Text.Json" Version="10.0.12" />
-    <PackageVersion Include="xunit.v3" Version="4.0.1" />
+    <PackageVersion Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>
 
 </Project>
