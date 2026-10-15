@@ -36,16 +36,7 @@
     <InternalsVisibleTo Include="DbSus.Client.LockHelper" Key="$(DbSusPublicKey)" />
   </ItemGroup>
 
-  <!--
-    Every change to the public API shows up in PublicAPI.Unshipped.txt (see docs/decisions.md).
-    RS0026 (several overloads with optional parameters) applies only to APIs not in
-    PublicAPI.Shipped.txt; until the first release moves the baseline there, it would flag the
-    existing overload sets, which are deliberate. Remove the suppression when that happens.
-  -->
-  <PropertyGroup>
-    <NoWarn>$(NoWarn);RS0026</NoWarn>
-  </PropertyGroup>
-
+  <!-- Every change to the public API shows up in PublicAPI.Unshipped.txt (see docs/decisions.md). -->
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
   </ItemGroup>

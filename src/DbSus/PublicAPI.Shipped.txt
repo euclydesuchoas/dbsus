@@ -1,1 +1,136 @@
 #nullable enable
+DbSus.Dbc.DbcChecksumMismatch
+DbSus.Dbc.DbcChecksumMismatch.ActualChecksum.get -> uint
+DbSus.Dbc.DbcChecksumMismatch.ExpectedChecksum.get -> uint
+DbSus.Dbc.DbcChecksumMismatch.PartIndex.get -> int
+DbSus.Dbc.DbcChecksumMismatch.PartName.get -> string?
+DbSus.Dbc.DbcFile
+DbSus.Dbc.DbcPart
+DbSus.Dbc.DbcPart.DbcPart(string? name, System.IO.Stream! stream) -> void
+DbSus.Dbc.DbcPart.DbcPart(System.IO.Stream! stream) -> void
+DbSus.Dbc.DbcPart.Name.get -> string?
+DbSus.Dbc.DbcPart.Stream.get -> System.IO.Stream!
+DbSus.Dbc.DbcReadOptions
+DbSus.Dbc.DbcReadOptions.ChecksumMismatch.get -> System.Action<DbSus.Dbc.DbcChecksumMismatch!>?
+DbSus.Dbc.DbcReadOptions.ChecksumMismatch.set -> void
+DbSus.Dbc.DbcReadOptions.DbcReadOptions() -> void
+DbSus.Dbc.DbcReadOptions.VerifyChecksum.get -> bool
+DbSus.Dbc.DbcReadOptions.VerifyChecksum.set -> void
+DbSus.Dbf.DbfEncodingSource
+DbSus.Dbf.DbfEncodingSource.Fallback = 2 -> DbSus.Dbf.DbfEncodingSource
+DbSus.Dbf.DbfEncodingSource.LanguageDriver = 1 -> DbSus.Dbf.DbfEncodingSource
+DbSus.Dbf.DbfEncodingSource.Option = 0 -> DbSus.Dbf.DbfEncodingSource
+DbSus.Dbf.DbfField
+DbSus.Dbf.DbfField.DecimalCount.get -> int
+DbSus.Dbf.DbfField.FieldType.get -> System.Type!
+DbSus.Dbf.DbfField.FileIndex.get -> int
+DbSus.Dbf.DbfField.IsSupported.get -> bool
+DbSus.Dbf.DbfField.Length.get -> int
+DbSus.Dbf.DbfField.Name.get -> string!
+DbSus.Dbf.DbfField.TypeCode.get -> char
+DbSus.Dbf.DbfFieldConversion
+DbSus.Dbf.DbfHeader
+DbSus.Dbf.DbfHeader.Fields.get -> System.Collections.Generic.IReadOnlyList<DbSus.Dbf.DbfField!>!
+DbSus.Dbf.DbfHeader.HeaderLength.get -> int
+DbSus.Dbf.DbfHeader.LanguageDriverId.get -> byte
+DbSus.Dbf.DbfHeader.LastUpdate.get -> System.DateTime?
+DbSus.Dbf.DbfHeader.RecordCount.get -> long
+DbSus.Dbf.DbfHeader.RecordLength.get -> int
+DbSus.Dbf.DbfHeader.Version.get -> byte
+DbSus.Dbf.DbfReader
+DbSus.Dbf.DbfReader.Encoding.get -> System.Text.Encoding!
+DbSus.Dbf.DbfReader.EncodingSource.get -> DbSus.Dbf.DbfEncodingSource
+DbSus.Dbf.DbfReader.Fields.get -> System.Collections.Generic.IReadOnlyList<DbSus.Dbf.DbfField!>!
+DbSus.Dbf.DbfReader.GetBoolean(string! name) -> bool
+DbSus.Dbf.DbfReader.GetColumnSchema() -> System.Collections.ObjectModel.ReadOnlyCollection<System.Data.Common.DbColumn!>!
+DbSus.Dbf.DbfReader.GetDateTime(string! name) -> System.DateTime
+DbSus.Dbf.DbfReader.GetDecimal(string! name) -> decimal
+DbSus.Dbf.DbfReader.GetDouble(string! name) -> double
+DbSus.Dbf.DbfReader.GetFieldValue<T>(string! name) -> T
+DbSus.Dbf.DbfReader.GetInt32(string! name) -> int
+DbSus.Dbf.DbfReader.GetInt64(string! name) -> long
+DbSus.Dbf.DbfReader.GetRawBytes(int ordinal) -> System.ReadOnlySpan<byte>
+DbSus.Dbf.DbfReader.GetRawBytes(string! name) -> System.ReadOnlySpan<byte>
+DbSus.Dbf.DbfReader.GetString(string! name) -> string!
+DbSus.Dbf.DbfReader.Header.get -> DbSus.Dbf.DbfHeader!
+DbSus.Dbf.DbfReader.IsDBNull(string! name) -> bool
+DbSus.Dbf.DbfReader.IsDeleted.get -> bool
+DbSus.Dbf.DbfReader.PartCount.get -> int
+DbSus.Dbf.DbfReader.PartIndex.get -> int
+DbSus.Dbf.DbfReader.RecordNumber.get -> long
+DbSus.Dbf.DbfReader.TotalRecordCount.get -> long
+DbSus.Dbf.DbfReader.TryGetOrdinal(string! name, out int ordinal) -> bool
+DbSus.Dbf.DbfReadOptions
+DbSus.Dbf.DbfReadOptions.BlankStringsAsNull.get -> bool
+DbSus.Dbf.DbfReadOptions.BlankStringsAsNull.set -> void
+DbSus.Dbf.DbfReadOptions.Columns.get -> System.Collections.Generic.IReadOnlyList<string!>?
+DbSus.Dbf.DbfReadOptions.Columns.set -> void
+DbSus.Dbf.DbfReadOptions.Conversions.get -> System.Collections.Generic.IDictionary<string!, DbSus.Dbf.DbfFieldConversion!>!
+DbSus.Dbf.DbfReadOptions.DbfReadOptions() -> void
+DbSus.Dbf.DbfReadOptions.Encoding.get -> System.Text.Encoding?
+DbSus.Dbf.DbfReadOptions.Encoding.set -> void
+DbSus.Dbf.DbfReadOptions.FallbackEncoding.get -> System.Text.Encoding?
+DbSus.Dbf.DbfReadOptions.FallbackEncoding.set -> void
+DbSus.Dbf.DbfReadOptions.IncludeDeletedRecords.get -> bool
+DbSus.Dbf.DbfReadOptions.IncludeDeletedRecords.set -> void
+DbSus.Dbf.DbfReadOptions.UnconvertibleValues.get -> DbSus.Dbf.DbfUnconvertibleValueHandling
+DbSus.Dbf.DbfReadOptions.UnconvertibleValues.set -> void
+DbSus.Dbf.DbfUnconvertibleValueHandling
+DbSus.Dbf.DbfUnconvertibleValueHandling.AsterisksAsNull = 1 -> DbSus.Dbf.DbfUnconvertibleValueHandling
+DbSus.Dbf.DbfUnconvertibleValueHandling.Null = 2 -> DbSus.Dbf.DbfUnconvertibleValueHandling
+DbSus.Dbf.DbfUnconvertibleValueHandling.Throw = 0 -> DbSus.Dbf.DbfUnconvertibleValueHandling
+DbSus.DbSusFile
+override DbSus.Dbf.DbfField.ToString() -> string!
+override DbSus.Dbf.DbfFieldConversion.ToString() -> string!
+override DbSus.Dbf.DbfReader.Close() -> void
+override DbSus.Dbf.DbfReader.Depth.get -> int
+override DbSus.Dbf.DbfReader.FieldCount.get -> int
+override DbSus.Dbf.DbfReader.GetBoolean(int ordinal) -> bool
+override DbSus.Dbf.DbfReader.GetByte(int ordinal) -> byte
+override DbSus.Dbf.DbfReader.GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length) -> long
+override DbSus.Dbf.DbfReader.GetChar(int ordinal) -> char
+override DbSus.Dbf.DbfReader.GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length) -> long
+override DbSus.Dbf.DbfReader.GetDataTypeName(int ordinal) -> string!
+override DbSus.Dbf.DbfReader.GetDateTime(int ordinal) -> System.DateTime
+override DbSus.Dbf.DbfReader.GetDecimal(int ordinal) -> decimal
+override DbSus.Dbf.DbfReader.GetDouble(int ordinal) -> double
+override DbSus.Dbf.DbfReader.GetEnumerator() -> System.Collections.IEnumerator!
+override DbSus.Dbf.DbfReader.GetFieldType(int ordinal) -> System.Type!
+override DbSus.Dbf.DbfReader.GetFieldValue<T>(int ordinal) -> T
+override DbSus.Dbf.DbfReader.GetFloat(int ordinal) -> float
+override DbSus.Dbf.DbfReader.GetGuid(int ordinal) -> System.Guid
+override DbSus.Dbf.DbfReader.GetInt16(int ordinal) -> short
+override DbSus.Dbf.DbfReader.GetInt32(int ordinal) -> int
+override DbSus.Dbf.DbfReader.GetInt64(int ordinal) -> long
+override DbSus.Dbf.DbfReader.GetName(int ordinal) -> string!
+override DbSus.Dbf.DbfReader.GetOrdinal(string! name) -> int
+override DbSus.Dbf.DbfReader.GetSchemaTable() -> System.Data.DataTable!
+override DbSus.Dbf.DbfReader.GetString(int ordinal) -> string!
+override DbSus.Dbf.DbfReader.GetValue(int ordinal) -> object!
+override DbSus.Dbf.DbfReader.GetValues(object![]! values) -> int
+override DbSus.Dbf.DbfReader.HasRows.get -> bool
+override DbSus.Dbf.DbfReader.IsClosed.get -> bool
+override DbSus.Dbf.DbfReader.IsDBNull(int ordinal) -> bool
+override DbSus.Dbf.DbfReader.NextResult() -> bool
+override DbSus.Dbf.DbfReader.Read() -> bool
+override DbSus.Dbf.DbfReader.RecordsAffected.get -> int
+override DbSus.Dbf.DbfReader.this[int ordinal].get -> object!
+override DbSus.Dbf.DbfReader.this[string! name].get -> object!
+static DbSus.Dbc.DbcFile.ConvertToDbf(string! dbcPath, string! dbfPath, DbSus.Dbc.DbcReadOptions? options = null) -> void
+static DbSus.Dbc.DbcFile.ConvertToDbf(System.IO.Stream! dbc, System.IO.Stream! dbf, DbSus.Dbc.DbcReadOptions? options = null) -> void
+static DbSus.Dbc.DbcFile.OpenAsDbf(string! path, DbSus.Dbc.DbcReadOptions? options = null) -> System.IO.Stream!
+static DbSus.Dbc.DbcFile.OpenAsDbf(System.IO.Stream! dbc, DbSus.Dbc.DbcReadOptions? options = null, bool leaveOpen = false) -> System.IO.Stream!
+static DbSus.Dbf.DbfFieldConversion.Date(string! format) -> DbSus.Dbf.DbfFieldConversion!
+static DbSus.Dbf.DbfFieldConversion.Decimal() -> DbSus.Dbf.DbfFieldConversion!
+static DbSus.Dbf.DbfFieldConversion.Int32() -> DbSus.Dbf.DbfFieldConversion!
+static DbSus.Dbf.DbfFieldConversion.Int64() -> DbSus.Dbf.DbfFieldConversion!
+static DbSus.Dbf.DbfHeader.Read(System.IO.Stream! stream) -> DbSus.Dbf.DbfHeader!
+static DbSus.Dbf.DbfReader.Open(string! path, DbSus.Dbf.DbfReadOptions? options = null) -> DbSus.Dbf.DbfReader!
+static DbSus.Dbf.DbfReader.Open(System.IO.Stream! dbf, DbSus.Dbf.DbfReadOptions? options = null, bool leaveOpen = false) -> DbSus.Dbf.DbfReader!
+static DbSus.DbSusFile.FindParts(string! path) -> System.Collections.Generic.IReadOnlyList<string!>!
+static DbSus.DbSusFile.OpenDbcReader(string! path, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null) -> DbSus.Dbf.DbfReader!
+static DbSus.DbSusFile.OpenDbcReader(System.Collections.Generic.IEnumerable<DbSus.Dbc.DbcPart!>! parts, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null, bool leaveOpen = false) -> DbSus.Dbf.DbfReader!
+static DbSus.DbSusFile.OpenDbcReader(System.Collections.Generic.IEnumerable<string!>! paths, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null) -> DbSus.Dbf.DbfReader!
+static DbSus.DbSusFile.OpenDbcReader(System.IO.Stream! dbc, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null, bool leaveOpen = false) -> DbSus.Dbf.DbfReader!
+static DbSus.DbSusFile.OpenReader(string! path, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null) -> DbSus.Dbf.DbfReader!
+static DbSus.DbSusFile.OpenReader(System.Collections.Generic.IEnumerable<string!>! paths, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null) -> DbSus.Dbf.DbfReader!
