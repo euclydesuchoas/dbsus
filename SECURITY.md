@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Report it in private, through GitHub's private vulnerability reporting: on the page of the repository, open the **Security** tab and choose **Report a vulnerability**. Do not open a public issue for it. There is no e-mail address for reports.
+Report it in private, through GitHub's private vulnerability reporting: open the **Security** page of the repository and choose **Report a vulnerability**. Do not open a public issue for it. There is no e-mail address for reports.
 
 Say which package and version, the target framework and the operating system, and what it takes to reproduce the problem. If a file sets it off and the file is one that DATASUS distributes, give its path on the server instead of attaching it; attach it only if you made it.
 
