@@ -1,6 +1,6 @@
 # Performance
 
-Every figure in this guide comes from one machine: AMD Ryzen 9 9950X3D, Windows 11, Release builds. The figures of the throughput table and of the CRC-32 and decoder sections were measured with .NET SDK 10.0.402 (.NET 10.0.13, .NET 8.0.32 and .NET Framework 4.8.1), the others with .NET SDK 10.0.401. Other files, machines and runtimes will differ.
+Every figure in this guide comes from one machine: AMD Ryzen 9 9950X3D, Windows 11, Release builds. They were measured with .NET SDK 10.0.402 (.NET 10.0.13, .NET 9.0.21, .NET 8.0.32 and .NET Framework 4.8.1), except the real-world test of the throughput section, which says how it was run. Other files, machines and runtimes will differ.
 
 ## Throughput
 
@@ -47,33 +47,33 @@ A full decompression took about 48% to 50% less time than before on .NET 10 and 
 
 ## Reading only some fields
 
-One file (an SIH-RD month: 132,337 records of 113 fields), read as a `.dbc`, each run in a new process; times are the range of two or three runs.
+One real file, `RDMG2407.dbc` (an SIH-RD month: 132,337 records of 113 fields), read to the end as a `.dbc` on .NET 10. The projection keeps the first three character (`C`) fields in the order of the header. Each run is a new process, which opens the file's header once before the timed read; times are the range of three runs. The same program read the same file with this version and with the code from before the decoder changes above (after the CRC-32 changes), the two alternating:
 
-| Reading | Fields | Time | Allocated | Peak working set |
-|---|---|---|---|---|
-| `GetValues` | all 113 | 0.68 to 0.69 s | 377 MiB (2,984 B per record) | 77 MiB |
-| `GetValues` | 3 projected | 0.48 to 0.50 s | 14.3 MiB (114 B per record) | 42 MiB |
-| Typed getters chosen by `GetFieldType`, text as raw bytes | all 113 | 0.57 to 0.58 s | 201 KiB (1.6 B per record) | 28.5 MiB |
-| The same | 3 projected | 0.47 to 0.49 s | 201 KiB | 28 MiB |
-| Typed getters, text decoded with `GetChars` into a reused buffer | all 113 | 0.68 s | 205 KiB | not measured |
-| The same | 3 projected | 0.48 s | 205 KiB | not measured |
+| Reading | Fields | Time, before the decoder changes | Time | Allocated | Peak working set |
+|---|---|---|---|---|---|
+| `GetValues` | all 113 | 0.58 to 0.59 s | 0.48 to 0.53 s | 377 MiB (2,984 B per record) | 77 MiB |
+| `GetValues` | 3 text fields | 0.38 to 0.39 s | 0.27 to 0.28 s | 13.3 MiB (106 B per record) | 42 MiB |
+| Typed getters chosen by `GetFieldType`, text as raw bytes | all 113 | 0.50 to 0.55 s | 0.41 to 0.45 s | 215 KiB (1.7 B per record) | 32 MiB |
+| The same | 3 text fields | 0.37 s | 0.26 s | 214 KiB | 32 MiB |
+| Typed getters, text decoded with `GetChars` into a reused buffer | all 113 | 0.58 s | 0.48 to 0.49 s | 218 KiB | 32 MiB |
+| The same | 3 text fields | 0.37 to 0.38 s | 0.26 to 0.27 s | 217 KiB | 31 MiB |
 
-On this file and this machine:
+The allocation is that of this version; the earlier code allocated 17,280 bytes less in every row, which this version allocates once per process, at the first read of a `.dbc`, for the decoder's lookup tables. On this file and this machine:
 
-- When values are materialized as objects (`GetValues`, `DataTable`), a projection cut allocation from 377 MiB to about 14 MiB and the time by about 30%.
-- With typed getters and text decoded through `GetChars`, allocation was already close to zero and a projection still saved about 30% of the time, since decoding text costs time even without allocating.
-- With text left as raw bytes, it saved less (0.57 s to 0.47 s): most of the remaining time is decompression, which a projection does not reduce.
-- For comparison, the same file already decompressed (`.dbf`), with 3 fields read through `GetValues`, took 173 ms on the first run and 63 ms on the second (probably the operating system's file cache).
+- When values are materialized as objects (`GetValues`, `DataTable`), a projection cut allocation from 377 MiB to about 13 MiB and the time by 43% to 49%.
+- With typed getters and text decoded through `GetChars`, allocation was already close to zero and a projection still saved 43% to 47% of the time, since decoding text costs time even without allocating.
+- With text left as raw bytes, it saved 37% to 42%: most of what remains is decompression, which a projection does not reduce. For comparison, the same three fields of the same file already decompressed (`.dbf`), read through `GetValues`, took 55 to 58 ms; that `.dbf` had just been written, so it was probably in the operating system's file cache.
+- The decoder changes took about 0.09 to 0.11 s off every row.
 
 ## Allocation of the reading loop
 
-The loop in [reading without allocation](https://github.com/euclydesuchoas/dbsus/blob/main/docs/reading.md) was measured over the CNES test file repeated to 204,000 records, as a `.dbf` and as a `.dbc`, leaving out what opening the reader allocates:
+The loop in [reading without allocation](https://github.com/euclydesuchoas/dbsus/blob/main/docs/reading.md) was measured over the same SIH-RD file (132,337 records of 113 fields), as the `.dbc` and as the `.dbf` it decompresses to, in one process per runtime and file: a warm-up pass, then three measured passes, each leaving out what opening the reader allocates. The three passes gave the same figures, and so did the code from before the decoder changes, measured the same way:
 
 | Runtime | Counter | `.dbf` | `.dbc` | Garbage collections |
 |---|---|---|---|---|
 | .NET 10 | `GC.GetAllocatedBytesForCurrentThread` | 0 bytes | 4,120 bytes | none |
 | .NET 9 (`netstandard2.0` build) | `GC.GetAllocatedBytesForCurrentThread` | 0 bytes | 4,120 bytes | none |
 | .NET 8 (`netstandard2.0` build) | `GC.GetAllocatedBytesForCurrentThread` | 0 bytes | 4,120 bytes | none |
-| .NET Framework 4.8.1 | `AppDomain.MonitoringTotalAllocatedMemorySize` | 0 bytes | 0 bytes | none |
+| .NET Framework 4.8.1 (`net472` build) | `AppDomain.MonitoringTotalAllocatedMemorySize` | 0 bytes | 8,192 bytes | none |
 
-The 4,120 bytes are a single 4 KB buffer at the end of the data, used to read what remains and verify the checksum. The .NET Framework counter advances by allocation blocks rather than per object, so it cannot show that buffer. The .NET 8 and .NET 9 rows were measured through the package, which those runtimes load as its `netstandard2.0` build, after a warm-up pass. On .NET 8, the loop allocates nothing, but the nullable forms of `GetFieldValue<T>` would: see [reading without allocation](https://github.com/euclydesuchoas/dbsus/blob/main/docs/reading.md).
+The 4,120 bytes are a single 4 KB buffer at the end of the data, used to read what remains and verify the checksum. The .NET Framework counter advances by allocation blocks rather than per object, so it shows that buffer as one block of 8 KiB. On .NET 8, the loop allocates nothing, but the nullable forms of `GetFieldValue<T>` would: see [reading without allocation](https://github.com/euclydesuchoas/dbsus/blob/main/docs/reading.md).
