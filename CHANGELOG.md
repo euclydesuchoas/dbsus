@@ -6,12 +6,13 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [0.1.0-preview.2] - 2026-10-16
+
 ### Changed
 
-- The CRC-32 check of a `.dbc` processes eight bytes at a time: a full decompression takes about 26% less time on .NET 10 and about 24% less on .NET Framework 4.8.1 (measured).
-- With `DbcReadOptions.VerifyChecksum` set to `false`, the CRC-32 is no longer computed, which takes about 14% to 16% less time for a full decompression (measured).
-- Huffman codes in a `.dbc` are decoded through lookup tables instead of one bit at a time: a full decompression takes about 31% to 34% less time on .NET 10 and about 27% to 30% less on .NET Framework 4.8.1 (measured).
-- Copies in a `.dbc` are written as blocks straight into the caller's buffer instead of one byte at a time: together with the lookup tables, a full decompression takes about 48% to 50% less time on .NET 10 and about 35% to 39% less on .NET Framework 4.8.1 than with the faster CRC-32 alone (measured).
+- When reading a `.dbc`, a full decompression takes about 64% to 67% less time than in 0.1.0-preview.1 on .NET 10, about 65% less on .NET 8 and about 53% to 55% less on .NET Framework 4.8.1 (measured): the CRC-32 is computed eight bytes at a time, Huffman codes are decoded through lookup tables, and copies are written as blocks straight into the caller's buffer. The output and the checks are the same, and the API has not changed.
+- With `DbcReadOptions.VerifyChecksum` set to `false`, the CRC-32 is no longer computed, which takes about 29% to 31% less time for a full decompression on .NET 10 and .NET 8, and about 22% to 25% less on .NET Framework 4.8.1 (measured); a file whose data does not match its CRC-32 is read without an error, as before. Nothing changes with the default (`true`).
+- The release notes of the packages point to this changelog.
 
 ## [0.1.0-preview.1] - 2026-10-14
 
