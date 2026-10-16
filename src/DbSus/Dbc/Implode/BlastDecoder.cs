@@ -8,7 +8,8 @@
 //     of with blast.c's bit-buffer shortcut;
 //   - output is written straight into the caller's buffer, copies are block copies, and the
 //     window keeps the last 4 KiB of output once per read, instead of every byte passing through
-//     blast.c's output buffer.
+//     blast.c's output buffer; a short read that a pending copy fills goes byte by byte through
+//     the window.
 // Original: https://github.com/madler/zlib, branch develop,
 // commit 767c4c947852e143f582c85f14cf573411df1b35, contrib/blast/blast.c (version 1.3).
 // See THIRD-PARTY-NOTICES.md.
@@ -36,6 +37,8 @@
 //
 //   Mark Adler    madler@alumni.caltech.edu
 
+using System.Runtime.CompilerServices;
+
 namespace DbSus.Dbc.Implode;
 
 /// <summary>
@@ -56,6 +59,11 @@ internal sealed class BlastDecoder
     private const int WindowMask = WindowSize - 1;
     private const int EndOfStreamLength = 519;
     private const int DefaultInputBufferSize = 64 * 1024;
+
+    // Reads up to this size that a pending copy fills entirely take a byte loop through the
+    // window, as every byte did before block copies: through ReadCore, each such read paid for a
+    // commit and two block copies (measured on 1-byte and 16-byte reads).
+    private const int ShortRead = 32;
 
     // Code lengths in blast.c's compact form: each byte is (repeat count - 1) << 4 | length.
     private static readonly byte[] CompactLiteralLengths =
@@ -141,7 +149,39 @@ internal sealed class BlastDecoder
     /// which is 0 only when the destination is empty or the end of the stream has been reached.
     /// </summary>
     /// <exception cref="InvalidDataException">The compressed data is corrupt or truncated.</exception>
+#if NET
+    // Compiled fully optimized at once: through tiered compilation, 1-byte reads ran at one of two
+    // speeds from one process to the next, the lower about 30% below the other.
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
     public int Read(Span<byte> destination)
+    {
+        // A short read that the pending copy fills: no bit is read, so nothing can throw, and the
+        // window and the count of bytes produced advance byte by byte.
+        var size = destination.Length;
+        if (size > 0 && size <= _pendingLength && size <= ShortRead)
+        {
+            var window = _window;
+            var produced = OutputBytesProduced;
+            var from = produced - _pendingDistance;
+            for (var i = 0; i < size; i++)
+            {
+                var value = window[(int)(from++ & WindowMask)];
+                window[(int)(produced++ & WindowMask)] = value;
+                destination[i] = value;
+            }
+
+            OutputBytesProduced = produced;
+            _pendingLength -= size;
+            return size;
+        }
+
+        return ReadCore(destination);
+    }
+
+    // Kept out of Read, so that Read stays small for the short reads above.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private int ReadCore(Span<byte> destination)
     {
         if (destination.IsEmpty || IsFinished)
         {
