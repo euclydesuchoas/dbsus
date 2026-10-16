@@ -137,6 +137,23 @@ public sealed class ChecksumCallbackTests : IDisposable
     }
 
     [Fact]
+    public void OpenDbcReader_PartsWithWrongChecksumsAndVerificationDisabled_ReadToTheEndWithoutCallback()
+    {
+        var calls = new List<(int, string?)>();
+        DbcPart[] parts = [new("PAMG2407a.dbc", new MemoryStream(SyntheticDbc.BuildDbc(Dbf, checksum: 0))), new("PAMG2407b.dbc", new MemoryStream(SyntheticDbc.BuildDbc(Dbf, checksum: 0)))];
+        using var reader = DbSusFile.OpenDbcReader(parts, dbcOptions: new DbcReadOptions { VerifyChecksum = false, ChecksumMismatch = mismatch => calls.Add((mismatch.PartIndex, mismatch.PartName)) });
+
+        var records = 0;
+        while (reader.Read())
+        {
+            records++;
+        }
+
+        Assert.Equal(2, records);
+        Assert.Empty(calls);
+    }
+
+    [Fact]
     public void DbcPart_EmptyName_ThrowsArgumentException()
     {
         var exception = Assert.Throws<ArgumentException>(() => new DbcPart(string.Empty, new MemoryStream()));

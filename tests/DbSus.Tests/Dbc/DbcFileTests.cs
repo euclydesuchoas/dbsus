@@ -102,6 +102,82 @@ public sealed class DbcFileTests : IDisposable
     }
 
     [Theory]
+    [InlineData(1)]
+    [InlineData(5)]
+    [InlineData(4096)]
+    public void OpenAsDbf_WrongStoredChecksum_VerifiedReadThrowsAndCallsBackOnce(int chunkSize)
+    {
+        var dbf = SyntheticDbc.BuildDbf(withEndOfFileMarker: true);
+        var dbc = SyntheticDbc.BuildDbc(dbf, ReferenceCrc32.Compute(dbf) ^ 0x80000000u);
+        var calls = 0;
+        var options = new DbcReadOptions { VerifyChecksum = true, ChecksumMismatch = _ => calls++ };
+        using var stream = DbcFile.OpenAsDbf(new MemoryStream(dbc), options);
+
+        var (output, exception) = ReadUntilException(stream, chunkSize);
+
+        Assert.Equal(dbf, output);
+        Assert.IsType<InvalidDataException>(exception);
+        Assert.Contains("checksum mismatch", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(1, calls);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(4096)]
+    public void OpenAsDbf_HeaderChangedAfterCompression_VerifiedReadDetectsIt(int chunkSize)
+    {
+        // The header is stored verbatim and covered by the checksum: a changed date byte is caught.
+        var dbf = SyntheticDbc.BuildDbf(withEndOfFileMarker: true);
+        var dbc = SyntheticDbc.BuildDbc(dbf);
+        dbc[1] ^= 0x01;
+        using var stream = DbcFile.OpenAsDbf(new MemoryStream(dbc));
+
+        var (output, exception) = ReadUntilException(stream, chunkSize);
+
+        Assert.Equal(dbf.Length, output.Length);
+        Assert.IsType<InvalidDataException>(exception);
+        Assert.Contains("checksum mismatch", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(5)]
+    [InlineData(4096)]
+    public void OpenAsDbf_WrongStoredChecksumWithVerificationDisabled_ReturnsTheVerifiedBytesWithoutExceptionOrCallback(int chunkSize)
+    {
+        var dbf = SyntheticDbc.BuildDbf(withEndOfFileMarker: true);
+        var dbc = SyntheticDbc.BuildDbc(dbf, ReferenceCrc32.Compute(dbf) ^ 0x80000000u);
+        var calls = 0;
+        Action<DbcChecksumMismatch> callback = _ => calls++;
+
+        using var unverified = DbcFile.OpenAsDbf(new MemoryStream(dbc), new DbcReadOptions { VerifyChecksum = false, ChecksumMismatch = callback });
+        var output = ReadAll(unverified, chunkSize);
+        Assert.Equal(0, unverified.Read(new byte[16], 0, 16));
+
+        using var verified = DbcFile.OpenAsDbf(new MemoryStream(dbc), new DbcReadOptions { VerifyChecksum = true });
+        var (verifiedOutput, exception) = ReadUntilException(verified, chunkSize);
+
+        Assert.Equal(0, calls);
+        Assert.IsType<InvalidDataException>(exception);
+        Assert.Equal(verifiedOutput, output);
+        Assert.Equal(dbf, output);
+    }
+
+    [Fact]
+    public void ConvertToDbf_WrongStoredChecksumWithVerificationDisabled_WritesTheDbf()
+    {
+        var dbf = SyntheticDbc.BuildDbf(withEndOfFileMarker: false);
+        var dbcPath = WriteFile("sample.dbc", SyntheticDbc.BuildDbc(dbf, checksum: 0));
+        var dbfPath = Path.Combine(_directory, "sample.dbf");
+        var called = false;
+
+        DbcFile.ConvertToDbf(dbcPath, dbfPath, new DbcReadOptions { VerifyChecksum = false, ChecksumMismatch = _ => called = true });
+
+        Assert.Equal(dbf, File.ReadAllBytes(dbfPath));
+        Assert.False(called);
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(5)]
     [InlineData(10)]
@@ -276,5 +352,22 @@ public sealed class DbcFileTests : IDisposable
         }
 
         return output.ToArray();
+    }
+
+    private static (byte[] Output, Exception Exception) ReadUntilException(Stream stream, int chunkSize)
+    {
+        var output = new MemoryStream();
+        var buffer = new byte[chunkSize];
+        var exception = Record.Exception(() =>
+        {
+            int read;
+            while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                output.Write(buffer, 0, read);
+            }
+        });
+
+        Assert.NotNull(exception);
+        return (output.ToArray(), exception);
     }
 }

@@ -10,7 +10,7 @@ namespace DbSus.Dbc;
 /// DBC layout: the DBF header verbatim (its length is the UInt16 at offset 8), then the CRC-32 of
 /// the whole DBF as a little-endian UInt32, then a PKWare DCL implode stream holding the rest of
 /// the DBF. Output bytes are passed through exactly as stored, including the
-/// optional 0x1A end-of-file marker.
+/// optional 0x1A end-of-file marker. The CRC-32 is computed only when it is to be verified.
 /// </remarks>
 internal sealed class DbcDbfStream : Stream
 {
@@ -129,7 +129,11 @@ internal sealed class DbcDbfStream : Stream
             var count = Math.Min(destination.Length, _header.Length - _headerPosition);
             var chunk = _header.AsSpan(_headerPosition, count);
             chunk.CopyTo(destination);
-            _checksum.Append(chunk);
+            if (_verifyChecksum)
+            {
+                _checksum.Append(chunk);
+            }
+
             _headerPosition += count;
             return count;
         }
@@ -147,7 +151,11 @@ internal sealed class DbcDbfStream : Stream
 
         if (read > 0)
         {
-            _checksum.Append(destination.Slice(0, read));
+            if (_verifyChecksum)
+            {
+                _checksum.Append(destination.Slice(0, read));
+            }
+
             return read;
         }
 

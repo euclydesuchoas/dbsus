@@ -31,6 +31,8 @@ Every decompressed byte goes through the CRC-32 that the `.dbc` stores. After 0.
 
 A full decompression took about 26% less time on .NET 10 and about 24% less on .NET Framework 4.8.1.
 
+With `DbcReadOptions.VerifyChecksum` set to `false`, the CRC-32 is not computed at all, and a file whose data does not match its checksum is read without any error. Measured on the larger part only, in two sessions of five runs of each setting, the first discarded, a full decompression then took about 14% to 16% less time than with the check, on .NET 10 and on .NET Framework 4.8.1 alike. Those sessions used another program, so their absolute times are not comparable with the table above.
+
 ## Reading only some fields
 
 One file (an SIH-RD month: 132,337 records of 113 fields), read as a `.dbc`, each run in a new process; times are the range of two or three runs.
