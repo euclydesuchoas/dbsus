@@ -25,7 +25,7 @@ dotnet add package DbSus.Client --prerelease
 | `DbSus` | Read `.dbc` and `.dbf` files you already have: decompression, a streaming `DbDataReader`, tables split into parts. |
 | `DbSus.Client` | Download from the DATASUS FTP server and read what you download. It depends on `DbSus`. |
 
-Both packages target `net10.0`, `netstandard2.0` and `net472`: they run on .NET 8 or later and on .NET Framework 4.7.2 or later. See [compatibility](https://github.com/euclydesuchoas/dbsus/blob/main/docs/compatibility.md).
+Both packages target `net10.0`, `netstandard2.0` and `net472`: they run on .NET 8 or later and on .NET Framework 4.7.2 or later. They keep running on .NET 8 and .NET 9 after Microsoft's end of support for them (November 2026). See [compatibility](https://github.com/euclydesuchoas/dbsus/blob/main/docs/compatibility.md).
 
 ## Quick start
 
