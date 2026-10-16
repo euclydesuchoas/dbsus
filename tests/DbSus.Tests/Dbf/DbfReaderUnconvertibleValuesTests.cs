@@ -394,22 +394,28 @@ public class DbfReaderUnconvertibleValuesTests
             builder.Record("      42", "    12345.67", "20240101", "********", "********");
         }
 
-        using var reader = DbfReader.Open(new MemoryStream(builder.Build()), new DbfReadOptions { UnconvertibleValues = mode });
-        Assert.True(reader.Read());
-        long nulls = ReadGuarded(reader); // warm up
+        var file = builder.Build();
+        var options = new DbfReadOptions { UnconvertibleValues = mode };
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        var records = 0;
-        while (reader.Read())
+        AllocationMeasurement.AssertNoAllocation(() =>
         {
-            nulls += ReadGuarded(reader);
-            records++;
-        }
+            using var reader = DbfReader.Open(new MemoryStream(file), options);
+            Assert.True(reader.Read());
+            long nulls = ReadGuarded(reader); // warm up
 
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        Assert.Equal(999, records);
-        Assert.Equal(2000, nulls);
-        Assert.Equal(0, allocated);
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            var records = 0;
+            while (reader.Read())
+            {
+                nulls += ReadGuarded(reader);
+                records++;
+            }
+
+            var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.Equal(999, records);
+            Assert.Equal(2000, nulls);
+            return allocated;
+        });
     }
 
     private static int ReadGuarded(DbfReader reader)

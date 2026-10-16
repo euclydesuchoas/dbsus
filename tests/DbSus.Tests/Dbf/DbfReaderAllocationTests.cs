@@ -6,7 +6,7 @@ using Xunit;
 namespace DbSus.Tests.Dbf;
 
 // GC.GetAllocatedBytesForCurrentThread is not available on .NET Framework, so this guard runs on
-// the net10.0 target only.
+// the net10.0 target only. Each measurement goes through AllocationMeasurement, which repeats it.
 public class DbfReaderAllocationTests
 {
     [Fact]
@@ -28,21 +28,26 @@ public class DbfReaderAllocationTests
         var options = new DbfReadOptions();
         options.Conversions["AGE"] = DbfFieldConversion.Int32();
         options.Conversions["BIRTH"] = DbfFieldConversion.Date("ddMMyyyy");
-        using var reader = DbfReader.Open(new MemoryStream(builder.Build()), options);
-        Assert.True(reader.Read());
-        ReadTyped(reader); // warm up
+        var file = builder.Build();
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        var records = 0;
-        while (reader.Read())
+        AllocationMeasurement.AssertNoAllocation(() =>
         {
-            ReadTyped(reader);
-            records++;
-        }
+            using var reader = DbfReader.Open(new MemoryStream(file), options);
+            Assert.True(reader.Read());
+            ReadTyped(reader); // warm up
 
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        Assert.Equal(999, records);
-        Assert.Equal(0, allocated);
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            var records = 0;
+            while (reader.Read())
+            {
+                ReadTyped(reader);
+                records++;
+            }
+
+            var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.Equal(999, records);
+            return allocated;
+        });
     }
 
     [Theory]
@@ -57,24 +62,30 @@ public class DbfReaderAllocationTests
             builder.Record("0301010019  ");
         }
 
-        using var reader = DbfReader.Open(new MemoryStream(builder.Build()));
+        var file = builder.Build();
         var buffer = new char[16];
-        Assert.True(reader.Read());
-        _ = reader.GetChars(0, 0, buffer, 0, buffer.Length); // warm up
-        _ = reader.GetChars(0, 0, null, 0, 0);
 
-        var before = GC.GetAllocatedBytesForCurrentThread();
-        long chars = 0;
-        while (reader.Read())
+        AllocationMeasurement.AssertNoAllocation(() =>
         {
-            chars += reader.GetChars(0, 0, buffer, 0, buffer.Length);
-            chars += reader.GetChars(0, 4, buffer, 0, 2);
-            chars += reader.GetChars(0, 0, null, 0, 0);
-        }
+            using var reader = DbfReader.Open(new MemoryStream(file));
+            Assert.True(reader.Read());
+            _ = reader.GetChars(0, 0, buffer, 0, buffer.Length); // warm up
+            _ = reader.GetChars(0, 4, buffer, 0, 2);
+            _ = reader.GetChars(0, 0, null, 0, 0);
 
-        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-        Assert.Equal(999 * (10 + 2 + 10), chars);
-        Assert.Equal(0, allocated);
+            var before = GC.GetAllocatedBytesForCurrentThread();
+            long chars = 0;
+            while (reader.Read())
+            {
+                chars += reader.GetChars(0, 0, buffer, 0, buffer.Length);
+                chars += reader.GetChars(0, 4, buffer, 0, 2);
+                chars += reader.GetChars(0, 0, null, 0, 0);
+            }
+
+            var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.Equal(999 * (10 + 2 + 10), chars);
+            return allocated;
+        });
     }
 
     private static void ReadTyped(DbfReader reader)
