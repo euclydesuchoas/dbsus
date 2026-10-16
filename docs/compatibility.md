@@ -8,8 +8,10 @@ Both packages target `net10.0`, `net472` and `netstandard2.0`.
 
 | | Runtimes |
 |---|---|
-| Supported | .NET 8 or later; .NET Framework 4.7.2 or later (the declared minimum; it gets the `net472` build); other `netstandard2.0` platforms. These are the runtimes the packages are built for, whether or not Microsoft still supports them; Microsoft's end of support for .NET 8 and .NET 9 is in November 2026. |
+| Supported | .NET 8 or later; .NET Framework 4.7.2 or later (the declared minimum; it gets the `net472` build); other `netstandard2.0` platforms |
 | Tested | The test suite runs on .NET 10 and .NET Framework 4.8.1. A package test in CI also runs on .NET 8, with the `netstandard2.0` build. |
+
+The supported runtimes are the ones the packages are built for, whether or not Microsoft still supports them; Microsoft's end of support for .NET 8 and .NET 9 is in November 2026.
 
 The handling of stalled reads in `DbSus.Client` was verified on .NET 10 and .NET Framework 4.8.1; .NET 8 and 9, Mono, Unity and Xamarin were not checked.
 
