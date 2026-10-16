@@ -1,6 +1,6 @@
 # Performance
 
-Every figure in this guide comes from one machine: AMD Ryzen 9 9950X3D, Windows 11, Release builds, .NET SDK 10.0.401. Other files, machines and runtimes will differ.
+Every figure in this guide comes from one machine: AMD Ryzen 9 9950X3D, Windows 11, Release builds. The figures of the throughput table and of the CRC-32 section were measured with .NET SDK 10.0.402 (.NET 10.0.13 and .NET Framework 4.8.1), the others with .NET SDK 10.0.401. Other files, machines and runtimes will differ.
 
 ## Throughput
 
@@ -10,15 +10,26 @@ To run it, from the repository root: `dotnet run -c Release --project benchmarks
 
 | What | DBF throughput | Allocated per record |
 |---|---|---|
-| Decompression only | 311 MB/s | 0.05 B |
-| Decompression and reading the records | 309 MB/s | 0.06 B |
-| Plus 3 typed getters per record | 299 MB/s | 0.06 B |
-| Plus 2 converted character fields | 293 MB/s | 0.06 B |
-| Every value of every field (`GetValues`, boxed) | 189 MB/s | 1,867 B |
+| Decompression only | 463 MB/s | 0.05 B |
+| Decompression and reading the records | 454 MB/s | 0.06 B |
+| Plus 3 typed getters per record | 429 MB/s | 0.06 B |
+| Plus 2 converted character fields | 418 MB/s | 0.06 B |
+| Every value of every field (`GetValues`, boxed) | 241 MB/s | 1,867 B |
 
-The small allocations of the first four rows are fixed buffers, not per-record costs. Decompression dominates: it consumed the compressed file at about 33 MB/s (about 265 Mbit/s), 126 MB in about 3.8 s, the time the table gives for 1.17 GB at 309 MB/s. These figures are of files already on disk. When a file comes from the DATASUS server, `DbSus.Client` downloads it, or every part of the table, to a file before the first record is read, so the time of the network and the time of decompression add up instead of overlapping. With `VerifyOnDownload` (the default), a `.dbc` is also decompressed twice: once when its download ends, to check its CRC-32, and again when it is read; a file already in the cache is not downloaded again and is decompressed only when read. No figure in this guide includes a download.
+The small allocations of the first four rows are fixed buffers, not per-record costs. Decompression dominates: it consumed the compressed file at about 49 MB/s (about 390 Mbit/s), 126 MB in about 2.6 s, the time the table gives for 1.17 GB at 454 MB/s. These figures are of files already on disk. When a file comes from the DATASUS server, `DbSus.Client` downloads it, or every part of the table, to a file before the first record is read, so the time of the network and the time of decompression add up instead of overlapping. With `VerifyOnDownload` (the default), a `.dbc` is also decompressed twice: once when its download ends, to check its CRC-32, and again when it is read; a file already in the cache is not downloaded again and is decompressed only when read. No figure in this guide includes a download.
 
-In a real-world test on the same machine (Windows 11, .NET SDK 10.0.401, running on .NET 10), a complete SIA-PA month split into two parts, about 8 million records, was read from local files in about 11 seconds, with about 0 bytes allocated per record and no garbage collection. The files were probably already in the operating system's file cache; a cold read was not measured. The memory peak was 34 MiB: the peak working set (`PeakWorkingSet64`) of the whole process, the .NET runtime included.
+In a real-world test with version 0.1.0-preview.1, before the CRC-32 change below, on the same machine (Windows 11, .NET SDK 10.0.401, running on .NET 10), a complete SIA-PA month split into two parts, about 8 million records, was read from local files in about 11 seconds, with about 0 bytes allocated per record and no garbage collection. The files were probably already in the operating system's file cache; a cold read was not measured. The memory peak was 34 MiB: the peak working set (`PeakWorkingSet64`) of the whole process, the .NET runtime included.
+
+### CRC-32
+
+Every decompressed byte goes through the CRC-32 that the `.dbc` stores. After 0.1.0-preview.1, it is computed eight bytes at a time (slicing-by-8) instead of one. Measured on a complete SIA-PA month in two parts (1.70 GB and 1.37 GB of DBF), five runs of each, the first discarded; each range covers the two parts, and .NET Framework ran the `net472` build:
+
+| What | .NET 10, before | .NET 10, after | .NET Framework 4.8.1, before | .NET Framework 4.8.1, after |
+|---|---|---|---|---|
+| CRC-32 alone, over the DBF already in memory | 693 to 703 MB/s | 2,918 to 2,971 MB/s | 625 to 631 MB/s | 2,087 to 2,131 MB/s |
+| Full decompression (`DbcFile.OpenAsDbf`, read to the end) | 303 to 305 MB/s | 413 to 414 MB/s | 223 to 225 MB/s | 293 to 296 MB/s |
+
+A full decompression took about 26% less time on .NET 10 and about 24% less on .NET Framework 4.8.1.
 
 ## Reading only some fields
 
