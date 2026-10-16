@@ -45,6 +45,21 @@ After 0.1.0-preview.1, the decoder also takes Huffman codes through lookup table
 
 A full decompression took about 48% to 50% less time than before on .NET 10 and .NET 8, and about 35% to 39% less on .NET Framework 4.8.1, where the block copies gained least: 8% to 14% of the time with the lookup tables alone, against 21% to 30% on .NET 10 and .NET 8. Allocation did not change (154,288 bytes per file opened on .NET 10 and .NET 8, 8 bytes more than before; on .NET Framework, whose counter advances by blocks, 147,552 to 159,648 bytes before and after), and no garbage collection ran. These sessions used yet another program, so their absolute times are not comparable with the CRC-32 table or the `VerifyChecksum` figures either.
 
+### Size of the reads
+
+The throughput of `DbcFile.OpenAsDbf` depends on how much each `Read` asks for. Measured on the larger part (1.37 GB of DBF), the CRC-32 checked, with reads of one fixed size to the end of the data (reads of 1 and 16 bytes over the first 8 MiB only); each run is a new process that first reads the first MiB the same way, and the ranges are those of three runs, the two versions alternating. "Before" is the code from before the decoder changes above:
+
+| Read size | .NET 10, before | .NET 10, after | .NET Framework 4.8.1, before | .NET Framework 4.8.1, after |
+|---|---|---|---|---|
+| 1 byte | 43 to 44 MB/s | 44 to 46 MB/s | 51 to 52 MB/s | 56 to 57 MB/s |
+| 16 bytes | 57 to 59 MB/s | 144 to 149 MB/s | 227 to 233 MB/s | 247 to 249 MB/s |
+| 397 bytes | 366 to 415 MB/s | 694 to 702 MB/s | 300 to 301 MB/s | 461 to 463 MB/s |
+| 4 KiB | 414 to 425 MB/s | 720 to 723 MB/s | 302 to 310 MB/s | 460 to 474 MB/s |
+| 80 KiB | 382 to 423 MB/s | 820 to 826 MB/s | 307 to 309 MB/s | 493 to 501 MB/s |
+| 1 MiB | 399 to 432 MB/s | 828 to 843 MB/s | 308 to 310 MB/s | 497 to 504 MB/s |
+
+Each read has a fixed cost, which dominates below a few hundred bytes. Read in blocks of a few tens of KiB or more: from 80 KiB, the throughput was within about 2% of that of 1 MiB reads, while 4 KiB reads gave about 86% of it on .NET 10 and about 93% on .NET Framework. Measured the same way, version 0.1.0-preview.1 read 1 byte at a time at the same speed as this version (45 MB/s on .NET 10, 56 MB/s on .NET Framework) and was slower at every other size.
+
 ## Reading only some fields
 
 One real file, `RDMG2407.dbc` (an SIH-RD month: 132,337 records of 113 fields), read to the end as a `.dbc` on .NET 10. The projection keeps the first three character (`C`) fields in the order of the header. Each run is a new process, which opens the file's header once before the timed read; times are the range of three runs. The same program read the same file with this version and with the code from before the decoder changes above (after the CRC-32 changes), the two alternating:
