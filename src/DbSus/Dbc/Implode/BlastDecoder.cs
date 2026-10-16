@@ -3,7 +3,9 @@
 //     buffer, and decoding suspends and resumes in the middle of a length/distance copy;
 //   - input is pulled from a Stream instead of a callback, and errors are reported as
 //     exceptions instead of return codes;
-//   - Huffman codes are decoded one bit at a time instead of with blast.c's bit-buffer shortcut.
+//   - Huffman codes are decoded through lookup tables indexed by the next bits of a 64-bit bit
+//     buffer, and one bit at a time when fewer bits are buffered than the longest code, instead
+//     of with blast.c's bit-buffer shortcut.
 // Original: https://github.com/madler/zlib, branch develop,
 // commit 767c4c947852e143f582c85f14cf573411df1b35, contrib/blast/blast.c (version 1.3).
 // See THIRD-PARTY-NOTICES.md.
@@ -80,8 +82,12 @@ internal sealed class BlastDecoder
     private int _inputPosition;
     private int _inputCount;
 
-    private int _bitBuffer;
+    // Bits taken from _input but not yet decoded, least significant first. Whole bytes move from
+    // _input into it ahead of need, but the source is read only when a bit is needed and _input is
+    // empty, as when bits were taken one byte at a time.
+    private ulong _bitBuffer;
     private int _bitCount;
+    private long _bytesTakenIntoBitBuffer;
 
     private bool _headerRead;
     private bool _literalsCoded;
@@ -112,10 +118,15 @@ internal sealed class BlastDecoder
     public bool IsFinished { get; private set; }
 
     /// <summary>
-    /// Gets the number of compressed bytes consumed so far. Bytes read ahead from the source
-    /// into the internal buffer but not yet decoded are not counted.
+    /// Gets the number of compressed bytes consumed so far: the bytes holding at least one decoded
+    /// bit. Bytes read ahead from the source into the internal buffers but not yet decoded are not
+    /// counted.
     /// </summary>
-    public long InputBytesConsumed { get; private set; }
+    /// <remarks>
+    /// The bit buffer holds fewer than eight bits of a partly decoded byte, so the whole bytes it
+    /// holds are the ones not yet decoded.
+    /// </remarks>
+    public long InputBytesConsumed => _bytesTakenIntoBitBuffer - (_bitCount >> 3);
 
     /// <summary>Gets the number of decompressed bytes produced so far.</summary>
     public long OutputBytesProduced { get; private set; }
@@ -219,25 +230,50 @@ internal sealed class BlastDecoder
         return value;
     }
 
-    // Returns the next `need` bits, least significant bit first.
+    // Returns the next `need` bits (at most 8), least significant bit first.
     private int ReadBits(int need)
     {
-        var value = _bitBuffer;
-        while (_bitCount < need)
+        if (_bitCount < need)
         {
-            value |= NextByte() << _bitCount;
-            _bitCount += 8;
+            Refill(need);
         }
 
-        _bitBuffer = value >> need;
+        var value = (int)((uint)_bitBuffer & ((1u << need) - 1));
+        _bitBuffer >>= need;
         _bitCount -= need;
-        return value & ((1 << need) - 1);
+        return value;
+    }
+
+    // With enough bits buffered for the longest code, one lookup gives the symbol and its length.
+    // Otherwise, or for bits that start no code, decoding goes one bit at a time, which reads the
+    // source only as far as each bit requires and fails where decoding bit by bit always failed.
+    private int Decode(HuffmanTable table)
+    {
+        if (_bitCount < table.LookupBits)
+        {
+            TakeBufferedBytes();
+            if (_bitCount < table.LookupBits)
+            {
+                return DecodeBitByBit(table);
+            }
+        }
+
+        int entry = table.Lookup[(int)((uint)_bitBuffer & table.LookupMask)];
+        if (entry == 0)
+        {
+            return DecodeBitByBit(table);
+        }
+
+        var length = entry & 15;
+        _bitBuffer >>= length;
+        _bitCount -= length;
+        return entry >> 4;
     }
 
     // Canonical Huffman decoding as in blast.c: codes are stored bit-reversed and inverted, so each
     // bit read is inverted and appended to the code; the first code of the shortest length is
     // all ones in the stream.
-    private int Decode(HuffmanTable table)
+    private int DecodeBitByBit(HuffmanTable table)
     {
         var code = 0;
         var first = 0;
@@ -260,9 +296,11 @@ internal sealed class BlastDecoder
         throw new InvalidDataException("Invalid Huffman code in compressed data.");
     }
 
-    private int NextByte()
+    // Makes at least `need` bits available, reading the source only once _input is empty.
+    private void Refill(int need)
     {
-        if (_inputPosition == _inputCount)
+        TakeBufferedBytes();
+        while (_bitCount < need)
         {
             _inputCount = _source.Read(_input, 0, _input.Length);
             _inputPosition = 0;
@@ -271,10 +309,29 @@ internal sealed class BlastDecoder
                 _inputCount = 0;
                 throw new InvalidDataException("Unexpected end of compressed data.");
             }
+
+            TakeBufferedBytes();
+        }
+    }
+
+    // Moves whole bytes from _input into the bit buffer while they fit, without reading the source.
+    private void TakeBufferedBytes()
+    {
+        var buffer = _bitBuffer;
+        var count = _bitCount;
+        var position = _inputPosition;
+        var end = _inputCount;
+        var input = _input;
+        while (count <= 56 && position < end)
+        {
+            buffer |= (ulong)input[position++] << count;
+            count += 8;
         }
 
-        InputBytesConsumed++;
-        return _input[_inputPosition++];
+        _bytesTakenIntoBitBuffer += position - _inputPosition;
+        _inputPosition = position;
+        _bitBuffer = buffer;
+        _bitCount = count;
     }
 
     private sealed class HuffmanTable
@@ -283,12 +340,32 @@ internal sealed class BlastDecoder
         {
             Counts = counts;
             Symbols = symbols;
+
+            var longest = MaxBits;
+            while (counts[longest] == 0)
+            {
+                longest--;
+            }
+
+            LookupBits = longest;
+            LookupMask = (1u << longest) - 1;
+            Lookup = CreateLookup(counts, symbols, longest);
         }
 
         // Counts[n] is the number of codes of length n; Symbols lists the symbols in canonical order.
         public short[] Counts { get; }
 
         public short[] Symbols { get; }
+
+        // The length of the longest code: the number of stream bits each lookup takes.
+        public int LookupBits { get; }
+
+        public uint LookupMask { get; }
+
+        // Indexed by the next LookupBits bits of the stream, least significant first: the symbol
+        // whose code they start with, shifted left by 4, plus the length of that code; 0 when they
+        // start no code.
+        public ushort[] Lookup { get; }
 
         public static HuffmanTable FromCompactLengths(byte[] compact)
         {
@@ -336,6 +413,35 @@ internal sealed class BlastDecoder
             }
 
             return new HuffmanTable(counts, symbols);
+        }
+
+        // Each entry is what DecodeBitByBit returns for those bits, found the same way.
+        private static ushort[] CreateLookup(short[] counts, short[] symbols, int bits)
+        {
+            var lookup = new ushort[1 << bits];
+            for (var value = 0; value < lookup.Length; value++)
+            {
+                var code = 0;
+                var first = 0;
+                var index = 0;
+                for (var length = 1; length <= bits; length++)
+                {
+                    code |= ((value >> (length - 1)) & 1) ^ 1;
+                    int count = counts[length];
+                    if (code < first + count)
+                    {
+                        lookup[value] = (ushort)((symbols[index + (code - first)] << 4) | length);
+                        break;
+                    }
+
+                    index += count;
+                    first += count;
+                    first <<= 1;
+                    code <<= 1;
+                }
+            }
+
+            return lookup;
         }
     }
 }

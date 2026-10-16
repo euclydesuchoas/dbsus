@@ -11,7 +11,7 @@ DbSus is licensed under the MIT license (see `LICENSE`). It includes code derive
 - **Files:** `contrib/blast/blast.c` and `contrib/blast/blast.h`
 - **Version (from the file header):** 1.3, 24 Aug 2013
 - **License:** zlib
-- **Used in:** `src/DbSus/Dbc/Implode/BlastDecoder.cs`, a C# port that is **altered from the original**. It is rewritten as a pull-based decoder that can suspend and resume mid-copy, reads from a `Stream`, reports errors as exceptions and decodes Huffman codes one bit at a time. The upstream test vector (`contrib/blast/test/test.pk` → `test.txt`) is used in the unit tests.
+- **Used in:** `src/DbSus/Dbc/Implode/BlastDecoder.cs`, a C# port that is **altered from the original**. It is rewritten as a pull-based decoder that can suspend and resume mid-copy, reads from a `Stream`, reports errors as exceptions and decodes Huffman codes through lookup tables, one bit at a time only when fewer bits are buffered than the longest code. The upstream test vector (`contrib/blast/test/test.pk` → `test.txt`) is used in the unit tests.
 
 ```
 Copyright (C) 2003, 2012, 2013 Mark Adler
