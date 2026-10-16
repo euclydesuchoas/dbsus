@@ -164,13 +164,13 @@ BenchmarkDotNet, Release, net10.0, AMD Ryzen 9 9950X3D, one large SIA-PA file (1
 
 | Benchmark | DBF throughput | Allocated per record |
 |---|---|---|
-| Decompress only | 463 MB/s | 0.05 B |
-| Decompress + read records | 454 MB/s | 0.06 B |
-| + 3 typed getters | 429 MB/s | 0.06 B |
-| + 2 converted `C` fields | 418 MB/s | 0.06 B |
-| Every value of every field (`GetValues`, boxed) | 241 MB/s | 1,867 B |
+| Decompress only | 847 MB/s | 0.05 B |
+| Decompress + read records | 730 MB/s | 0.06 B |
+| + 3 typed getters | 661 MB/s | 0.06 B |
+| + 2 converted `C` fields | 637 MB/s | 0.06 B |
+| Every value of every field (`GetValues`, boxed) | 295 MB/s | 1,867 B |
 
-Decompression dominates typical use: it consumed the compressed file at about 49 MB/s (126 MB in about 2.6 s; see `docs/performance.md`). When files come from the DATASUS server, the client downloads each one, or every part of a table, to a file before the first record is read, so the time of the network and the time of decompression add up; and with `VerifyOnDownload` (the default) a `.dbc` is decompressed once when its download ends, to check its CRC-32, and again when it is read. No figure in this guide includes a download.
+Decompression dominates typical use: it consumed the compressed file at about 78 MB/s (126 MB in about 1.6 s; see `docs/performance.md`). When files come from the DATASUS server, the client downloads each one, or every part of a table, to a file before the first record is read, so the time of the network and the time of decompression add up; and with `VerifyOnDownload` (the default) a `.dbc` is decompressed once when its download ends, to check its CRC-32, and again when it is read. No figure in this guide includes a download.
 
 ## Testing
 

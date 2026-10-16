@@ -128,6 +128,37 @@ public class BlastDecoderDifferentialTests
         }
     }
 
+    [Theory]
+    [InlineData(false, 4)]
+    [InlineData(true, 6)]
+    public void EveryDestinationSizeUpTo600_SameAsReference(bool codedLiterals, int dictionaryBits)
+    {
+        // Each size puts the ends of the reads at other points of the copies, so that copies are
+        // split at every offset, between the window and the read's own output and across the end
+        // of the window.
+        var random = new Random(dictionaryBits);
+        var tokens = Enumerable.Range(0, (64 << dictionaryBits) + 7).Select(_ => ImplodeToken.Of((byte)random.Next(256))).ToList();
+        foreach (var length in new[] { 518, 517, 300, 40, 3, 2 })
+        {
+            foreach (var distance in new[] { 1, 2, 7, length - 1, length + 1, 255, 256, 64 << dictionaryBits })
+            {
+                if (distance >= 1 && distance <= ImplodeEncoder.MaxDistance(length, dictionaryBits))
+                {
+                    tokens.Add(ImplodeToken.Copy(length, distance));
+                }
+            }
+        }
+
+        var input = ImplodeEncoder.Encode(tokens, codedLiterals, dictionaryBits);
+        var expected = ImplodeEncoder.Expand(tokens);
+
+        for (var chunkSize = 1; chunkSize <= 600; chunkSize++)
+        {
+            var result = Lockstep(input, Fixed(chunkSize), inputBufferSize: 65536, trickle: false);
+            AssertSameBytes(expected, result.Output, $"chunk size {chunkSize}");
+        }
+    }
+
     [Fact]
     public void TruncatedAtEveryByte_FailsLikeTheReference()
     {

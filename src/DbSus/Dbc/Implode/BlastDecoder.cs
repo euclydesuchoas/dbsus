@@ -5,7 +5,10 @@
 //     exceptions instead of return codes;
 //   - Huffman codes are decoded through lookup tables indexed by the next bits of a 64-bit bit
 //     buffer, and one bit at a time when fewer bits are buffered than the longest code, instead
-//     of with blast.c's bit-buffer shortcut.
+//     of with blast.c's bit-buffer shortcut;
+//   - output is written straight into the caller's buffer, copies are block copies, and the
+//     window keeps the last 4 KiB of output once per read, instead of every byte passing through
+//     blast.c's output buffer.
 // Original: https://github.com/madler/zlib, branch develop,
 // commit 767c4c947852e143f582c85f14cf573411df1b35, contrib/blast/blast.c (version 1.3).
 // See THIRD-PARTY-NOTICES.md.
@@ -93,7 +96,9 @@ internal sealed class BlastDecoder
     private bool _literalsCoded;
     private int _dictionaryBits;
 
-    // Sliding window holding the last 4 KiB of output, the only history a distance can reach.
+    // The last 4 KiB of the output of earlier reads, the only history a distance can reach, at
+    // positions taken modulo its size. A read copies from it and from its own output, and keeps
+    // its output there when it returns.
     private readonly byte[] _window = new byte[WindowSize];
 
     // A copy that did not fit in the caller's buffer; it resumes on the next Read.
@@ -149,39 +154,50 @@ internal sealed class BlastDecoder
         }
 
         var written = 0;
-        while (written < destination.Length)
+        try
         {
-            if (_pendingLength > 0)
+            while (written < destination.Length)
             {
-                written += CopyPending(destination.Slice(written));
-                continue;
-            }
+                if (_pendingLength > 0)
+                {
+                    written = CopyPending(destination, written);
+                    continue;
+                }
 
-            if (ReadBits(1) == 0)
-            {
-                var literal = _literalsCoded ? Decode(LiteralCode) : ReadBits(8);
-                destination[written++] = Emit((byte)literal);
-                continue;
-            }
+                if (ReadBits(1) == 0)
+                {
+                    // Decoded before the index is taken: if decoding throws, `written` is unchanged.
+                    var literal = _literalsCoded ? Decode(LiteralCode) : ReadBits(8);
+                    destination[written++] = (byte)literal;
+                    continue;
+                }
 
-            var symbol = Decode(LengthCode);
-            var length = LengthBase[symbol] + ReadBits(LengthExtraBits[symbol]);
-            if (length == EndOfStreamLength)
-            {
-                IsFinished = true;
-                break;
-            }
+                var symbol = Decode(LengthCode);
+                var length = LengthBase[symbol] + ReadBits(LengthExtraBits[symbol]);
+                if (length == EndOfStreamLength)
+                {
+                    IsFinished = true;
+                    break;
+                }
 
-            var distanceExtraBits = length == 2 ? 2 : _dictionaryBits;
-            var distance = (Decode(DistanceCode) << distanceExtraBits) + ReadBits(distanceExtraBits) + 1;
-            if (distance > OutputBytesProduced)
-            {
-                throw new InvalidDataException(
-                    $"Compressed data refers {distance} bytes back, but only {OutputBytesProduced} bytes have been produced.");
-            }
+                var distanceExtraBits = length == 2 ? 2 : _dictionaryBits;
+                var distance = (Decode(DistanceCode) << distanceExtraBits) + ReadBits(distanceExtraBits) + 1;
+                var produced = OutputBytesProduced + written;
+                if (distance > produced)
+                {
+                    throw new InvalidDataException(
+                        $"Compressed data refers {distance} bytes back, but only {produced} bytes have been produced.");
+                }
 
-            _pendingLength = length;
-            _pendingDistance = distance;
+                _pendingLength = length;
+                _pendingDistance = distance;
+            }
+        }
+        finally
+        {
+            // After an exception too: the bytes written before it count as produced, as they did
+            // when each byte went through the window as it was written.
+            Commit(destination.Slice(0, written));
         }
 
         return written;
@@ -206,28 +222,52 @@ internal sealed class BlastDecoder
         _headerRead = true;
     }
 
-    private int CopyPending(Span<byte> destination)
+    // Copies as much of the pending copy as fits after the first `written` bytes of the
+    // destination, and returns the new number of bytes written.
+    private int CopyPending(Span<byte> destination, int written)
     {
-        var count = Math.Min(_pendingLength, destination.Length);
+        var count = Math.Min(_pendingLength, destination.Length - written);
+        var distance = _pendingDistance;
+        var position = written;
+        var end = written + count;
 
-        // Byte by byte on purpose: when the distance is shorter than the length, the copy reads
-        // bytes it has just written (e.g. distance 1 repeats the last byte).
-        var from = (int)((OutputBytesProduced - _pendingDistance) & WindowMask);
-        for (var i = 0; i < count; i++)
+        if (distance > position)
         {
-            destination[i] = Emit(_window[from]);
-            from = (from + 1) & WindowMask;
+            // The source starts before this read's output, in the window, and may wrap around it.
+            var fromWindow = Math.Min(count, distance - position);
+            var start = (int)((OutputBytesProduced + position - distance) & WindowMask);
+            var first = Math.Min(fromWindow, WindowSize - start);
+            _window.AsSpan(start, first).CopyTo(destination.Slice(position));
+            _window.AsSpan(0, fromWindow - first).CopyTo(destination.Slice(position + first));
+            position += fromWindow;
+        }
+
+        // The rest repeats this read's output from `distance` bytes back. When the distance is
+        // shorter than the length, the copy reads bytes it has just written (distance 1 repeats the
+        // last byte): each run copies only bytes already written, so a run is at most as long as
+        // the output from `from` onwards, which doubles with each run.
+        var from = position - distance;
+        while (position < end)
+        {
+            var run = Math.Min(end - position, position - from);
+            destination.Slice(from, run).CopyTo(destination.Slice(position));
+            position += run;
         }
 
         _pendingLength -= count;
-        return count;
+        return end;
     }
 
-    private byte Emit(byte value)
+    // Counts a read's output as produced and keeps its last 4 KiB in the window.
+    private void Commit(ReadOnlySpan<byte> output)
     {
-        _window[OutputBytesProduced & WindowMask] = value;
-        OutputBytesProduced++;
-        return value;
+        var produced = OutputBytesProduced + output.Length;
+        var kept = output.Length > WindowSize ? output.Slice(output.Length - WindowSize) : output;
+        var start = (int)((produced - kept.Length) & WindowMask);
+        var first = Math.Min(kept.Length, WindowSize - start);
+        kept.Slice(0, first).CopyTo(_window.AsSpan(start));
+        kept.Slice(first).CopyTo(_window);
+        OutputBytesProduced = produced;
     }
 
     // Returns the next `need` bits (at most 8), least significant bit first.
