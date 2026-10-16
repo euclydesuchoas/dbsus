@@ -15,6 +15,12 @@ public class BlastDecoderDifferentialTests
     // zlib contrib/blast test/test.pk; see BlastDecoderTests.
     private static readonly byte[] UpstreamVector = [0x00, 0x04, 0x82, 0x24, 0x25, 0x8f, 0x80, 0x7f];
 
+    // Real files are compared on their first 64 MiB of output, unless DBSUS_FULL_DIFFERENTIAL=1
+    // asks for whole files: the largest local samples take gigabytes of decoding, twice.
+    private const long RealSampleOutputLimit = 64L << 20;
+
+    private static readonly bool FullRealSamples = Environment.GetEnvironmentVariable("DBSUS_FULL_DIFFERENTIAL") == "1";
+
     private static readonly int[] BoundaryLengths =
         [2, 3, 4, 5, 8, 9, 10, 11, 12, 15, 16, 23, 24, 39, 40, 71, 72, 135, 136, 263, 264, 517, 518];
 
@@ -201,10 +207,19 @@ public class BlastDecoderDifferentialTests
         actualSource.Position = offset;
         referenceSource.Position = offset;
 
-        var result = Lockstep(new BlastDecoder(actualSource), new ReferenceBlastDecoder(referenceSource), RandomChunks(new Random(file.Length)), keepOutput: false, label: file);
+        var limit = FullRealSamples ? long.MaxValue : RealSampleOutputLimit;
+        var result = Lockstep(new BlastDecoder(actualSource), new ReferenceBlastDecoder(referenceSource), RandomChunks(new Random(file.Length)), keepOutput: false, label: file, maxOutput: limit);
 
-        Assert.True(result.Finished);
-        Assert.Equal(expected.DbfSize - offset + 4, result.Produced);
+        var size = expected.DbfSize - offset + 4;
+        if (size <= limit)
+        {
+            Assert.True(result.Finished);
+            Assert.Equal(size, result.Produced);
+        }
+        else
+        {
+            Assert.True(result.Produced >= limit && result.Produced < size, $"{file}: stopped after {result.Produced} of {size} bytes.");
+        }
     }
 
     private static void AssertSameBytes(byte[] expected, byte[] actual, string label)
@@ -239,7 +254,8 @@ public class BlastDecoderDifferentialTests
         return Lockstep(new BlastDecoder(Source(), inputBufferSize), new ReferenceBlastDecoder(Source(), inputBufferSize), nextChunk, keepOutput: true, label);
     }
 
-    private static LockstepResult Lockstep(BlastDecoder actual, ReferenceBlastDecoder reference, Func<int> nextChunk, bool keepOutput, string label)
+    // Stops at the end of the stream, at the first exception, or once maxOutput bytes are produced.
+    private static LockstepResult Lockstep(BlastDecoder actual, ReferenceBlastDecoder reference, Func<int> nextChunk, bool keepOutput, string label, long maxOutput = long.MaxValue)
     {
         var output = new MemoryStream();
         var actualBuffer = new byte[1 << 17];
@@ -277,7 +293,7 @@ public class BlastDecoderDifferentialTests
                 return new LockstepResult(output.ToArray(), false, reference.OutputBytesProduced, referenceOutcome.ExceptionType);
             }
 
-            if (size > 0 && referenceOutcome.Count == 0)
+            if ((size > 0 && referenceOutcome.Count == 0) || reference.OutputBytesProduced >= maxOutput)
             {
                 return new LockstepResult(output.ToArray(), reference.IsFinished, reference.OutputBytesProduced, null);
             }
