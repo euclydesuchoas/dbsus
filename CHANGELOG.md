@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Changed
+
+- The CRC-32 check of a `.dbc` processes eight bytes at a time: a full decompression takes about 26% less time on .NET 10 and about 24% less on .NET Framework 4.8.1 (measured).
+
 ## [0.1.0-preview.1] - 2026-10-14
 
 ### Added
