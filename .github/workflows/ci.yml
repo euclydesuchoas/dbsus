@@ -104,3 +104,72 @@ jobs:
             artifacts/packages/*.snupkg
           retention-days: 7
           if-no-files-found: error
+
+  # Publishes an application that uses only DbSus (net10.0 build) trimmed and, on Windows, with
+  # Native AOT, runs it against DBF and DBC files built in memory and compares its output with that
+  # of a normal run. Every trimming or AOT warning fails the publish. DbSus.Client is not marked as
+  # trim or AOT compatible and is left out. See tests/trim-consumer/README.md.
+  trimming:
+    name: Trimming and AOT (${{ matrix.os }})
+    needs: build-and-test
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: windows-latest
+            rid: win-x64
+
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - run: dotnet pack src/DbSus/DbSus.csproj --configuration Release --output artifacts/packages
+
+      - id: version
+        run: echo "value=$(dotnet msbuild src/DbSus/DbSus.csproj -getProperty:PackageVersion)" >> "$GITHUB_OUTPUT"
+
+      # The reference output: a normal build, neither trimmed nor compiled ahead of time.
+      - run: dotnet build tests/trim-consumer --configuration Release -p:DbSusVersion=${{ steps.version.outputs.value }}
+
+      - run: dotnet run --project tests/trim-consumer --configuration Release --no-build -p:DbSusVersion=${{ steps.version.outputs.value }} > artifacts/trim-normal.txt
+
+      - run: dotnet publish tests/trim-consumer --configuration Release --runtime ${{ matrix.rid }} --self-contained -p:PublishTrimmed=true -p:DbSusVersion=${{ steps.version.outputs.value }} --output artifacts/trim-trimmed
+
+      - run: artifacts/trim-trimmed/TrimConsumer > artifacts/trim-trimmed.txt
+
+      - run: diff artifacts/trim-normal.txt artifacts/trim-trimmed.txt
+
+      # Native AOT on Windows needs the MSVC C++ build tools: fail with a clear message, rather than
+      # a linker error, when the runner image does not have them.
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          if (-not (Test-Path $vswhere)) { throw 'Native AOT needs the MSVC C++ build tools; vswhere.exe is not on this runner.' }
+          $tools = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $tools) { throw 'Native AOT needs the MSVC C++ build tools (Microsoft.VisualStudio.Component.VC.Tools.x86.x64); this runner has none.' }
+          & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property catalog_productDisplayVersion
+
+      - if: runner.os == 'Windows'
+        run: dotnet publish tests/trim-consumer --configuration Release --runtime ${{ matrix.rid }} -p:PublishAot=true -p:DbSusVersion=${{ steps.version.outputs.value }} --output artifacts/trim-aot
+
+      - if: runner.os == 'Windows'
+        run: artifacts/trim-aot/TrimConsumer > artifacts/trim-aot.txt
+
+      - if: runner.os == 'Windows'
+        run: diff artifacts/trim-normal.txt artifacts/trim-aot.txt

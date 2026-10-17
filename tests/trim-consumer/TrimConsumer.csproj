@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- An application that uses only DbSus, published trimmed and with Native AOT in CI.
+       Not part of DbSus.slnx. Shared settings and the package reference are in Directory.Build.props. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <!-- Test helpers that build DBF and DBC files in memory; they are not part of DbSus. -->
+  <ItemGroup>
+    <Compile Include="../DbSus.Tests/TestSupport/DbfBuilder.cs" Link="TestSupport/DbfBuilder.cs" />
+    <Compile Include="../DbSus.Tests/TestSupport/ImplodeEncoder.cs" Link="TestSupport/ImplodeEncoder.cs" />
+    <Compile Include="../DbSus.Tests/TestSupport/ReferenceCrc32.cs" Link="TestSupport/ReferenceCrc32.cs" />
+    <Compile Include="../DbSus.Tests/TestSupport/SyntheticDbc.cs" Link="TestSupport/SyntheticDbc.cs" />
+  </ItemGroup>
+
+</Project>

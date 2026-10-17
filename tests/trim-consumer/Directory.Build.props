@@ -1,0 +1,44 @@
+<!--
+  Stops the repository's build settings (signing, analyzers) from applying: this project plays an
+  outside application that publishes DbSus trimmed and with Native AOT. See README.md.
+-->
+<Project InitialTargets="RequireDbSusVersion">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+  </PropertyGroup>
+
+  <!--
+    Every warning fails the build and the publish, those of the trimmer (ILLink) and of the Native
+    AOT compiler (ILC) included, whether they come from DbSus or from this program; none is
+    silenced. Only the NuGet vulnerability warnings stay warnings, so that an advisory published
+    for a package does not break the job on its own. One warning per member, not one per assembly,
+    so that a warning names the member of DbSus.
+  -->
+  <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+    <ILLinkTreatWarningsAsErrors>true</ILLinkTreatWarningsAsErrors>
+    <IlcTreatWarningsAsErrors>true</IlcTreatWarningsAsErrors>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+  </PropertyGroup>
+
+  <!--
+    The package version is always explicit (there is no default), so a run never picks up an older
+    package with the same number from a cache. InitialTargets runs before restore. See README.md.
+  -->
+  <Target Name="RequireDbSusVersion" Condition="'$(DbSusVersion)' == ''">
+    <Error Text="Pass the version of the DbSus package to test: -p:DbSusVersion=&lt;version&gt; (for example -p:DbSusVersion=0.1.0-local.202610011530). See tests/trim-consumer/README.md." />
+  </Target>
+
+  <ItemGroup>
+    <PackageReference Include="DbSus" Version="[$(DbSusVersion)]" />
+  </ItemGroup>
+
+</Project>
