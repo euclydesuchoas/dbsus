@@ -20,9 +20,11 @@ updates:
     open-pull-requests-limit: 2
     commit-message:
       prefix: build
-    # An outside application with versions set on purpose: the oldest ones the packages accept.
+    # Outside applications, not part of DbSus.slnx, that restore DbSus from the package built in CI;
+    # their versions are set on purpose (the package consumer pins the oldest ones the packages accept).
     exclude-paths:
       - tests/package-consumer/**
+      - tests/trim-consumer/**
     ignore:
       - dependency-name: FluentFTP
       - dependency-name: System.Memory
