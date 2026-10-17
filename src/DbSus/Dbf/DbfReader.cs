@@ -383,6 +383,9 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     public override string GetDataTypeName(int ordinal) => Field(ordinal).TypeCode.ToString();
 
     /// <inheritdoc/>
+#if NET
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
     public override Type GetFieldType(int ordinal) => Field(ordinal).FieldType;
 
     /// <summary>Returns the ordinal of a field by name, ignoring case.</summary>
@@ -827,6 +830,9 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// <summary>
     /// Returns the schema of the exposed fields in the standard ADO.NET schema table layout.
     /// </summary>
+#if NET
+    [UnconditionalSuppressMessage("Trimming", "IL2111", Justification = "The DataType column only stores Type values. The DataTable members that serialize values, such as WriteXml, carry their own RequiresUnreferencedCode, and a trimmed app reads this table as an untrimmed one does.")]
+#endif
     public override DataTable GetSchemaTable()
     {
         var table = new DataTable("SchemaTable") { Locale = System.Globalization.CultureInfo.InvariantCulture };

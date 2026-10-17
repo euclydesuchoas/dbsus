@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace DbSus.Dbf;
 
 /// <summary>
@@ -51,6 +53,9 @@ public sealed class DbfField
     /// <see cref="bool"/> for <c>L</c>; and <c>byte[]</c> (the raw stored bytes) for
     /// unsupported types.
     /// </summary>
+#if NET
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
     public Type FieldType { get; }
 
     /// <summary>
@@ -91,6 +96,9 @@ public sealed class DbfField
         _ => DbfValueKind.Raw,
     };
 
+#if NET
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
+#endif
     private static Type TypeOf(DbfValueKind kind) => kind switch
     {
         DbfValueKind.String => typeof(string),
