@@ -17,6 +17,8 @@ The handling of stalled reads in `DbSus.Client` was verified on .NET 10 and .NET
 
 The code examples in the guides compile with C# 8. The optional comparison on raw bytes with a `u8` literal needs C# 11.
 
+The `net10.0` build of `DbSus` is marked as compatible with trimming and Native AOT (`IsAotCompatible`): the trim and AOT analyzers give no warnings for it and a trimmed app reads `.dbc` and `.dbf` files with it, but a Native AOT publish was not tested, `DataTable.Load` is not compatible with trimming because of System.Data, and `DbSus.Client` is not marked.
+
 ## Dependencies
 
 Dependencies declared by each package, per target. Each version is a minimum: an application that already references one of them, at that version or later, keeps its own version without a downgrade error (NU1605).

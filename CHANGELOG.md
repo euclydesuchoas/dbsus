@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- The `net10.0` build of `DbSus` is marked as compatible with trimming and Native AOT: the analyzers give no warnings and a trimmed app reads `.dbc` and `.dbf` files. A Native AOT publish was not tested, `DataTable.Load` is not compatible with trimming because of System.Data, and `DbSus.Client` is not marked.
+
 ## [0.1.0-preview.2] - 2026-10-16
 
 ### Changed
