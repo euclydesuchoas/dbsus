@@ -70,6 +70,38 @@ jobs:
         shell: bash
         run: echo "value=$(dotnet msbuild src/DbSus/DbSus.csproj -getProperty:PackageVersion)" >> "$GITHUB_OUTPUT"
 
+      # DbSus.Client must declare DbSus as [its version, next breaking version-0) in every target
+      # framework: the next minor during 0.x, the next major from 1.0 on. The pack writes that range
+      # with a target over an internal NuGet item (see src/DbSus.Client/DbSus.Client.csproj), so the
+      # range is recomputed here and checked in the nuspec of the package just built.
+      - shell: pwsh
+        env:
+          DBSUS_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          $version = $env:DBSUS_VERSION
+          $core = [Version]($version -replace '[-+].*$', '')
+          $next = if ($core.Major -eq 0) { "0.$($core.Minor + 1).0-0" } else { "$($core.Major + 1).0.0-0" }
+          $expected = "[$version, $next)"
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $package = Join-Path 'artifacts/packages' "DbSus.Client.$version.nupkg"
+          if (-not (Test-Path $package)) { throw "$package was not found." }
+          $zip = [IO.Compression.ZipFile]::OpenRead((Resolve-Path $package).Path)
+          try {
+            $reader = New-Object IO.StreamReader(($zip.Entries | Where-Object FullName -eq 'DbSus.Client.nuspec').Open())
+            [xml]$nuspec = $reader.ReadToEnd()
+            $reader.Dispose()
+          } finally {
+            $zip.Dispose()
+          }
+          $groups = @($nuspec.package.metadata.dependencies.group)
+          if ($groups.Count -eq 0) { throw "DbSus.Client $version declares no dependency groups." }
+          $wrong = foreach ($group in $groups) {
+            $ranges = @($group.dependency | Where-Object { $_.id -eq 'DbSus' } | ForEach-Object { $_.version })
+            if ($ranges.Count -ne 1 -or $ranges[0] -ne $expected) { "$($group.targetFramework): '$($ranges -join "', '")'" }
+          }
+          if ($wrong) { throw "DbSus.Client $version must declare DbSus $expected in every target framework; found $($wrong -join '; ')." }
+          "DbSus.Client $version declares DbSus $expected in all $($groups.Count) target frameworks."
+
       - run: dotnet run --project tests/package-consumer --configuration Release --framework net8.0 -p:DbSusVersion=${{ steps.version.outputs.value }}
 
       - run: dotnet run --project tests/package-consumer --configuration Release --framework net10.0 -p:DbSusVersion=${{ steps.version.outputs.value }}
