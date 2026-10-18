@@ -68,8 +68,9 @@ public sealed class CacheLinkTests : IDisposable
     public async Task PruneCacheAsync_OldLinkAmongTheTemporaryDownloads_LeavesWhatIsBehindIt()
     {
         var outside = OutsideEntryFile();
-        Directory.CreateDirectory(_fixture.TempDirectory);
-        var link = Path.Combine(_fixture.TempDirectory, "0123456789abcdef0123456789abcdef");
+        var legacy = Path.Combine(_fixture.TempDirectory, "DbSus", "downloads");
+        Directory.CreateDirectory(legacy);
+        var link = Path.Combine(legacy, "0123456789abcdef0123456789abcdef");
         MakeDirectoryLink(link, Path.GetDirectoryName(outside)!);
         _fixture.Now = DateTime.UtcNow.AddDays(2);
 
@@ -80,7 +81,7 @@ public sealed class CacheLinkTests : IDisposable
     }
 
     // A junction on Windows, which needs no privilege; a symbolic link elsewhere.
-    private static void MakeDirectoryLink(string link, string target)
+    internal static void MakeDirectoryLink(string link, string target)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {

@@ -279,62 +279,216 @@ internal sealed class CacheStore(string root, long? maxBytes, Func<DateTime> utc
 }
 
 /// <summary>
-/// Downloads without a persistent cache go to <c>%TEMP%/DbSus/downloads/&lt;id&gt;/</c>. Folders
-/// left behind (older than 24 hours, lock free, files not open) are removed later.
+/// Downloads without a persistent cache go each to a folder of its own, <c>DbSus-&lt;32 hex digits&gt;</c>,
+/// created directly in the system temporary directory, with no parent shared between users or
+/// processes: on Linux and macOS, the sticky bit of <c>/tmp</c> then keeps other users from renaming
+/// or deleting it. The folder is created only if nothing has that name; on the <c>net10.0</c> build
+/// outside Windows it is readable by its owner only (0700), and elsewhere it has the system's
+/// default permissions (usually 0755 on Linux). Folders left behind (older than 24 hours, lock free,
+/// files not open) are removed later, and so, for one more version, are those of the folder that
+/// earlier versions used, <c>DbSus/downloads/&lt;32 hex digits&gt;</c>.
 /// </summary>
-internal sealed class TempStore(string root, Func<DateTime> utcNow)
+internal sealed class TempStore(string temporaryDirectory, Func<DateTime> utcNow)
 {
-    public static string DefaultRoot => Path.Combine(Path.GetTempPath(), "DbSus", "downloads");
+    internal const string FolderPrefix = "DbSus-";
+
+    private const string LockFileName = "entry.lock";
+
+    public static string DefaultDirectory => Path.GetTempPath();
+
+    // The folder of version 0.1.0-preview.2 and earlier, cleaned for one more version.
+    private string LegacyParent => Path.Combine(temporaryDirectory, "DbSus");
+
+    private string LegacyRoot => Path.Combine(LegacyParent, "downloads");
 
     public CacheEntry Create(string fileName)
     {
-        var directory = Path.Combine(root, Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
+        var directory = Path.Combine(temporaryDirectory, FolderPrefix + Guid.NewGuid().ToString("N"));
+        CreateExclusive(directory);
         return new CacheEntry(directory, fileName);
     }
 
+    /// <summary>
+    /// Creates a folder that nothing has the name of yet, and fails otherwise: an existing folder,
+    /// file or link of that name is never reused. With a random name, no one can create it first.
+    /// </summary>
+    internal static void CreateExclusive(string directory)
+    {
+        if (Directory.Exists(directory) || File.Exists(directory))
+        {
+            throw new IOException($"The temporary folder '{directory}' already exists; it is not reused.");
+        }
+
+#if NET
+        if (!OperatingSystem.IsWindows())
+        {
+            Directory.CreateDirectory(directory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+        else
+        {
+            Directory.CreateDirectory(directory);
+        }
+#else
+        Directory.CreateDirectory(directory);
+#endif
+
+        if (CacheStore.IsLink(new DirectoryInfo(directory)))
+        {
+            throw new IOException($"The temporary folder '{directory}' is a link; it is not used.");
+        }
+    }
+
+    /// <summary>
+    /// Removes, best effort, the lock file and the folder of one download, once its lock file is all
+    /// that is left in it; otherwise (a file still there, for example one not yet deleted by the
+    /// system) leaves both for a later clean-up. Nothing else uses that folder, so no other download
+    /// can be waiting on its lock.
+    /// </summary>
+    internal static void RemoveDownloadFolder(string directory)
+    {
+        try
+        {
+            var lockPath = Path.Combine(directory, LockFileName);
+            if (Directory.EnumerateFileSystemEntries(directory).Any(entry => !string.Equals(entry, lockPath, StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            File.Delete(lockPath);
+            Directory.Delete(directory, recursive: false);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Removes the folders of downloads left behind. A failure on one folder (another user's, a lock
+    /// that cannot be opened, a file in use) leaves that folder as it is and goes on to the next one;
+    /// nothing is ever thrown.
+    /// </summary>
     public void CleanOrphans()
     {
-        if (!Directory.Exists(root))
+        var now = utcNow();
+        foreach (var directory in Candidates())
+        {
+            try
+            {
+                CleanOrphan(directory, now);
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+
+        RemoveIfEmpty(LegacyRoot);
+        RemoveIfEmpty(LegacyParent);
+    }
+
+    // Folders named as this class names them: DbSus-<32 hex> in the temporary directory and, from
+    // earlier versions, <32 hex> in DbSus/downloads (unless DbSus or downloads is a link).
+    private List<string> Candidates()
+    {
+        var found = new List<string>();
+        try
+        {
+            if (Directory.Exists(temporaryDirectory))
+            {
+                found.AddRange(Directory.EnumerateDirectories(temporaryDirectory, FolderPrefix + "*")
+                    .Where(directory => IsHex32(Path.GetFileName(directory).Substring(FolderPrefix.Length))));
+            }
+
+            if (Directory.Exists(LegacyRoot)
+                && !CacheStore.IsLink(new DirectoryInfo(LegacyParent))
+                && !CacheStore.IsLink(new DirectoryInfo(LegacyRoot)))
+            {
+                found.AddRange(Directory.EnumerateDirectories(LegacyRoot).Where(directory => IsHex32(Path.GetFileName(directory))));
+            }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+
+        return found;
+    }
+
+    // Removes a folder of a download only when everything in it is recognized: no link, no
+    // subfolder, its lock file, and at most the downloaded file and its .partial, none of them open.
+    private static void CleanOrphan(string directory, DateTime now)
+    {
+        var folder = new DirectoryInfo(directory);
+        if (CacheStore.IsLink(folder) || now - folder.LastWriteTimeUtc <= CacheStore.OrphanAge)
         {
             return;
         }
 
-        var now = utcNow();
-        foreach (var directory in new DirectoryInfo(root).EnumerateDirectories().Where(child => !CacheStore.IsLink(child)).Select(child => child.FullName))
+        var lockPath = Path.Combine(directory, LockFileName);
+        var files = folder.EnumerateFiles().ToList();
+        if (!File.Exists(lockPath) || folder.EnumerateDirectories().Any() || files.Any(file => (file.Attributes & FileAttributes.ReparsePoint) != 0))
         {
-            if (now - Directory.GetLastWriteTimeUtc(directory) <= CacheStore.OrphanAge)
+            return;
+        }
+
+        var others = files.Select(file => file.Name).Where(name => !string.Equals(name, LockFileName, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (!IsOneDownload(others))
+        {
+            return;
+        }
+
+        using (var held = FileLocks.TryAcquire(lockPath))
+        {
+            if (held is null)
             {
-                continue;
+                return;
             }
 
-            var lockPath = Path.Combine(directory, "entry.lock");
-            using (var held = FileLocks.TryAcquire(lockPath))
+            foreach (var name in others)
             {
-                if (held is null)
+                if (!FileLocks.TryDeleteIfUnused(Path.Combine(directory, name)))
                 {
-                    continue;
-                }
-
-                foreach (var file in Directory.EnumerateFiles(directory).Where(file => !string.Equals(file, lockPath, StringComparison.OrdinalIgnoreCase)))
-                {
-                    FileLocks.TryDeleteIfUnused(file);
+                    return;
                 }
             }
+        }
 
-            if (Directory.EnumerateFiles(directory).All(file => string.Equals(file, lockPath, StringComparison.OrdinalIgnoreCase)))
+        RemoveDownloadFolder(directory);
+    }
+
+    // The files of one download: none, the file, its .partial, or both.
+    private static bool IsOneDownload(List<string> names) => names.Count switch
+    {
+        0 or 1 => true,
+        2 => string.Equals(names[0] + ".partial", names[1], StringComparison.OrdinalIgnoreCase)
+             || string.Equals(names[1] + ".partial", names[0], StringComparison.OrdinalIgnoreCase),
+        _ => false,
+    };
+
+    private static bool IsHex32(string name) => name.Length == 32 && name.All(c => c is (>= '0' and <= '9') or (>= 'a' and <= 'f'));
+
+    private static void RemoveIfEmpty(string directory)
+    {
+        try
+        {
+            var folder = new DirectoryInfo(directory);
+            if (folder.Exists && !CacheStore.IsLink(folder) && !folder.EnumerateFileSystemInfos().Any())
             {
-                try
-                {
-                    Directory.Delete(directory, recursive: true);
-                }
-                catch (IOException)
-                {
-                }
-                catch (UnauthorizedAccessException)
-                {
-                }
+                folder.Delete();
             }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
         }
     }
 }

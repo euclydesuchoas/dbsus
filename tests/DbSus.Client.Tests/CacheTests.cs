@@ -226,8 +226,9 @@ public sealed class CacheTests : IDisposable
             Assert.True(reader.Read());
         }
 
-        // Disposed before the end: the temporary file still goes away.
+        // Disposed before the end: the temporary file still goes away, and so does its folder.
         Assert.Empty(Directory.EnumerateFiles(_fixture.TempDirectory, "RDRR2206.dbc", SearchOption.AllDirectories));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(_fixture.TempDirectory));
     }
 
     private static int Drain(DbfReader reader)

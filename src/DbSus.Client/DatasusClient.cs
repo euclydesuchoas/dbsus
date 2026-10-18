@@ -54,7 +54,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         Func<TimeSpan, CancellationToken, Task>? delay,
         Func<string, long?>? freeSpace,
         Func<DateTime>? utcNow,
-        string? tempRoot)
+        string? temporaryDirectory)
     {
         _options = Copy(options ?? new DatasusClientOptions());
         _options.Validate();
@@ -63,7 +63,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         _pool = new ConnectionPool(connections ?? new FtpConnectionFactory(_options), _options.MaxConnections);
         _retry = new RetryPolicy(_options.MaxRetries, _options.InitialRetryDelay, delay ?? ((wait, token) => Task.Delay(wait, token)), _options.OnRetry);
         _cache = _options.CacheDirectory is null ? null : new CacheStore(_options.CacheDirectory, _options.MaxCacheSizeBytes, _utcNow);
-        _temp = new TempStore(tempRoot ?? TempStore.DefaultRoot, _utcNow);
+        _temp = new TempStore(temporaryDirectory ?? TempStore.DefaultDirectory, _utcNow);
     }
 
     private string Root => _options.RootPath.TrimEnd('/');
@@ -319,10 +319,11 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         var streams = new List<Stream>();
         try
         {
-            var fileOptions = FileOptions.SequentialScan | (_cache is null ? FileOptions.DeleteOnClose : FileOptions.None);
             foreach (var local in locals)
             {
-                streams.Add(new FileStream(local, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, fileOptions));
+                streams.Add(_cache is null
+                    ? new TemporaryDownloadStream(local)
+                    : new FileStream(local, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.SequentialScan));
             }
 
             var callerCallback = dbcOptions?.ChecksumMismatch;
@@ -610,7 +611,9 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     {
         if (Interlocked.Exchange(ref _tempCleaned, 1) == 0)
         {
-            Maintain(_temp.CleanOrphans);
+            // On the thread pool, so that a large temporary directory never delays the download; the
+            // clean-up throws nothing.
+            _ = Task.Run(_temp.CleanOrphans, CancellationToken.None);
         }
 
         var entry = _temp.Create(remote.Name);
@@ -627,7 +630,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         catch
         {
             FileLocks.TryDelete(entry.PartialPath);
-            Maintain(() => Directory.Delete(entry.Directory, recursive: true));
+            TempStore.RemoveDownloadFolder(entry.Directory);
             throw;
         }
     }
