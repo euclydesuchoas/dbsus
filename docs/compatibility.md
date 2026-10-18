@@ -23,12 +23,12 @@ Not covered: Native AOT on other platforms, real DATASUS files, and `DataTable.L
 
 ## Dependencies
 
-Dependencies declared by each package, per target. Each version is a minimum: an application that already references one of them, at that version or later, keeps its own version without a downgrade error (NU1605).
+Dependencies declared by each package, per target. Each version is a minimum: an application that already references one of them, at that version or later, keeps its own version without a downgrade error (NU1605). The one upper bound is that of `DbSus` in `DbSus.Client`, which stops before the next minor version and its previews: an application that references a `DbSus` of a later minor version gets warning NU1608, and the restore fails (NU1107) when another dependency asks for one.
 
 | Package | `net10.0` | `net472` | `netstandard2.0` |
 |---|---|---|---|
 | `DbSus` | None | `System.Memory` 4.5.3 | `System.Memory` 4.5.3, `System.Text.Encoding.CodePages` 4.4.0 |
-| `DbSus.Client` | `DbSus` (the same version or later), FluentFTP 55.0.0 | `DbSus` (the same version or later), FluentFTP 55.0.0, `Microsoft.Bcl.AsyncInterfaces` 1.0.0 | `DbSus` (the same version or later), FluentFTP 55.0.0, `Microsoft.Bcl.AsyncInterfaces` 1.0.0 |
+| `DbSus.Client` | `DbSus` (from the same version, before the next minor and its previews), FluentFTP 55.0.0 | `DbSus` (from the same version, before the next minor and its previews), FluentFTP 55.0.0, `Microsoft.Bcl.AsyncInterfaces` 1.0.0 | `DbSus` (from the same version, before the next minor and its previews), FluentFTP 55.0.0, `Microsoft.Bcl.AsyncInterfaces` 1.0.0 |
 
 For FluentFTP, see below.
 
