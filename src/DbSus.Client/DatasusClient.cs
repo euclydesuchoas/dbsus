@@ -71,7 +71,11 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     /// <summary>Lists a directory (files and subdirectories). Listings are reused for <see cref="DatasusClientOptions.ListingCacheDuration"/>.</summary>
     /// <param name="directory">Directory relative to the root, e.g. <c>/SIHSUS/200801_/Dados</c>; empty or <c>/</c> for the root.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
-    /// <returns>The entries; their <see cref="DatasusFileInfo.LastModifiedUtc"/> is <see langword="null"/> (listing times are imprecise).</returns>
+    /// <returns>
+    /// The entries; their <see cref="DatasusFileInfo.LastModifiedUtc"/> is <see langword="null"/> (listing times are imprecise).
+    /// The names are the ones the server sends, as they are: they are checked only when they become a path
+    /// (for example given to <see cref="DownloadAsync"/>), so a name may hold characters that no path accepts.
+    /// </returns>
     /// <exception cref="DatasusRequestRefusedException">
     /// The server refused the listing of the directory with a permanent reply (FTP 5xx, 550 included: the
     /// folder does not exist or may not be read). It is not retried.

@@ -134,6 +134,10 @@ The DATASUS server lists `AUTH TLS` in its `FEAT` reply but refuses it: tried in
 
 A `.dbc` can decompress to about 170 to 190 times its size. For files that do not come from DATASUS, read through a stream (`DbcFile.OpenAsDbf`) and stop at a limit of your own, because `DbcFile.ConvertToDbf` writes all of the output.
 
+What `DbSus.Client` checks of what the server sends: every path it requests or writes, those built from the names of a listing included, passes the same checks as the paths you give it; the size (`SIZE`) and the time (`MDTM`) of a file must be well formed; and a download stops at the size the server announced. The messages that `DbSus.Client` builds from a server reply show its control characters escaped; exceptions raised by FluentFTP, kept as inner exceptions, are not changed.
+
+What plain FTP leaves open: the CRC-32 of a `.dbc` detects corruption, not tampering, and a file that is not a `.dbc` is checked only for its size. Whoever can write to the cache folder can change what is in it, and a junction (tested on Windows) or a link inside it is followed when writing, so the folder should be writable only by you. The size of a listing has no limit.
+
 To report a vulnerability of DbSus itself, in private, see the [security policy](https://github.com/euclydesuchoas/dbsus/blob/main/SECURITY.md).
 
 ## License

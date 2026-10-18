@@ -14,6 +14,11 @@ All notable changes to this project are documented in this file. The format foll
 
 - `DbSus.Client` declares `DbSus` from its own version up to the next minor version, which it excludes together with its previews (`[0.1.0, 0.2.0-0)` for 0.1.0), instead of that version or any later one; NuGet warns (NU1608) when it is combined with a later `DbSus`.
 
+### Fixed
+
+- The messages that `DbSus.Client` builds from a server reply show its control, format and line separator characters escaped (`\xNN`, `\uXXXX`) and keep at most 512 characters of it; exceptions raised by FluentFTP, kept as inner exceptions, are not changed.
+- A size that the disk cannot hold, announced by the server, fails with `InsufficientDiskSpaceException` before the folder of the cache entry is created, so no empty folder is left behind.
+
 ## [0.1.0-preview.2] - 2026-10-16
 
 ### Changed
