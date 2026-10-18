@@ -555,6 +555,14 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     private async Task<string> DownloadToCacheAsync(CacheStore cache, RemotePath remote, RemoteFileInfo info, CancellationToken cancellationToken)
     {
         var entry = cache.EntryFor(remote, info);
+        if (!Directory.Exists(entry.Directory))
+        {
+            // Checked before the folder of the entry exists, so that a size the disk cannot hold
+            // (the server announces it) leaves no folder behind; FetchAsync checks again, with the
+            // bytes of a partial download, once the folder is there.
+            EnsureDiskSpace(entry.Directory, remote, info.Size);
+        }
+
         WriteCacheEntry(remote, () => Directory.CreateDirectory(entry.Directory));
         var gate = _gates.GetOrAdd(entry.Directory, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);

@@ -37,6 +37,21 @@ public sealed class DownloadLengthLoopbackTests : IDisposable
         }
     }
 
+    // A size the disk cannot hold, announced by the server, fails before any folder of the cache
+    // entry is created and before the transfer is asked for.
+    [Fact(Timeout = 30_000)]
+    public async Task ServerAnnouncesASizeTheDiskCannotHold_FailsBeforeCreatingTheCacheEntry()
+    {
+        _server.SizeReply = "213 9000000000000000000";
+        using var client = Client(retries: 0);
+
+        var exception = await Assert.ThrowsAsync<InsufficientDiskSpaceException>(() => client.DownloadAsync(FilePath, TestContext.Current.CancellationToken));
+
+        Assert.Equal(9_000_000_000_000_000_000L + (64L * 1024 * 1024), exception.RequiredBytes);
+        Assert.Empty(Directory.Exists(_cache) ? Directory.EnumerateFileSystemEntries(_cache, "*", SearchOption.AllDirectories) : []);
+        Assert.DoesNotContain("RETR", _server.Commands);
+    }
+
     [Theory(Timeout = 60_000)]
     [InlineData(1_000L)]
     [InlineData(50_000_000L)]
