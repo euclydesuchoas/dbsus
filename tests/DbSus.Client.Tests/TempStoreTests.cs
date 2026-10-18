@@ -100,6 +100,45 @@ public sealed class TempStoreTests : IDisposable
         Assert.True(File.Exists(Path.Combine(folder, "RDRR2206.dbc")), why);
     }
 
+    // An empty folder (its lock file deleted and the folder not, by an interrupted removal).
+    [Theory]
+    [InlineData("DbSus-0123456789abcdef0123456789abcdef")]
+    [InlineData("DbSus/downloads/0123456789abcdef0123456789abcdef")]
+    public void CleanOrphans_OldEmptyFolderWithoutItsLockFile_IsRemoved(string relative)
+    {
+        var folder = Path.Combine(Temp, relative);
+        Directory.CreateDirectory(folder);
+        Directory.SetLastWriteTimeUtc(folder, _now.AddDays(-2));
+
+        Store.CleanOrphans();
+
+        Assert.False(Directory.Exists(folder));
+    }
+
+    [Fact]
+    public void CleanOrphans_RecentEmptyFolder_IsKept()
+    {
+        var folder = Path.Combine(Temp, "DbSus-" + Hex);
+        Directory.CreateDirectory(folder);
+        Directory.SetLastWriteTimeUtc(folder, _now.AddHours(-23));
+
+        Store.CleanOrphans();
+
+        Assert.True(Directory.Exists(folder));
+    }
+
+    [Fact]
+    public void CleanOrphans_OldEmptyFolderNamedOtherwise_IsKept()
+    {
+        var folder = Path.Combine(Temp, "DbSus-not-a-download");
+        Directory.CreateDirectory(folder);
+        Directory.SetLastWriteTimeUtc(folder, _now.AddDays(-2));
+
+        Store.CleanOrphans();
+
+        Assert.True(Directory.Exists(folder));
+    }
+
     [Fact]
     public void CleanOrphans_RecentFolder_IsKept()
     {

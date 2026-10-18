@@ -611,9 +611,8 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     {
         if (Interlocked.Exchange(ref _tempCleaned, 1) == 0)
         {
-            // On the thread pool, so that a large temporary directory never delays the download; the
-            // clean-up throws nothing.
-            _ = Task.Run(_temp.CleanOrphans, CancellationToken.None);
+            // On the thread pool, so that a large temporary directory never delays the download.
+            TempCleanup = StartCleanup(_temp.CleanOrphans);
         }
 
         var entry = _temp.Create(remote.Name);
@@ -789,6 +788,30 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
                 free);
         }
     }
+
+    /// <summary>
+    /// Gets the clean-up of the temporary folders that the first download without a cache started,
+    /// or a completed task; tests wait for it.
+    /// </summary>
+    internal Task TempCleanup { get; private set; } = Task.CompletedTask;
+
+    /// <summary>
+    /// Runs a clean-up on the thread pool. Whatever it throws is swallowed, except the failures of
+    /// the process itself, so that the task never ends faulted and no exception goes unobserved.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031", Justification = "A clean-up must never fail a download nor leave an unobserved exception.")]
+    internal static Task StartCleanup(Action clean) => Task.Run(
+        () =>
+        {
+            try
+            {
+                clean();
+            }
+            catch (Exception exception) when (exception is not (OutOfMemoryException or StackOverflowException or AccessViolationException or ThreadAbortException))
+            {
+            }
+        },
+        CancellationToken.None);
 
     // Housekeeping never fails the operation that triggered it.
     private static void Maintain(Action action)

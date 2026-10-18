@@ -422,12 +422,20 @@ internal sealed class TempStore(string temporaryDirectory, Func<DateTime> utcNow
     }
 
     // Removes a folder of a download only when everything in it is recognized: no link, no
-    // subfolder, its lock file, and at most the downloaded file and its .partial, none of them open.
+    // subfolder, its lock file, and at most the downloaded file and its .partial, none of them open;
+    // or nothing at all (a folder whose lock file was deleted and the folder not, see
+    // RemoveDownloadFolder).
     private static void CleanOrphan(string directory, DateTime now)
     {
         var folder = new DirectoryInfo(directory);
         if (CacheStore.IsLink(folder) || now - folder.LastWriteTimeUtc <= CacheStore.OrphanAge)
         {
+            return;
+        }
+
+        if (!folder.EnumerateFileSystemInfos().Any())
+        {
+            folder.Delete();
             return;
         }
 

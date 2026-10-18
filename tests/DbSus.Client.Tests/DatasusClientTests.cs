@@ -126,6 +126,40 @@ public sealed class DatasusClientTests : IDisposable
         Assert.False(File.Exists(path + ".partial"));
     }
 
+    // The first download without a cache starts the clean-up of the temporary folders on the thread
+    // pool; a later download of the same client does not start another one.
+    [Fact]
+    public async Task DownloadAsync_WithoutCache_FirstDownloadCleansUpOldFolders_OnlyOnce()
+    {
+        _fixture.Server.Add(Dados + "/RDMG2407.dbc", ClientFixture.Dbc("A1"));
+        var orphan = Path.Combine(_fixture.TempDirectory, "DbSus-0123456789abcdef0123456789abcdef");
+        Directory.CreateDirectory(orphan);
+        File.WriteAllText(Path.Combine(orphan, "entry.lock"), string.Empty);
+        File.WriteAllText(Path.Combine(orphan, "RDMG2407.dbc.partial"), "synthetic");
+        _fixture.Now = DateTime.UtcNow.AddDays(2);
+        var client = _fixture.Client(cache: false);
+
+        await client.DownloadAsync(Dados + "/RDMG2407.dbc", Ct);
+        var first = client.TempCleanup;
+        await first;
+        await client.DownloadAsync(Dados + "/RDMG2407.dbc", Ct);
+
+        Assert.False(Directory.Exists(orphan));
+        Assert.Same(first, client.TempCleanup);
+    }
+
+    // Whatever a clean-up throws (but a failure of the process itself), its task ends without fault,
+    // so no exception goes unobserved.
+    [Fact]
+    public async Task StartCleanup_ActionThrows_TaskEndsWithoutFault()
+    {
+        var task = DatasusClient.StartCleanup(() => throw new InvalidOperationException("synthetic"));
+
+        await task;
+
+        Assert.Equal(TaskStatus.RanToCompletion, task.Status);
+    }
+
     [Fact]
     public async Task DownloadAsync_WithCache_ReusesTheEntryAndRecordsTheUse()
     {

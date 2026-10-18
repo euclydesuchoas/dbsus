@@ -1,4 +1,5 @@
 using DbSus.Tests.TestSupport;
+using Xunit;
 
 namespace DbSus.Client.Tests.Fakes;
 
@@ -72,6 +73,9 @@ internal sealed class ClientFixture : IDisposable
     {
         foreach (var client in _clients)
         {
+            // The clean-up of the temporary folders runs on the thread pool: it ends before the
+            // workspace goes.
+            Assert.True(client.TempCleanup.Wait(TimeSpan.FromSeconds(30)), "The clean-up of the temporary folders did not end.");
             client.Dispose();
         }
 
