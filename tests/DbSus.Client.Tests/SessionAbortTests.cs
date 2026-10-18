@@ -31,7 +31,7 @@ public sealed class SessionAbortTests : IDisposable
     {
         var ct = TestContext.Current.CancellationToken;
         _server.DelayBeforeStalledData = delayed ? TimeSpan.FromMilliseconds(200) : TimeSpan.Zero;
-        var config = new FtpConfig { DataConnectionType = FtpDataConnectionType.AutoPassive, ConnectTimeout = 2000, ReadTimeout = 60_000, DataConnectionReadTimeout = 60_000 };
+        var config = new FtpConfig { DataConnectionType = FtpDataConnectionType.PASVEX, ConnectTimeout = 2000, ReadTimeout = 60_000, DataConnectionReadTimeout = 60_000 };
         using var session = synchronous
             ? new SyncFtpSession("127.0.0.1", _server.Port, config)
             : (FtpSession)new AsyncFtpSession("127.0.0.1", _server.Port, config);

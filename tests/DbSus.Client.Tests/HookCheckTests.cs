@@ -97,6 +97,6 @@ public sealed class HookCheckTests : IDisposable
     private SyncFtpSession Session(SocketHooks disabledForTest) => new(
         "127.0.0.1",
         _server.Port,
-        new FtpConfig { DataConnectionType = FtpDataConnectionType.AutoPassive, ConnectTimeout = 2000, ReadTimeout = 5000, DataConnectionReadTimeout = 5000 },
+        new FtpConfig { DataConnectionType = FtpDataConnectionType.PASVEX, ConnectTimeout = 2000, ReadTimeout = 5000, DataConnectionReadTimeout = 5000 },
         disabledForTest);
 }

@@ -32,7 +32,8 @@ internal enum ListingEnd
 /// </summary>
 internal sealed class LoopbackFtpServer : IDisposable
 {
-    private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
+    private readonly IPAddress _address;
+    private readonly TcpListener _listener;
     private readonly CancellationTokenSource _stop = new();
     private readonly ConcurrentBag<TcpClient> _connections = [];
     private int _controlConnections;
@@ -42,8 +43,14 @@ internal sealed class LoopbackFtpServer : IDisposable
     private readonly TaskCompletionSource<bool> _closedSilently = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _silentCloses;
 
-    public LoopbackFtpServer()
+    /// <summary>
+    /// Creates a server on <paramref name="address"/>, 127.0.0.1 by default; it may be
+    /// <see cref="IPAddress.IPv6Loopback"/>, and then the data connections are on it too.
+    /// </summary>
+    public LoopbackFtpServer(IPAddress? address = null)
     {
+        _address = address ?? IPAddress.Loopback;
+        _listener = new TcpListener(_address, 0);
         _listener.Start();
         Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
         _ = AcceptAsync();
@@ -56,6 +63,19 @@ internal sealed class LoopbackFtpServer : IDisposable
 
     /// <summary>Gets or sets whether EPSV is answered with 500 instead of a port.</summary>
     public bool RefuseEpsv { get; set; }
+
+    /// <summary>Gets or sets a reply that PASV gets in place of a port, for example a 500; <see langword="null"/> for none.</summary>
+    public string? PasvRefusal { get; set; }
+
+    /// <summary>Gets or sets whether the server closes the control connection right after <see cref="PasvRefusal"/>, as after a 421.</summary>
+    public bool CloseAfterPasvRefusal { get; set; }
+
+    /// <summary>
+    /// Gets the local address each data connection arrived at, in order. Over IPv4 every data
+    /// connection is awaited on the same port on 127.0.0.1 and on 127.0.0.2, so a client that
+    /// goes to the address a PASV reply names is told apart from one that goes to the host.
+    /// </summary>
+    public ConcurrentQueue<string> DataArrivals { get; } = new();
 
     /// <summary>
     /// Gets or sets whether the first control connection is closed right after TYPE I, and no other
@@ -113,8 +133,8 @@ internal sealed class LoopbackFtpServer : IDisposable
     public long? StallTransferAfter { get; set; }
 
     /// <summary>
-    /// Gets or sets the address PASV announces, as four comma-separated numbers; the data listener
-    /// is on the loopback interface whatever the address.
+    /// Gets or sets the address PASV announces, as four comma-separated numbers; the data
+    /// listeners are on 127.0.0.1 and 127.0.0.2 whatever the address (see <see cref="DataArrivals"/>).
     /// </summary>
     public string PassiveAddress { get; set; } = "127,0,0,1";
 
@@ -211,7 +231,7 @@ internal sealed class LoopbackFtpServer : IDisposable
     {
         using (client)
         {
-            TcpListener? data = null;
+            DataListener? data = null;
             long restart = 0;
             try
             {
@@ -229,12 +249,22 @@ internal sealed class LoopbackFtpServer : IDisposable
                         continue;
                     }
 
+                    if (command == "PASV" && PasvRefusal is not null)
+                    {
+                        await writer.WriteLineAsync(PasvRefusal).ConfigureAwait(false);
+                        if (CloseAfterPasvRefusal)
+                        {
+                            return;
+                        }
+
+                        continue;
+                    }
+
                     if (ServesData && (command == "PASV" || (command == "EPSV" && !RefuseEpsv)))
                     {
                         data?.Stop();
-                        data = new TcpListener(IPAddress.Loopback, 0);
-                        data.Start();
-                        var port = ((IPEndPoint)data.LocalEndpoint).Port;
+                        data = new DataListener(_address, DataArrivals);
+                        var port = data.Port;
                         await writer.WriteLineAsync(command == "EPSV"
                             ? $"229 Entering Extended Passive Mode (|||{port}|)"
                             : $"227 Entering Passive Mode ({PassiveAddress},{port >> 8},{port & 0xFF})").ConfigureAwait(false);
@@ -331,7 +361,7 @@ internal sealed class LoopbackFtpServer : IDisposable
         }
     }
 
-    private async Task SendListingAsync(TcpListener data, StreamWriter control)
+    private async Task SendListingAsync(DataListener data, StreamWriter control)
     {
         using var connection = await data.AcceptTcpClientAsync().ConfigureAwait(false);
         if (ListingEnd == ListingEnd.Stall)
@@ -373,7 +403,7 @@ internal sealed class LoopbackFtpServer : IDisposable
     // backlog and the server would never notice.
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1835", Justification = "Shared with net481, which has no Memory-based overload.")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031", Justification = "Any failure of the probe means the client closed or reset the connection.")]
-    private async Task<bool> SendFileAsync(TcpListener data, StreamWriter control, byte[] file, long offset)
+    private async Task<bool> SendFileAsync(DataListener data, StreamWriter control, byte[] file, long offset)
     {
         using var connection = await data.AcceptTcpClientAsync().ConfigureAwait(false);
         await control.WriteLineAsync("150 Opening BINARY mode data connection.").ConfigureAwait(false);
@@ -477,4 +507,75 @@ internal sealed class LoopbackFtpServer : IDisposable
         "QUIT" => "221 Bye.",
         _ => "502 Command not implemented.",
     };
+
+    /// <summary>
+    /// The listener of one data connection: on the server's address, and over IPv4 also on the
+    /// same port on 127.0.0.2; the first connection to arrive on either is the one served.
+    /// </summary>
+    private sealed class DataListener
+    {
+        private readonly List<TcpListener> _listeners = [];
+        private readonly ConcurrentQueue<string> _arrivals;
+
+        public DataListener(IPAddress address, ConcurrentQueue<string> arrivals)
+        {
+            _arrivals = arrivals;
+            var first = new TcpListener(address, 0);
+            first.Start();
+            _listeners.Add(first);
+            Port = ((IPEndPoint)first.LocalEndpoint).Port;
+            if (address.AddressFamily == AddressFamily.InterNetwork)
+            {
+                var second = new TcpListener(IPAddress.Parse("127.0.0.2"), Port);
+                try
+                {
+                    second.Start();
+                    _listeners.Add(second);
+                }
+                catch (SocketException)
+                {
+                    // That address or port is not available here; a client that goes to it fails to connect.
+                }
+            }
+        }
+
+        public int Port { get; }
+
+        public async Task<TcpClient> AcceptTcpClientAsync()
+        {
+            var accepts = _listeners.Select(listener => listener.AcceptTcpClientAsync()).ToList();
+            var first = await Task.WhenAny(accepts).ConfigureAwait(false);
+            foreach (var other in accepts.Where(accept => accept != first))
+            {
+                // Ended by Stop; a connection it may still accept is not served.
+                _ = other.ContinueWith(
+                    accept =>
+                    {
+                        if (accept.Status == TaskStatus.RanToCompletion)
+                        {
+                            accept.Result.Dispose();
+                        }
+                        else
+                        {
+                            _ = accept.Exception;
+                        }
+                    },
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+            }
+
+            var connection = await first.ConfigureAwait(false);
+            _arrivals.Enqueue(((IPEndPoint)connection.Client.LocalEndPoint!).Address.ToString());
+            return connection;
+        }
+
+        public void Stop()
+        {
+            foreach (var listener in _listeners)
+            {
+                listener.Stop();
+            }
+        }
+    }
 }

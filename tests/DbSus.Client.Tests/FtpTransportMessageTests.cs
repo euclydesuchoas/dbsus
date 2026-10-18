@@ -30,7 +30,7 @@ public sealed class FtpTransportMessageTests : IDisposable
     }
 
     [Fact]
-    public async Task ListingDataConnectionFails_WithEpsv_SaysListingAndAPossibleCause()
+    public async Task ListingDataConnectionFails_SaysListingAndAPossibleCause()
     {
         using var client = Client();
 
@@ -39,8 +39,8 @@ public sealed class FtpTransportMessageTests : IDisposable
         Assert.StartsWith("Listing /X failed after 1 attempt: ", exception.Message, StringComparison.Ordinal);
         Assert.Contains($"while listing /dissemin/publicos/X on 127.0.0.1:{_server.Port}: ", exception.Message, StringComparison.Ordinal);
         Assert.Contains("The control connection was not reopened during this step; a possible cause is a passive data connection being blocked", exception.Message, StringComparison.Ordinal);
-        Assert.Contains("EPSV", _server.Commands);
-        Assert.DoesNotContain("PASV", _server.Commands);
+        Assert.Contains("PASV", _server.Commands);
+        Assert.DoesNotContain("EPSV", _server.Commands);
     }
 
     [Fact]
@@ -57,8 +57,11 @@ public sealed class FtpTransportMessageTests : IDisposable
         Assert.DoesNotContain("EPSV", _server.Commands);
     }
 
+    // The server lists EPSV and refuses it: the client never asks for it (PASVEX sends PASV), so it
+    // does not depend on how FluentFTP falls back from EPSV (FluentFTP 55.1.0 stopped falling back
+    // to PASV when FEAT lists EPSV).
     [Fact]
-    public async Task EpsvRefusedWithAReply_FallsBackToPasv()
+    public async Task EpsvListedAndRefused_IsNeverSent()
     {
         _server.RefuseEpsv = true;
 
@@ -66,7 +69,7 @@ public sealed class FtpTransportMessageTests : IDisposable
 
         await Assert.ThrowsAsync<DatasusRetriesExhaustedException>(() => client.ListAsync("/X", Ct));
 
-        Assert.Equal(["EPSV", "PASV"], _server.Commands.Where(command => command is "EPSV" or "PASV"));
+        Assert.Equal(["PASV"], _server.Commands.Where(command => command is "EPSV" or "PASV"));
     }
 
     [Fact]

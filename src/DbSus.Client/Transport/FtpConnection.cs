@@ -13,19 +13,7 @@ internal sealed class FtpConnectionFactory(DatasusClientOptions options) : IData
 {
     public async Task<IDatasusConnection> ConnectAsync(CancellationToken cancellationToken)
     {
-        var config = new FtpConfig
-        {
-            // Plain text on purpose: the server refuses AUTH TLS (534, October 2026). Integrity comes
-            // from the size check and the DBC's CRC-32, which detects corruption but not tampering.
-            EncryptionMode = FtpEncryptionMode.None,
-            DataConnectionType = FtpDataConnectionType.AutoPassive,
-            ConnectTimeout = Milliseconds(options.ConnectTimeout),
-            ReadTimeout = Milliseconds(options.ReadTimeout),
-            DataConnectionConnectTimeout = Milliseconds(options.ConnectTimeout),
-            DataConnectionReadTimeout = Milliseconds(options.ReadTimeout),
-            SocketKeepAlive = true,
-        };
-        var connection = new FtpConnection(FtpSession.Create(options.Host, options.Port, config), options.Host, options.Port, options.ReadTimeout);
+        var connection = new FtpConnection(FtpSession.Create(options.Host, options.Port, CreateConfig(options)), options.Host, options.Port, options.ReadTimeout);
         try
         {
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -37,6 +25,22 @@ internal sealed class FtpConnectionFactory(DatasusClientOptions options) : IData
             throw;
         }
     }
+
+    internal static FtpConfig CreateConfig(DatasusClientOptions options) => new()
+    {
+        // Plain text on purpose: the server refuses AUTH TLS (534, October 2026). Integrity comes
+        // from the size check and the DBC's CRC-32, which detects corruption but not tampering.
+        EncryptionMode = FtpEncryptionMode.None,
+
+        // PASV with the address of its reply ignored: every data connection goes to Host, never to
+        // an address the server names. Over IPv6, FluentFTP sends EPSV in its place.
+        DataConnectionType = FtpDataConnectionType.PASVEX,
+        ConnectTimeout = Milliseconds(options.ConnectTimeout),
+        ReadTimeout = Milliseconds(options.ReadTimeout),
+        DataConnectionConnectTimeout = Milliseconds(options.ConnectTimeout),
+        DataConnectionReadTimeout = Milliseconds(options.ReadTimeout),
+        SocketKeepAlive = true,
+    };
 
     private static int Milliseconds(TimeSpan value) => (int)Math.Min(int.MaxValue, value.TotalMilliseconds);
 }
