@@ -30,7 +30,7 @@ No data of DATASUS goes into the repository: its files can hold personal data. T
 
 - [Conventional Commits](https://www.conventionalcommits.org/), in English, in one line: `fix: refuse a month whose two-digit year would name an earlier one`.
 - One subject per commit, with its tests.
-- The CI has to pass: build and tests on Ubuntu and on Windows, the package consumers and the documentation examples.
+- The CI has to pass: build and tests on Ubuntu and on Windows, the package consumers, the trimming and Native AOT check, the documentation examples and the CodeQL analysis.
 
 ## Public API
 
