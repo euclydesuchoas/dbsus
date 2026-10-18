@@ -12,8 +12,8 @@ Receiving the server's greeting (`220`) on port 21 shows that the control connec
 
 ## What the client does
 
-- **Passive mode only.** It uses `EPSV` when the server lists it in its `FEAT` reply, and `PASV` otherwise. It switches from `EPSV` to `PASV` only when the server answers `EPSV` with an error reply (4xx or 5xx) and the control connection uses IPv4; a data connection that times out or is refused after `EPSV` is not retried with `PASV`. With `EPSV` the data connection goes to the same address as the control connection; with `PASV`, to the address the server announces (or to the control connection's host, when the announced address is a private one). The DATASUS server does not list `EPSV` in its `FEAT` reply (seen in October 2026), so in practice the client uses `PASV` with it.
-- **IPv4 and IPv6.** The host name's addresses are tried in the order the system's DNS returns them.
+- **Passive mode only.** For each listing and each download it sends `PASV` and connects to `Host`, on the port of the reply; the address in the reply is ignored, so a server behind NAT that announces a private address still works, and a server that sends its data from another address does not. Over IPv6 it sends `EPSV` instead, which also connects to `Host`. A data connection that times out or is refused is not tried in another mode.
+- **IPv4 and IPv6.** The host name's addresses are tried in the order the system's DNS returns them, for the control connection and again for each data connection (see Data connections in [Compatibility](https://github.com/euclydesuchoas/dbsus/blob/main/docs/compatibility.md)).
 - **Time.** Each connection attempt waits up to `ConnectTimeout` (30 seconds by default) per address, and a failed step is retried `MaxRetries` times (4 by default), the connection that failed being discarded, so a server that never answers can take minutes before the exception.
 - **Settings.** The data connection mode and the address family cannot be changed through `DatasusClientOptions`; `Host`, `Port`, `ConnectTimeout` and `ReadTimeout` can.
 
@@ -21,7 +21,7 @@ To see each failed attempt as it happens, set `OnRetry` and log its `Operation`,
 
 ## Worst case
 
-Calculated from the default options, for a listing or a download whose data connection fails: 5 attempts, with waits of 7.5 to 15 seconds in all between them; the data connection goes to a single address, once per attempt.
+Calculated from the default options, for a listing or a download whose data connection fails: 5 attempts, with waits of 7.5 to 15 seconds in all between them; the data connection goes to a single address, once per attempt, for a `Host` that has a single address, as the DATASUS server's had in October 2026; with several addresses, it tries them in order.
 
 | The data connection... | Per attempt | Until the exception |
 |---|---|---|

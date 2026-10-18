@@ -53,6 +53,14 @@ On .NET Framework without long path support, a file whose path is longer than 26
 
 On .NET Framework, FluentFTP is strong-named and its assembly version changes with every release, so any version other than 55.0.0 needs a binding redirect: SDK-style executable projects generate it by default; ASP.NET (`web.config`) and older projects need it written by hand.
 
+### Data connections
+
+`DbSus.Client` uses FluentFTP's `PASVEX` mode: it sends `PASV`, ignores the address in the reply and connects to `Host`, on the port the reply names. It never uses FluentFTP's `AutoPassive` mode, so the change FluentFTP 55.1.0 made to it (no fallback from `EPSV` to `PASV` when the server lists `EPSV` in its `FEAT` reply and then refuses it) does not affect the client. `PASVEX` behaves the same in FluentFTP 55.0.0 and 55.1.0 (tested against a loopback server, October 2026).
+
+- Over IPv6, FluentFTP sends `EPSV` in place of `PASVEX`, since `PASV` carries only an IPv4 address. Networks with IPv6 only, with a server that does not support `EPSV`, do not work.
+- A data connection is made to `Host` again, not to the address the control connection uses: the addresses of `Host` (which FluentFTP looks up once for each connection and reuses) are tried in order, from the first, so with a name that has several addresses a data connection can start with an address other than the one the control connection uses.
+- A server that sends its data from an address other than those of `Host` is not supported.
+
 ### What a newer FluentFTP can change
 
 The client uses FluentFTP's protected connection hooks to close a connection by force. An experiment with stand-in libraries, on .NET 10 and .NET Framework 4.8.1, covered two ways a version could lose them: removing a hook (a virtual method) and removing the type of its parameter. Neither failed to build or load; the client's overrides were simply no longer called, as when a version keeps the hooks but stops calling them. Other changes, such as a removed constructor or a sealed client class, can make the client fail when it loads or first uses FluentFTP (`MissingMethodException`, `TypeLoadException`). The weekly workflow described below is what detects such changes.
