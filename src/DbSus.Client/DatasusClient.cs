@@ -454,7 +454,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         catch (Exception exception) when (exception is IOException or SocketException or TimeoutException or FluentFTP.Exceptions.FtpException
                                           && exception is not TransientTransportException)
         {
-            throw new TransientTransportException($"The connection failed during a transfer: {exception.Message}", exception);
+            throw new TransientTransportException($"The connection failed during a transfer: {ServerText.Clean(exception.Message)}", exception);
         }
     }
 

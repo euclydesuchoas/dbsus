@@ -130,6 +130,9 @@ internal sealed class LoopbackFtpServer : IDisposable
     /// <summary>Gets or sets the whole reply to every <c>SIZE</c>, e.g. <c>213 abc</c>; <see langword="null"/> for the normal one.</summary>
     public string? SizeReply { get; set; }
 
+    /// <summary>Gets or sets the whole reply to <c>PASS</c>, e.g. a 530; <see langword="null"/> for the normal one.</summary>
+    public string? PassReply { get; set; }
+
     /// <summary>Gets or sets the whole reply to every <c>MDTM</c>; <see langword="null"/> for the normal one.</summary>
     public string? MdtmReply { get; set; }
 
@@ -458,7 +461,7 @@ internal sealed class LoopbackFtpServer : IDisposable
     private string Reply(string command, string argument) => command switch
     {
         "USER" => "331 Password required.",
-        "PASS" => "230 Logged in.",
+        "PASS" => PassReply ?? "230 Logged in.",
         "FEAT" => AdvertiseEpsv ? "211-Features:\r\n EPSV\r\n SIZE\r\n MDTM\r\n REST STREAM\r\n211 End" : "211-Features:\r\n SIZE\r\n MDTM\r\n REST STREAM\r\n211 End",
         "SYST" => "215 Windows_NT",
         "PWD" => "257 \"/\" is the current directory.",

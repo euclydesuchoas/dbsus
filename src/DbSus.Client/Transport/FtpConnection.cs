@@ -114,7 +114,7 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
                 }
 
                 throw new TransientTransportException(
-                    $"FTP transport failure while {step.Description}: the server did not confirm the end of the listing (last reply: '{last.Code} {last.Message}'), so it is not used.");
+                    $"FTP transport failure while {step.Description}: the server did not confirm the end of the listing (last reply: '{last.Code} {ServerText.Clean(last.Message)}'), so it is not used.");
             }
 
             return
@@ -154,7 +154,7 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
     }
 
     private static TransientTransportException Malformed(string command, string reply, string path) =>
-        new($"The server answered {command} for {path} with '{reply.Trim()}', which is not a {(command == "SIZE" ? "size" : "time")}; the answer is not used.");
+        new($"The server answered {command} for {path} with '{ServerText.Clean(reply.Trim())}', which is not a {(command == "SIZE" ? "size" : "time")}; the answer is not used.");
 
     // The client limits each read of the transfer itself (see ReadLimitStream).
     public async Task<Stream> OpenReadAsync(string path, long offset, CancellationToken cancellationToken)
@@ -177,7 +177,7 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
             return reply;
         }
 
-        throw Classify(reply.Code, $"The server answered '{reply.Code} {reply.Message}' for {subject}.", null);
+        throw Classify(reply.Code, $"The server answered '{reply.Code} {ServerText.Clean(reply.Message)}' for {subject}.", null);
     }
 
     // Maps FluentFTP and socket failures to the transport contract: not found, transient, permanent.
@@ -192,7 +192,7 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
         }
         catch (FtpCommandException exception)
         {
-            throw Classify(exception.CompletionCode, $"FTP reply while {step.Description}: {exception.Message}", exception);
+            throw Classify(exception.CompletionCode, $"FTP reply while {step.Description}: {ServerText.Clean(exception.Message)}", exception);
         }
         catch (FtpLibraryFailureException exception)
         {
@@ -200,7 +200,7 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
             // connection goes back to the pool only after a clean operation.
             var original = exception.InnerException!;
             throw new TransientTransportException(
-                $"FTP transport failure while {step.Description}: the FTP library failed with an unexpected {original.GetType().Name} ({original.Message}) and the connection was discarded.",
+                $"FTP transport failure while {step.Description}: the FTP library failed with an unexpected {original.GetType().Name} ({ServerText.Clean(original.Message)}) and the connection was discarded.",
                 original)
             {
                 IsLibraryFailure = true,
@@ -212,7 +212,7 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
         {
             var reopened = connectCount is not null && connectCount() != connectsBefore;
             var hint = ConnectionHint(step, exception, reopened);
-            var message = exception.Message;
+            var message = ServerText.Clean(exception.Message);
             var detail = hint.Length == 0 || (message.Length > 0 && message[message.Length - 1] is '.' or '!') ? message : message + ".";
             throw new TransientTransportException($"FTP transport failure while {step.Description}: {detail}{hint}", exception);
         }
@@ -284,7 +284,7 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
         var libraryPrefix = $"Code: {code} Message: ";
         var text = reply.StartsWith(libraryPrefix, StringComparison.Ordinal) ? reply.Substring(libraryPrefix.Length) : reply;
         return new DatasusRequestRefusedException(
-            $"FTP reply while {step.Description}: the server refused the listing ('{code} {text.Trim()}'). FTP uses 550 both for a folder that does not exist and for one that may not be read.",
+            $"FTP reply while {step.Description}: the server refused the listing ('{code} {ServerText.Clean(text.Trim())}'). FTP uses 550 both for a folder that does not exist and for one that may not be read.",
             code,
             inner);
     }
