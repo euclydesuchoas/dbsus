@@ -8,13 +8,13 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
-- The `net10.0` build of `DbSus` is marked as compatible with trimming and Native AOT. A CI job publishes an application that uses it trimmed (Linux and Windows x64) and with Native AOT (Windows x64), with no warnings, and runs it on data built in memory with the same output as without trimming. Native AOT was not tested on other platforms, `DataTable.Load` is not compatible with trimming because of System.Data, and the `netstandard2.0` build and `DbSus.Client` are not marked.
+- The `net10.0` build of `DbSus` is marked as compatible with trimming and Native AOT; `DbSus.Client` and the other builds of `DbSus` (`netstandard2.0`, `net472`) are not marked. How it was verified: a CI job publishes an application that uses it trimmed (Linux and Windows x64) and with Native AOT (Windows x64), with no warnings, and runs it on data built in memory with the same output as without trimming. Native AOT was not tested on other platforms, and `DataTable.Load` is not compatible with trimming because of System.Data.
 
 ### Changed
 
-- `DbSus.Client` declares `DbSus` from its own version up to the next minor version, which it excludes together with its previews (`[0.1.0, 0.2.0-0)` for 0.1.0), instead of that version or any later one; NuGet warns (NU1608) when it is combined with a later `DbSus`.
-- `DbSus.Client` opens each data connection with `PASV`, ignores the address in the reply and connects to `Host` (FluentFTP's `PASVEX` mode); it used to send `EPSV` when the server listed it and otherwise follow the address the server named. Over IPv6, FluentFTP sends `EPSV` in its place. The client no longer depends on FluentFTP's `AutoPassive` fallback, which FluentFTP 55.1.0 changed.
-- Without a cache, `DbSus.Client` puts each download in a folder of its own, `DbSus-<random id>`, directly in the system temporary directory (owner-only on the `net10.0` build outside Windows), and removes it when the reader is disposed; earlier versions used a shared `DbSus/downloads`.
+- `DbSus.Client` declares `DbSus` from its own version up to the next minor version, which it excludes together with its previews (for this version, `[0.1.0-preview.3, 0.2.0-0)`), instead of that version or any later one; NuGet warns (NU1608) when it is combined with a later `DbSus`.
+- `DbSus.Client` opens each data connection with `PASV`, ignores the address in the reply and connects to `Host` (FluentFTP's `PASVEX` mode); it used to send `EPSV` when the server listed it and otherwise follow the address the server named. Over IPv6, FluentFTP sends `EPSV` in its place. The client no longer depends on FluentFTP's `AutoPassive` fallback, which FluentFTP 55.1.0 changed. A server that sends its data from an address other than `Host` is no longer supported.
+- Without a cache, `DbSus.Client` puts each download in a folder of its own, `DbSus-<random id>`, directly in the system temporary directory, and removes it when the reader is disposed; earlier versions used a shared `DbSus/downloads`. On the `net10.0` build outside Windows the folder is readable by its owner only; the `netstandard2.0` build (the one applications on .NET 8 and 9 get) and the `net472` build keep the system's default permissions (usually 0755 on Linux). Folders left behind are cleaned up after 24 hours, without delaying a download.
 
 ### Fixed
 
