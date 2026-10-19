@@ -10,7 +10,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
-- The `net10.0` build of `DbSus` is marked as compatible with trimming and Native AOT; `DbSus.Client` and the other builds of `DbSus` (`netstandard2.0`, `net472`) are not marked. How it was verified: a CI job publishes an application that uses it trimmed (Linux and Windows x64) and with Native AOT (Windows x64), with no warnings, and runs it on data built in memory with the same output as without trimming. Native AOT was not tested on other platforms, and `DataTable.Load` is not compatible with trimming because of System.Data.
+- The `net10.0` build of `DbSus` is marked as compatible with trimming and Native AOT; `DbSus.Client` and the other builds of `DbSus` (`netstandard2.0`, `net472`) are not marked. How it was verified: a CI job publishes an application that uses it trimmed (self-contained, for Linux x64 and Windows x64) and with Native AOT (Windows x64), where any warning of the trimmer or of the Native AOT compiler fails the job; it runs each published application on data the program builds itself and produces the same output as a normal build. Native AOT was not tested on other platforms, nor trimming on other architectures, and `DataTable.Load` is not compatible with trimming because of `System.Data`.
 
 ### Changed
 
