@@ -46,7 +46,8 @@ internal sealed class ClientFixture : IDisposable
 
     public static byte[] CorruptDbc(params string[] codes) => SyntheticDbc.BuildDbc(Dbf(codes), checksum: 0);
 
-    public DatasusClient Client(bool cache = true, Action<DatasusClientOptions>? configure = null)
+    // clock replaces the fixture's Now for that client, for a test that needs to see who asks the time.
+    public DatasusClient Client(bool cache = true, Action<DatasusClientOptions>? configure = null, Func<DateTime>? clock = null)
     {
         var options = new DatasusClientOptions
         {
@@ -63,7 +64,7 @@ internal sealed class ClientFixture : IDisposable
                 return Task.CompletedTask;
             },
             _ => FreeSpace,
-            () => Now,
+            clock ?? (() => Now),
             TempDirectory);
         _clients.Add(client);
         return client;

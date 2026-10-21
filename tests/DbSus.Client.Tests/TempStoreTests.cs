@@ -71,6 +71,31 @@ public sealed class TempStoreTests : IDisposable
         Assert.True(folder ? File.Exists(Path.Combine(path, "theirs.txt")) : File.Exists(path));
     }
 
+    // A path that does not exist reads as having every attribute, the link one included.
+    [Fact]
+    public void CheckCreated_FolderGone_SaysSo_NotThatItIsALink()
+    {
+        var exception = Assert.Throws<IOException>(() => TempStore.CheckCreated(Path.Combine(Temp, "DbSus-" + Hex)));
+
+        Assert.Contains("was removed as soon as it was created", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("link", exception.Message, StringComparison.Ordinal);
+    }
+
+    // The clean-up runs next to the download that started it, right after that download created its
+    // folder (still empty) or at any later point; with the folder looking old, it is kept by name.
+    [Fact]
+    public void CleanOrphans_FolderOfTheDownloadThatStartedIt_IsKept_TheOthersRemoved()
+    {
+        var entry = Store.Create("RDRR2206.dbc");
+        Directory.SetLastWriteTimeUtc(entry.Directory, _now.AddDays(-2));
+        var orphan = OldDownload("DbSus-" + Hex, "RDRR2206.dbc");
+
+        Store.CleanOrphans(keep: entry.Directory);
+
+        Assert.True(Directory.Exists(entry.Directory));
+        Assert.False(Directory.Exists(orphan));
+    }
+
     [Theory]
     [InlineData]
     [InlineData("RDRR2206.dbc")]

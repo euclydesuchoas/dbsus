@@ -148,6 +148,39 @@ public sealed class DatasusClientTests : IDisposable
         Assert.Same(first, client.TempCleanup);
     }
 
+    // The clean-up that the first download without a cache starts runs next to it, on the thread
+    // pool, and may look at the temporary directory at any point of that download. Here it is held
+    // (its first step reads the clock) until the download is over, and then runs with a clock two
+    // days ahead, so that every folder looks old: the folder of the download that started it is
+    // still left alone, and so is the file the download returned.
+    [Fact]
+    public async Task DownloadAsync_WithoutCache_TheCleanUpItStarts_LeavesItsOwnFolder()
+    {
+        _fixture.Server.Add(Dados + "/RDMG2407.dbc", ClientFixture.Dbc("A1"));
+        using var release = new ManualResetEventSlim();
+        var later = DateTime.UtcNow.AddDays(2);
+        var held = false;
+        var client = _fixture.Client(cache: false, clock: () =>
+        {
+            if (new System.Diagnostics.StackTrace().GetFrames().Any(frame => frame.GetMethod()?.Name == nameof(Caching.TempStore.CleanOrphans)))
+            {
+                held = true;
+                release.Wait(TimeSpan.FromSeconds(30));
+                return later;
+            }
+
+            return _fixture.Now;
+        });
+
+        var path = await client.DownloadAsync(Dados + "/RDMG2407.dbc", Ct);
+        release.Set();
+        await client.TempCleanup;
+
+        // Read only once the clean-up is over; without it the test would prove nothing.
+        Assert.True(held, "The clock was never asked from inside TempStore.CleanOrphans, so the clean-up was not held.");
+        Assert.True(File.Exists(path));
+    }
+
     // Whatever a clean-up throws (but a failure of the process itself), its task ends without fault,
     // so no exception goes unobserved.
     [Fact]
