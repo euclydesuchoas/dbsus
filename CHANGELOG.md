@@ -6,7 +6,19 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [0.1.0-preview.4] - YYYY-MM-DD
+
+### Fixed
+
+- `DbSus.Client` declares the upper bound of its `DbSus` dependency as `0.2.0-a` instead of `0.2.0-0`, which nuget.org refuses because the label has only digits. For this version the range is `[0.1.0-preview.4, 0.2.0-a)`; it still leaves out `0.2.0` and its previews.
+
+### Notes
+
+- `DbSus` 0.1.0-preview.4 has the same code as 0.1.0-preview.3; it is published so that both packages carry the same version.
+
 ## [0.1.0-preview.3] - 2026-10-21
+
+`DbSus` 0.1.0-preview.3 was published. `DbSus.Client` 0.1.0-preview.3 was not: nuget.org rejected its dependency range (see 0.1.0-preview.4), so its changes are in 0.1.0-preview.4.
 
 ### Added
 
