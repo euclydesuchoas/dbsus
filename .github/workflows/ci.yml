@@ -70,17 +70,19 @@ jobs:
         shell: bash
         run: echo "value=$(dotnet msbuild src/DbSus/DbSus.csproj -getProperty:PackageVersion)" >> "$GITHUB_OUTPUT"
 
-      # DbSus.Client must declare DbSus as [its version, next breaking version-0) in every target
-      # framework: the next minor during 0.x, the next major from 1.0 on. The pack writes that range
-      # with a target over an internal NuGet item (see src/DbSus.Client/DbSus.Client.csproj), so the
-      # range is recomputed here and checked in the nuspec of the package just built.
+      # DbSus.Client must declare DbSus as [its version, next breaking version-a) in every target
+      # framework: the next minor during 0.x, the next major from 1.0 on. "-a" leaves out the
+      # previews of that version whose label starts with a letter; "-0" would leave out more, but
+      # nuget.org refuses a single release label that does not start with a letter. The pack writes
+      # that range with a target over an internal NuGet item (see src/DbSus.Client/DbSus.Client.csproj),
+      # so the range is recomputed here and checked in the nuspec of the package just built.
       - shell: pwsh
         env:
           DBSUS_VERSION: ${{ steps.version.outputs.value }}
         run: |
           $version = $env:DBSUS_VERSION
           $core = [Version]($version -replace '[-+].*$', '')
-          $next = if ($core.Major -eq 0) { "0.$($core.Minor + 1).0-0" } else { "$($core.Major + 1).0.0-0" }
+          $next = if ($core.Major -eq 0) { "0.$($core.Minor + 1).0-a" } else { "$($core.Major + 1).0.0-a" }
           $expected = "[$version, $next)"
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $package = Join-Path 'artifacts/packages' "DbSus.Client.$version.nupkg"

@@ -29,14 +29,18 @@
   <!--
     A project reference is packed as "DbSus >= this version", with no upper bound. During 0.x a
     minor version may break the API, so the client declares DbSus from its own version up to the
-    next minor (the next major from 1.0 on). The bound ends in "-0" so that the previews of the
-    next line are left out too: 0.2.0-preview.1 sorts below 0.2.0. The target rewrites an item of
-    the NuGet pack targets (_ProjectReferencesWithVersions), which is not a public extension point;
-    a step of the "Package consumers" job in ci.yml checks the range in the packed nuspec.
+    next minor (the next major from 1.0 on). The bound ends in "-a" so that the previews of the
+    next line are left out too: 0.2.0-preview.1 sorts below 0.2.0, and every release label that
+    starts with a letter (alpha, preview.1, rc.1) sorts at or above "a". It is not "-0", which
+    sorts lower still: nuget.org refuses a version whose release label is a single identifier
+    that does not start with a letter, and rejected DbSus.Client 0.1.0-preview.3 for its
+    "0.2.0-0". The target rewrites an item of the NuGet pack targets
+    (_ProjectReferencesWithVersions), which is not a public extension point; a step of the
+    "Package consumers" job in ci.yml checks the range in the packed nuspec.
   -->
   <PropertyGroup>
-    <DbSusDependencyUpperBound Condition="'$([System.Version]::Parse($(VersionPrefix)).Major)' == '0'">0.$([MSBuild]::Add($([System.Version]::Parse($(VersionPrefix)).Minor), 1)).0-0</DbSusDependencyUpperBound>
-    <DbSusDependencyUpperBound Condition="'$([System.Version]::Parse($(VersionPrefix)).Major)' != '0'">$([MSBuild]::Add($([System.Version]::Parse($(VersionPrefix)).Major), 1)).0.0-0</DbSusDependencyUpperBound>
+    <DbSusDependencyUpperBound Condition="'$([System.Version]::Parse($(VersionPrefix)).Major)' == '0'">0.$([MSBuild]::Add($([System.Version]::Parse($(VersionPrefix)).Minor), 1)).0-a</DbSusDependencyUpperBound>
+    <DbSusDependencyUpperBound Condition="'$([System.Version]::Parse($(VersionPrefix)).Major)' != '0'">$([MSBuild]::Add($([System.Version]::Parse($(VersionPrefix)).Major), 1)).0.0-a</DbSusDependencyUpperBound>
   </PropertyGroup>
 
   <Target Name="DeclareDbSusDependencyRange" AfterTargets="_GetProjectReferenceVersions">
