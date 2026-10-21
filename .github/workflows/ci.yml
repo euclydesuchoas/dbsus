@@ -66,6 +66,10 @@ jobs:
 
       - run: dotnet pack DbSus.slnx --configuration Release --output artifacts/packages
 
+      # Every version in the packed nuspecs, of the packages and of their dependencies, must pass
+      # the checks nuget.org applies on upload (see tools/nuspec-check/nuspec-check.cs).
+      - run: dotnet run tools/nuspec-check/nuspec-check.cs -- artifacts/packages
+
       - id: version
         shell: bash
         run: echo "value=$(dotnet msbuild src/DbSus/DbSus.csproj -getProperty:PackageVersion)" >> "$GITHUB_OUTPUT"

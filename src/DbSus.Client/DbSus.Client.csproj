@@ -36,7 +36,8 @@
     that does not start with a letter, and rejected DbSus.Client 0.1.0-preview.3 for its
     "0.2.0-0". The target rewrites an item of the NuGet pack targets
     (_ProjectReferencesWithVersions), which is not a public extension point; a step of the
-    "Package consumers" job in ci.yml checks the range in the packed nuspec.
+    "Package consumers" job in ci.yml checks the range in the packed nuspec, and another runs
+    tools/nuspec-check, which checks every version in it against the rules of nuget.org.
   -->
   <PropertyGroup>
     <DbSusDependencyUpperBound Condition="'$([System.Version]::Parse($(VersionPrefix)).Major)' == '0'">0.$([MSBuild]::Add($([System.Version]::Parse($(VersionPrefix)).Minor), 1)).0-a</DbSusDependencyUpperBound>
