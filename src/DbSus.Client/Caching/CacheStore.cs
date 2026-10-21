@@ -332,7 +332,23 @@ internal sealed class TempStore(string temporaryDirectory, Func<DateTime> utcNow
         Directory.CreateDirectory(directory);
 #endif
 
-        if (CacheStore.IsLink(new DirectoryInfo(directory)))
+        CheckCreated(directory);
+    }
+
+    /// <summary>
+    /// Checks the folder just created: it must still be there, and not be a link. A folder that is
+    /// gone is told apart first, since a path that does not exist reads as having every attribute,
+    /// the link one included.
+    /// </summary>
+    internal static void CheckCreated(string directory)
+    {
+        var created = new DirectoryInfo(directory);
+        if (!created.Exists)
+        {
+            throw new IOException($"The temporary folder '{directory}' was removed as soon as it was created; it is not used.");
+        }
+
+        if (CacheStore.IsLink(created))
         {
             throw new IOException($"The temporary folder '{directory}' is a link; it is not used.");
         }
@@ -368,13 +384,20 @@ internal sealed class TempStore(string temporaryDirectory, Func<DateTime> utcNow
     /// <summary>
     /// Removes the folders of downloads left behind. A failure on one folder (another user's, a lock
     /// that cannot be opened, a file in use) leaves that folder as it is and goes on to the next one;
-    /// nothing is ever thrown.
+    /// nothing is ever thrown. The folder named <paramref name="keep"/>, that of the download that
+    /// started the clean-up, is never touched.
     /// </summary>
-    public void CleanOrphans()
+    public void CleanOrphans(string? keep = null)
     {
         var now = utcNow();
+        var kept = keep is null ? null : Path.GetFileName(keep);
         foreach (var directory in Candidates())
         {
+            if (string.Equals(Path.GetFileName(directory), kept, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
             try
             {
                 CleanOrphan(directory, now);

@@ -609,13 +609,14 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
 
     private async Task<string> DownloadToTempAsync(RemotePath remote, RemoteFileInfo info, CancellationToken cancellationToken)
     {
+        var entry = _temp.Create(remote.Name);
         if (Interlocked.Exchange(ref _tempCleaned, 1) == 0)
         {
-            // On the thread pool, so that a large temporary directory never delays the download.
-            TempCleanup = StartCleanup(_temp.CleanOrphans);
+            // On the thread pool, so that a large temporary directory never delays the download. The
+            // folder of this download is left out by name: it is new and in use, whatever the clock says.
+            TempCleanup = StartCleanup(() => _temp.CleanOrphans(keep: entry.Directory));
         }
 
-        var entry = _temp.Create(remote.Name);
         try
         {
             using (FileLocks.TryAcquire(entry.LockPath))
