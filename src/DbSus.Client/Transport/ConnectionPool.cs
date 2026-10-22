@@ -37,18 +37,24 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
         }
     }
 
+    // The place is freed whatever disposing the connection throws; the exception still propagates.
     private void Return(IDatasusConnection connection, bool healthy)
     {
-        if (healthy && !connection.IsBroken && !_disposed)
+        try
         {
-            _idle.Add(connection);
+            if (healthy && !connection.IsBroken && !_disposed)
+            {
+                _idle.Add(connection);
+            }
+            else
+            {
+                connection.Dispose();
+            }
         }
-        else
+        finally
         {
-            connection.Dispose();
+            _slots.Release();
         }
-
-        _slots.Release();
     }
 
     /// <summary>
