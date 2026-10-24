@@ -133,6 +133,19 @@ internal sealed class LoopbackFtpServer : IDisposable
     public long? StallTransferAfter { get; set; }
 
     /// <summary>
+    /// Gets or sets a number of bytes after which RETR closes the data connection, before the end
+    /// of the file, as a server whose transfer ends early; the final reply is then
+    /// <see cref="EndedTransferReply"/>.
+    /// </summary>
+    public long? EndTransferAfter { get; set; }
+
+    /// <summary>
+    /// Gets or sets the final reply after a transfer that <see cref="EndTransferAfter"/> ended early,
+    /// a 426 by default; <see langword="null"/> sends none.
+    /// </summary>
+    public string? EndedTransferReply { get; set; } = "426 Connection closed; transfer aborted.";
+
+    /// <summary>
     /// Gets or sets the address PASV announces, as four comma-separated numbers; the data
     /// listeners are on 127.0.0.1 and 127.0.0.2 whatever the address (see <see cref="DataArrivals"/>).
     /// </summary>
@@ -431,6 +444,18 @@ internal sealed class LoopbackFtpServer : IDisposable
         await control.WriteLineAsync("150 Opening BINARY mode data connection.").ConfigureAwait(false);
         var end = StallTransferAfter is { } stall ? Math.Min(file.Length, offset + stall) : file.Length;
         var stream = connection.GetStream();
+        if (EndTransferAfter is { } cut)
+        {
+            stream.Write(file, (int)offset, (int)(Math.Min(file.Length, offset + cut) - offset));
+            connection.Close();
+            if (EndedTransferReply is { } reply)
+            {
+                await control.WriteLineAsync(reply).ConfigureAwait(false);
+            }
+
+            return false;
+        }
+
         if (StallTransferAfter is null && ExtraBytesAfterFile is { } extra)
         {
             return await SendWithExtraBytesAsync(stream, control, file, offset, extra).ConfigureAwait(false);

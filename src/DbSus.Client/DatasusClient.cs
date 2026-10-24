@@ -230,11 +230,26 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         {
             // The lease is not kept: aborting a transfer may leave the connection unusable.
             using var lease = await _pool.AcquireAsync(token).ConfigureAwait(false);
-            using var stream = await lease.Connection.OpenReadAsync(remote.Full, 0, token).ConfigureAwait(false);
-            var prefix = await ReadExactlyAsync(stream, 32, remote, token).ConfigureAwait(false);
-            var headerLength = prefix[8] | (prefix[9] << 8);
-            var rest = headerLength > 32 ? await ReadExactlyAsync(stream, headerLength - 32, remote, token).ConfigureAwait(false) : [];
-            return (byte[])[.. prefix, .. rest];
+            var needed = 32;
+            using (var stream = await lease.Connection.OpenReadAsync(remote.Full, 0, token).ConfigureAwait(false))
+            {
+                try
+                {
+                    var prefix = await ReadExactlyAsync(stream, 32, remote, token).ConfigureAwait(false);
+                    var headerLength = prefix[8] | (prefix[9] << 8);
+                    needed = Math.Max(32, headerLength);
+                    var rest = headerLength > 32 ? await ReadExactlyAsync(stream, headerLength - 32, remote, token).ConfigureAwait(false) : [];
+                    return (byte[])[.. prefix, .. rest];
+                }
+                catch (InvalidDataException)
+                {
+                    // ReadExactlyAsync throws it when the transfer ends before the bytes asked for.
+                }
+            }
+
+            // The transfer ended inside the header: the size, asked once it is closed, tells why.
+            var info = await lease.Connection.GetInfoAsync(remote.Full, token).ConfigureAwait(false);
+            throw EndedInsideHeader(remote, needed, info.Size);
         }, cancellationToken).ConfigureAwait(false);
         return DbfHeader.Read(new MemoryStream(bytes));
     }
@@ -459,6 +474,14 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
 
         return buffer;
     }
+
+    // A transfer that ended inside the header, before the `needed` bytes it takes: cut short when the
+    // file has them, a transient failure as any transfer that ends early, and invalid only when the
+    // file really ends inside its header.
+    private static Exception EndedInsideHeader(RemotePath remote, long needed, long size) =>
+        size >= needed
+            ? new TransientTransportException($"The transfer of {remote.Relative} ended inside its header, which takes {needed} of its {size} bytes.")
+            : new InvalidDataException($"{remote.Relative} ends inside its header.");
 
     // Reads from a network stream, reporting connection failures as transient (worth retrying).
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1835", Justification = "net472 and netstandard2.0 have no Memory-based Stream overloads.")]
