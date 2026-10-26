@@ -63,10 +63,11 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     private bool _hasRecord;
     private bool _closed;
 
-    // The failure of a part's end (its checksum, or its stream while it is drained). Every later Read
-    // throws it again: returning false, or moving on to the next part, would confirm records that
-    // were never checked.
-    private ExceptionDispatchInfo? _endFailure;
+    // The failure of a part's end (its checksum, or its stream while it is drained), or of a part's
+    // stream in the middle of a record. Every later Read throws it again: returning false, or moving
+    // on to the next part, would confirm records that were never checked, and going on would start
+    // a record where the stream left off.
+    private ExceptionDispatchInfo? _failure;
 
     private DbfReader(DbfPart[] parts, DbfReadOptions options)
     {
@@ -350,11 +351,13 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// <remarks>
     /// A failure at the end of a part, where its checksum is checked, is thrown again by every later
     /// call: the reader never returns <see langword="false"/>, nor moves on to the next part, after it.
+    /// So is a failure of the stream while a record is read: the reader never goes on from the
+    /// middle of a record, even when the stream would work again.
     /// </remarks>
     public override bool Read()
     {
         Guard.NotDisposed(_closed, this);
-        _endFailure?.Throw();
+        _failure?.Throw();
         while (true)
         {
             var part = _parts[_partIndex];
@@ -379,7 +382,7 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             }
             catch (Exception exception)
             {
-                _endFailure = ExceptionDispatchInfo.Capture(exception);
+                _failure = ExceptionDispatchInfo.Capture(exception);
                 throw;
             }
 
@@ -1092,7 +1095,19 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
 
     private void ReadRecord(DbfPart part)
     {
-        var read = ReadFully(part.Stream, _record, 0, _record.Length);
+        int read;
+        try
+        {
+            read = ReadFully(part.Stream, _record, 0, _record.Length);
+        }
+        catch (Exception exception)
+        {
+            // The record is left in the middle: there is no current record, and none after it.
+            _hasRecord = false;
+            _failure = ExceptionDispatchInfo.Capture(exception);
+            throw;
+        }
+
         if (read != _record.Length)
         {
             _hasRecord = false;
