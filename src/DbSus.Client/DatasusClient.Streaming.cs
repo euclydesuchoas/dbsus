@@ -32,7 +32,10 @@ public sealed partial class DatasusClient
     /// its last part, or has failed for good; after a checksum failure, until it is disposed. Once
     /// it is disposed or has read its last part, it no longer counts among the open readers, at
     /// once; a transfer of it still under way is closed without waiting for the server, and the
-    /// place is free once that is done. The connection in that place changes along the way (after the headers read ahead, and at each
+    /// place is free once that is done. If the client was disposed before, the connection is closed
+    /// instead of going back to the client, and the last <see cref="DbfReader.Read"/> and the
+    /// reader's <c>Dispose</c> can wait for the server's reply to that closing (<c>QUIT</c>), up to
+    /// <see cref="DatasusClientOptions.ReadTimeout"/>. The connection in that place changes along the way (after the headers read ahead, and at each
     /// resumption). At most <see cref="DatasusClientOptions.MaxConnections"/> - 1 such readers are
     /// open at a time, so that one connection stays free for other operations; opening one more
     /// fails at once, and so does opening one when MaxConnections is 1. A buffer of about 1 MiB is
@@ -55,19 +58,25 @@ public sealed partial class DatasusClient
     /// <see cref="DatasusRetriesExhaustedException"/>, <see cref="DatasusRemoteFileChangedException"/>,
     /// <see cref="DatasusRequestRefusedException"/>, <see cref="FileNotFoundException"/>,
     /// <see cref="InvalidDataException"/> (a checksum), or <see cref="ObjectDisposedException"/> when
-    /// the client was disposed and a new transfer was needed.
+    /// the client was disposed and a new transfer was needed. When the opening fails with
+    /// <see cref="InvalidDataException"/> because a later part's header does not fit the table, it
+    /// asks the server for the size and time of the parts after the first, to tell a part that
+    /// changed; if that question fails, its exception (one of the types above, or
+    /// <see cref="OperationCanceledException"/>) comes out instead of the
+    /// <see cref="InvalidDataException"/>.
     /// </para>
     /// <para>
     /// <see cref="DbfReader.Read"/> blocks the calling thread while it waits for the server, and
     /// <c>ReadAsync</c> completes synchronously, as Read does.
     /// </para>
     /// <para>
-    /// The reader moves its transfers forward on threads of the thread pool, and while it opens it
-    /// takes more than one of them at a time. With the pool at its defaults that can only delay the
-    /// opening; with a fixed cap on the pool's threads, blocking on this method from a thread of the
-    /// pool (for example with <c>GetAwaiter().GetResult()</c>) can stay stopped, without an
-    /// exception, until threads of the pool are free. Use <see langword="await"/>, or block only
-    /// from a thread outside the pool.
+    /// The reader moves its transfers forward on threads of the thread pool: while it opens it takes
+    /// more than one of them at a time, and while it reads its transfer needs them too. With the
+    /// pool at its defaults that can only delay the opening or the reading; with a fixed cap on the
+    /// pool's threads, blocking on this method from a thread of the pool (for example with
+    /// <c>GetAwaiter().GetResult()</c>), or calling <see cref="DbfReader.Read"/> from threads of the
+    /// pool, can stay stopped, without an exception, until threads of the pool are free. Use
+    /// <see langword="await"/> for the opening, and read from a thread outside the pool.
     /// </para>
     /// <para>
     /// <paramref name="cancellationToken"/> holds for the life of the reader: it cancels the opening
@@ -135,10 +144,13 @@ public sealed partial class DatasusClient
     /// reader is open, every failure comes from <see cref="DbfReader.Read"/>, after the records
     /// already returned. <see cref="DbfReader.Read"/> blocks the calling thread while it waits for the
     /// server, and <c>ReadAsync</c> completes synchronously, as Read does. While it opens, the reader
-    /// takes more than one thread of the thread pool at a time: with a fixed cap on the pool's
-    /// threads, blocking on this method from a thread of the pool can stay stopped, without an
-    /// exception, until threads are free; use <see langword="await"/>, or block only from a thread
-    /// outside the pool.
+    /// takes more than one thread of the thread pool at a time, and its transfer needs them while it
+    /// reads: with a fixed cap on the pool's threads, blocking on this method, or calling
+    /// <see cref="DbfReader.Read"/>, from threads of the pool can stay stopped, without an exception,
+    /// until threads are free; use <see langword="await"/> for the opening, and read from a thread
+    /// outside the pool. If the client was disposed before, the last read and the reader's
+    /// <c>Dispose</c> can wait for the server's reply to the closing of its connection, up to
+    /// <see cref="DatasusClientOptions.ReadTimeout"/>.
     /// <see cref="DatasusClientOptions.OnRetry"/> reports the retries of a part's transfer, the first
     /// part's included, on a background thread; during the opening, those of the sizes and times and
     /// of the headers read ahead come from the opening's asynchronous flow, not necessarily on the

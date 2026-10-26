@@ -64,6 +64,11 @@ public sealed class DatasusClientOptions
     public long? MaxCacheSizeBytes { get; set; }
 
     /// <summary>Gets or sets the maximum number of simultaneous FTP connections, from 1 to 4. The default is 2.</summary>
+    /// <remarks>
+    /// A reader from <see cref="DatasusClient.OpenStreamingReaderAsync(string, DbSus.Dbf.DbfReadOptions?, DbSus.Dbc.DbcReadOptions?, CancellationToken)"/>
+    /// holds one of these places while it is open, and at most MaxConnections - 1 such readers are
+    /// open at a time; with 1, no such reader can be opened.
+    /// </remarks>
     public int MaxConnections { get; set; } = 2;
 
     /// <summary>Gets or sets the time allowed to connect. The default is 30 seconds.</summary>
@@ -73,7 +78,8 @@ public sealed class DatasusClientOptions
     /// <remarks>
     /// Opening a transfer that resumes an interrupted download or read, from a byte beyond the
     /// start, has a shorter limit of its own, 5 seconds, from the passive-mode request to the
-    /// server's reply to the transfer command. When it runs out, the connection is closed and the
+    /// server's reply to the transfer command; it may include a reconnection and login that the FTP
+    /// library makes by itself when it finds the control connection closed. When it runs out, the connection is closed and the
     /// attempt counts as a transient failure, retried on a new connection (see
     /// <see cref="MaxRetries"/> for when the retry starts over from the beginning).
     /// </remarks>
