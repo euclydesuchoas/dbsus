@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.ExceptionServices;
 using System.Text;
 
 namespace DbSus.Dbf;
@@ -61,6 +62,11 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     private long _recordNumber;
     private bool _hasRecord;
     private bool _closed;
+
+    // The failure of a part's end (its checksum, or its stream while it is drained). Every later Read
+    // throws it again: returning false, or moving on to the next part, would confirm records that
+    // were never checked.
+    private ExceptionDispatchInfo? _endFailure;
 
     private DbfReader(DbfPart[] parts, DbfReadOptions options)
     {
@@ -341,9 +347,14 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
     /// The data ends before the declared number of records, or (for DBC data) a part's checksum does
     /// not match once that part has been read to its end.
     /// </exception>
+    /// <remarks>
+    /// A failure at the end of a part, where its checksum is checked, is thrown again by every later
+    /// call: the reader never returns <see langword="false"/>, nor moves on to the next part, after it.
+    /// </remarks>
     public override bool Read()
     {
         Guard.NotDisposed(_closed, this);
+        _endFailure?.Throw();
         while (true)
         {
             var part = _parts[_partIndex];
@@ -362,7 +373,16 @@ public sealed class DbfReader : DbDataReader, IDbColumnSchemaGenerator
             }
 
             _hasRecord = false;
-            FinishPart(part);
+            try
+            {
+                FinishPart(part);
+            }
+            catch (Exception exception)
+            {
+                _endFailure = ExceptionDispatchInfo.Capture(exception);
+                throw;
+            }
+
             if (_partIndex + 1 == _parts.Length)
             {
                 return false;

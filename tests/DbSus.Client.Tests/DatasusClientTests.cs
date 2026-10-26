@@ -344,6 +344,24 @@ public sealed class DatasusClientTests : IDisposable
     }
 
     [Fact]
+    public async Task OpenReaderAsync_VerificationDisabled_ReadsAfterTheChecksumFailureThrowItAgain()
+    {
+        _fixture.Server.Add(Dados + "/RDMG2407.dbc", ClientFixture.CorruptDbc([.. Enumerable.Range(1, 300).Select(i => "R" + (i % 1000).ToString("000", System.Globalization.CultureInfo.InvariantCulture))]));
+        var client = _fixture.Client(configure: o => o.VerifyOnDownload = false);
+        using var reader = await client.OpenReaderAsync(Dados + "/RDMG2407.dbc", cancellationToken: Ct);
+        var first = Assert.Throws<InvalidDataException>(() =>
+        {
+            while (reader.Read())
+            {
+            }
+        });
+
+        var again = Assert.Throws<InvalidDataException>(() => reader.Read());
+
+        Assert.Equal(first.Message, again.Message);
+    }
+
+    [Fact]
     public async Task DownloadAsync_NotEnoughDiskSpace_ThrowsBeforeTransferring()
     {
         _fixture.Server.Add(Dados + "/RDMG2407.dbc", ClientFixture.Dbc("A1"));
