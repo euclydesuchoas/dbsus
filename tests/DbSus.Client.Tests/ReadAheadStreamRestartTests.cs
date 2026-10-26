@@ -175,6 +175,30 @@ public sealed class ReadAheadStreamRestartTests
         await AssertNothingHeldAsync(pool, () => server.ActiveConnections);
     }
 
+    // The evidence of the resumption that failed to open is spent once the transfer that started
+    // over has read again the bytes already delivered: a failure after them resumes with REST.
+    [Fact(Timeout = 30_000)]
+    public async Task DropAfterTheTransferThatStartedOverCaughtUp_TheNextAttemptResumesWithRest()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var content = Content(20_000, seed: 217);
+        var server = new FakeServer { ResumptionsThatTimeOut = 1 };
+        server.Add(FilePath, content);
+        server.FailNextTransferAfter(3000);
+        server.FailNextTransferAfter(5000);
+        var retries = new Retries(6);
+        using var pool = new ConnectionPool(server.Factory(), 1);
+        using var stream = await RemoteReadAheadStream.OpenAsync(pool, retries.Policy, Remote, Version(content.Length), ct);
+
+        var (data, failure) = ReadAll(stream, new Random(218));
+
+        Assert.Null(failure);
+        AssertSameBytes(content, data);
+        Assert.Equal(new long[] { 0, 3000, 0, 5000 }, server.TransferOffsets);
+        await AssertEndsAsync(stream);
+        await AssertNothingHeldAsync(pool, () => server.ActiveConnections);
+    }
+
     [Fact(Timeout = 30_000)]
     public async Task BytesReadAgainAndDropped_AreNoProgress_ForTheCountOfAttempts()
     {

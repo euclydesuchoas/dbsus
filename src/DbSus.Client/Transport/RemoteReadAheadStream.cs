@@ -106,6 +106,10 @@ internal sealed class RemoteReadAheadStream : Stream
     // Set by ResumeAsync when the opening of a resumption failed; the pump reads and clears it.
     private bool _openingFailed;
 
+    // Set by DropAsync when a transfer from byte 0 has read again every byte already delivered; the
+    // pump reads and clears it.
+    private bool _caughtUp;
+
     // How a transfer that reached the size ended.
     private enum TransferEnd
     {
@@ -401,7 +405,10 @@ internal sealed class RemoteReadAheadStream : Stream
             // not work here, which alone lets a resumption start over from byte 0. A failure in the
             // middle of a transfer that opened is none. The sequence ends with the count of
             // attempts, when enough arrives past the last failure: the next sequence must find its
-            // own evidence, so a link that drops now and then keeps resuming with REST.
+            // own evidence, so a link that drops now and then keeps resuming with REST. The
+            // evidence is spent too once the transfer that started over has read again what was
+            // delivered: a failure beyond that resumes with REST, so only the attempt after the
+            // failed opening starts over.
             var resumptionFailedToOpen = false;
 
             // On a lease, the pump opens the first transfer itself, as a resumption.
@@ -435,8 +442,9 @@ internal sealed class RemoteReadAheadStream : Stream
                     var newSequence = _received - lastFailureAt >= ResetAfterBytes;
                     failures = Attempt();
                     lastFailureAt = _received;
-                    resumptionFailedToOpen = (resumptionFailedToOpen && !newSequence) || _openingFailed;
+                    resumptionFailedToOpen = (resumptionFailedToOpen && !newSequence && !_caughtUp) || _openingFailed;
                     _openingFailed = false;
+                    _caughtUp = false;
                     if (failures > _retry.MaxRetries)
                     {
                         throw Exhausted(_remote, failure, failures);
@@ -556,6 +564,8 @@ internal sealed class RemoteReadAheadStream : Stream
 
             _toDrop -= read;
         }
+
+        _caughtUp = true;
     }
 
     // A new connection in the same place of the pool, the same version on the server, and the

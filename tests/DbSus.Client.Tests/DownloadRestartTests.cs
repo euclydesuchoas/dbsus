@@ -86,6 +86,43 @@ public sealed class DownloadRestartTests : IDisposable
         Assert.Equal(_content.Length, _fixture.Server.BytesServed);
     }
 
+    // The evidence of the resumption that failed to open is spent by the attempt that starts over:
+    // a failure in the middle of that attempt's transfer is resumed with REST.
+    [Fact]
+    public async Task DropInTheMiddleOfTheTransferThatStartedOver_TheNextAttemptResumesWithRest()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        _fixture.Server.Add(FilePath, _content);
+        _fixture.Server.FailNextTransferAfter(3000);
+        _fixture.Server.ResumptionsThatTimeOut = 1;
+        _fixture.Server.FailNextTransferAfter(5000);
+
+        var path = await _fixture.Client(configure: options => options.MaxRetries = 6).DownloadAsync(FilePath, ct);
+
+        Assert.Equal(_content, File.ReadAllBytes(path));
+        Assert.Equal([0L, 3000L, 0L, 5000L], _fixture.Server.TransferOffsets);
+    }
+
+    [Fact]
+    public async Task LinkThatDropsEvery4000Bytes_AfterOneResumptionFailedToOpen_CompletesWithRest()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        _fixture.Server.Add(FilePath, _content);
+        _fixture.Server.FailNextTransferAfter(4000);
+        _fixture.Server.ResumptionsThatTimeOut = 1;
+        for (var i = 0; i < 12; i++)
+        {
+            _fixture.Server.FailNextTransferAfter(4000);
+        }
+
+        var path = await _fixture.Client(configure: options => options.MaxRetries = 16).DownloadAsync(FilePath, ct);
+
+        Assert.Equal(_content, File.ReadAllBytes(path));
+        var offsets = _fixture.Server.TransferOffsets.ToArray();
+        Assert.Equal([0L, 4000L, 0L], offsets.Take(3));
+        Assert.Equal(Enumerable.Range(1, offsets.Length - 3).Select(i => i * 4000L), offsets.Skip(3));
+    }
+
     [Fact]
     public async Task RestUnansweredOnce_SmallPartial_TheNextAttemptDownloadsTheFileWhole()
     {

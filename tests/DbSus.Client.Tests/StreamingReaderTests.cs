@@ -910,6 +910,30 @@ public sealed class StreamingReaderTests : IDisposable
         }
     }
 
+    // A link that drops every 4000 bytes, after one resumption failed to open: once the transfer
+    // that started over has read again what was delivered, the next drops resume with REST.
+    [Fact]
+    public async Task LinkThatDropsEvery4000Bytes_AfterOneResumptionFailedToOpen_ReadsEverythingWithRest()
+    {
+        var content = ClientFixture.Dbc(Codes('R', 9000));
+        Assert.True(content.Length > 20_000, content.Length.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        _fixture.Server.Add(Single, content);
+        _fixture.Server.FailNextTransferAfter(4000);
+        _fixture.Server.ResumptionsThatTimeOut = 1;
+        for (var i = 0; i < 20; i++)
+        {
+            _fixture.Server.FailNextTransferAfter(4000);
+        }
+
+        var client = _fixture.Client(configure: options => options.MaxRetries = 20);
+        using var reader = await client.OpenStreamingReaderAsync(Table(Info(Single, content)), cancellationToken: Ct);
+
+        Assert.Equal(Codes('R', 9000), ReadAll(reader));
+        var offsets = _fixture.Server.TransferOffsets.ToArray();
+        Assert.Equal([0L, 4000L, 0L], offsets.Take(3));
+        Assert.Equal(Enumerable.Range(1, offsets.Length - 3).Select(i => i * 4000L), offsets.Skip(3));
+    }
+
     [Fact(Timeout = 120_000)]
     public async Task Stress_TwoReadersOverPartsWithDrops_ReadEveryRecordAndLetGo()
     {

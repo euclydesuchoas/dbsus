@@ -731,7 +731,8 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         // Whether an attempt of this call failed to open a resumption (a transfer from an offset
         // beyond 0): the evidence that resuming does not work here. A failure in the middle of a
         // transfer that opened is none. The attempts of a download are counted for the whole call,
-        // without starting again after progress, and so is this.
+        // without starting again after progress. The evidence is spent by the attempt that starts
+        // over, once its transfer opened: only the next attempt starts over.
         var resumptionFailedToOpen = false;
         return _retry.RunAsync($"Downloading {remote.Relative}", remote.Relative, async (attempt, token) =>
         {
@@ -756,10 +757,12 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
             // when it is small (that costs less than another resumption that may fail too), or on
             // the last attempt the budget allows. One that cannot be deleted is resumed instead:
             // appending to it from byte 0 would corrupt it. Either way, the version was asked above.
+            var startsOver = false;
             if (offset > 0 && resumptionFailedToOpen && (offset <= _options.RestartFromStartUpTo || attempt == _retry.MaxRetries + 1))
             {
                 FileLocks.TryDelete(partialPath);
                 offset = File.Exists(partialPath) ? new FileInfo(partialPath).Length : 0;
+                startsOver = offset == 0;
             }
 
             if (offset < info.Size)
@@ -770,6 +773,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
                 using (var target = OpenPartial(remote, partialPath))
                 using (var source = await OpenTransferAsync(lease, offset, token).ConfigureAwait(false))
                 {
+                    resumptionFailedToOpen &= !startsOver;
                     more = await CopyAtMostAsync(source, target, info.Size - offset, token).ConfigureAwait(false);
                 }
 
