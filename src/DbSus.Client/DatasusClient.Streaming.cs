@@ -62,6 +62,14 @@ public sealed partial class DatasusClient
     /// <c>ReadAsync</c> completes synchronously, as Read does.
     /// </para>
     /// <para>
+    /// The reader moves its transfers forward on threads of the thread pool, and while it opens it
+    /// takes more than one of them at a time. With the pool at its defaults that can only delay the
+    /// opening; with a fixed cap on the pool's threads, blocking on this method from a thread of the
+    /// pool (for example with <c>GetAwaiter().GetResult()</c>) can stay stopped, without an
+    /// exception, until threads of the pool are free. Use <see langword="await"/>, or block only
+    /// from a thread outside the pool.
+    /// </para>
+    /// <para>
     /// <paramref name="cancellationToken"/> holds for the life of the reader: it cancels the opening
     /// and the reading. A <see cref="DbfReader.Read"/> that waits for the server then throws
     /// <see cref="OperationCanceledException"/> at once; records already decompressed in memory may
@@ -126,7 +134,11 @@ public sealed partial class DatasusClient
     /// such readers are open at a time. Failures of the opening come from this method; once the
     /// reader is open, every failure comes from <see cref="DbfReader.Read"/>, after the records
     /// already returned. <see cref="DbfReader.Read"/> blocks the calling thread while it waits for the
-    /// server, and <c>ReadAsync</c> completes synchronously, as Read does.
+    /// server, and <c>ReadAsync</c> completes synchronously, as Read does. While it opens, the reader
+    /// takes more than one thread of the thread pool at a time: with a fixed cap on the pool's
+    /// threads, blocking on this method from a thread of the pool can stay stopped, without an
+    /// exception, until threads are free; use <see langword="await"/>, or block only from a thread
+    /// outside the pool.
     /// <see cref="DatasusClientOptions.OnRetry"/> reports the retries of a part's transfer, the first
     /// part's included, on a background thread; during the opening, those of the sizes and times and
     /// of the headers read ahead come from the opening's asynchronous flow, not necessarily on the

@@ -116,6 +116,10 @@ catch (DatasusRemoteFileChangedException)
   - The reader counts its attempts in a row: the count starts again once 1 MiB has been read since the last failure. A download counts the attempts of its whole call.
   - `OnRetry` reports the retries of a part's transfer on a background thread, never on the thread that calls `Read`; the first part's transfer starts during the opening, so its retries run there too. During the opening, the retries of the listing, of the sizes and times, and of the headers read ahead run in the opening's asynchronous flow, not necessarily on the thread that called it.
   - The reader's work in the background runs on threads of the thread pool.
+- **Threads.** `Read` blocks the thread that calls it, and the reader moves its transfers forward in the background on threads of the thread pool. While it opens, each reader takes more than one thread of the pool at a time.
+  - With the thread pool at its defaults, that can only delay the opening: the pool adds threads.
+  - With a fixed cap on the pool's threads (`ThreadPool.SetMaxThreads`), a call that blocks on the opening from a thread of the pool (`GetAwaiter().GetResult()`, `Wait()`, `Result`) can stay stopped, without any exception, until threads of the pool are free again.
+  - Use `await`. If you must block, do it from a thread outside the thread pool.
 - **Integrity.** Each part's CRC-32 is checked when that part has been read to its end, so the records are confirmed only when `Read` returns `false`; disposing the reader earlier skips the check.
   - Nothing is written to disk: the cache (`CacheDirectory`) and the temporary folder are not used, and `VerifyOnDownload` does not apply.
   - When loading into a database, commit only after `Read` returned `false` (see "Integrity is confirmed only at the end" in the [reading guide](https://github.com/euclydesuchoas/dbsus/blob/main/docs/reading.md)).
