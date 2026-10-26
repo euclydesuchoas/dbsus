@@ -410,6 +410,37 @@ public sealed class DatasusClientTests : IDisposable
         await Assert.ThrowsAsync<ObjectDisposedException>(() => client.ListAsync(Dados, Ct));
     }
 
+    [Fact]
+    public async Task Dispose_WhileOperationsGiveTheirConnectionsBack_LeavesNoConnectionOpen()
+    {
+        _fixture.Server.Add(Dados + "/PAMG2407.dbc", ClientFixture.Dbc("A1"));
+        var leaks = 0;
+        for (var round = 0; round < 5000; round++)
+        {
+            var before = _fixture.Server.ActiveConnections;
+            var client = _fixture.Client(configure: options => options.MaxConnections = 3);
+            var operations = Enumerable.Range(0, 3).Select(_ => Task.Run(async () =>
+            {
+                try
+                {
+                    await client.GetInfoAsync(Dados + "/PAMG2407.dbc", Ct);
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+            })).ToArray();
+            await Task.Yield();
+            client.Dispose();
+            await Task.WhenAll(operations);
+            if (_fixture.Server.ActiveConnections != before)
+            {
+                leaks++;
+            }
+        }
+
+        Assert.Equal(0, leaks);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(5)]

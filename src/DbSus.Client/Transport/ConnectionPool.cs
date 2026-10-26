@@ -10,6 +10,9 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
 {
     private readonly SemaphoreSlim _slots = new(maxConnections, maxConnections);
     private readonly ConcurrentBag<IDatasusConnection> _idle = [];
+
+    // Taken by Return and Dispose, so that a connection is never added to _idle after Dispose has emptied it.
+    private readonly object _gate = new();
     private volatile bool _disposed;
 
     public async Task<Lease> AcquireAsync(CancellationToken cancellationToken)
@@ -30,7 +33,11 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
 
     public void Dispose()
     {
-        _disposed = true;
+        lock (_gate)
+        {
+            _disposed = true;
+        }
+
         while (_idle.TryTake(out var connection))
         {
             connection.Dispose();
@@ -49,11 +56,20 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
     {
         try
         {
-            if (connection is not null && healthy && !connection.IsBroken && !_disposed)
+            var kept = false;
+            if (connection is not null && healthy && !connection.IsBroken)
             {
-                _idle.Add(connection);
+                lock (_gate)
+                {
+                    if (!_disposed)
+                    {
+                        _idle.Add(connection);
+                        kept = true;
+                    }
+                }
             }
-            else
+
+            if (!kept)
             {
                 connection?.Dispose();
             }
