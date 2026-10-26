@@ -220,8 +220,24 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     /// <param name="path">Path of the file, relative to the root.</param>
     /// <param name="cancellationToken">Cancels the operation.</param>
     /// <returns>The parsed DBF header: version, last update, record count, record length, LDID and fields.</returns>
-    /// <exception cref="FileNotFoundException">The file does not exist.</exception>
+    /// <remarks>
+    /// When the transfer ends inside the header, the server is asked for the file's size and time,
+    /// on the same connection, to tell a transfer cut short (retried) from a file that really ends
+    /// inside its header.
+    /// </remarks>
+    /// <exception cref="FileNotFoundException">
+    /// The file does not exist, also when it is removed before its size is asked after a transfer
+    /// that ended inside the header.
+    /// </exception>
     /// <exception cref="InvalidDataException">The file ends inside its header, or the header is invalid.</exception>
+    /// <exception cref="DatasusRetriesExhaustedException">
+    /// Transient failures persisted after every retry; a transfer that ends inside the header of a
+    /// longer file is one of them.
+    /// </exception>
+    /// <exception cref="DatasusRequestRefusedException">
+    /// The server refused a request permanently (FTP 5xx), for example the size or time asked after a
+    /// transfer that ended inside the header. It is not retried.
+    /// </exception>
     public async Task<DbfHeader> ReadHeaderAsync(string path, CancellationToken cancellationToken = default)
     {
         Guard.NotDisposed(_disposed, this);

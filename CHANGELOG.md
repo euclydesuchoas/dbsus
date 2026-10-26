@@ -19,6 +19,9 @@ All notable changes to this project are documented in this file. The format foll
 ### Fixed
 
 - `ReadHeaderAsync` threw `InvalidDataException`, without retrying, when the transfer ended inside the header of a file the server announces as longer. That is a transfer cut short: it is now retried, as any transient failure. A file that really ends inside its header still throws `InvalidDataException`, and is not retried.
+- `DbSus.Client` could leave a connection open after `Dispose`, when an operation gave it back to the client while the client was being disposed. It is now closed.
+- In `DbSus`, after `DbfReader.Read` threw at the end of a part (a checksum that does not match, or a stream that fails while the end of the part is read), the next call returned `false`, or moved on to the next part, as if the part's records had been confirmed. Every later call now throws the same exception again.
+- After `DownloadAsync` or `OpenReaderAsync` started over three times because the file changed on the server, a fourth change escaped as an exception of an internal type, which derives neither from `IOException` nor from `DatasusTransferException`. It is now a `DatasusRetriesExhaustedException`, whose message says that the file changed on the server at every attempt.
 
 ## [0.1.0-preview.4] - 2026-10-21
 
