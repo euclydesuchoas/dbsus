@@ -821,6 +821,95 @@ public sealed class StreamingReaderTests : IDisposable
         Assert.Throws<ObjectDisposedException>(() => reader.Read());
     }
 
+    [Fact]
+    public async Task ChecksumFailsInTheOnlyPart_EveryLaterReadThrowsIt_AndNoneReturnsFalse()
+    {
+        var content = ClientFixture.CorruptDbc(Codes('R', 300));
+        _fixture.Server.Add(Single, content);
+        var client = _fixture.Client();
+        using var reader = await client.OpenStreamingReaderAsync(Table(Info(Single, content)), cancellationToken: Ct);
+        var codes = new List<string>();
+
+        var first = Assert.Throws<InvalidDataException>(() => ReadInto(reader, codes));
+
+        Assert.Equal(300, codes.Count);
+        for (var i = 0; i < 3; i++)
+        {
+            Assert.Equal(first.Message, Assert.Throws<InvalidDataException>(() => reader.Read()).Message);
+        }
+    }
+
+    [Fact]
+    public async Task ChecksumFailsInPartB_LaterReadsThrowIt_AndPartCIsNeverRead()
+    {
+        var (_, a, _, c) = AddParts();
+        var b = ClientFixture.CorruptDbc("B001");
+        _fixture.Server.Add(PartB, b);
+        var client = _fixture.Client();
+        using var reader = await client.OpenStreamingReaderAsync(Table(Info(PartA, a), Info(PartB, b), Info(PartC, c)), cancellationToken: Ct);
+        var codes = new List<string>();
+
+        var first = Assert.Throws<InvalidDataException>(() => ReadInto(reader, codes));
+        for (var i = 0; i < 3; i++)
+        {
+            Assert.Equal(first.Message, Assert.Throws<InvalidDataException>(() => ReadInto(reader, codes)).Message);
+        }
+
+        Assert.Equal(["A001", "A002", "B001"], codes);
+        Assert.Equal(1, reader.PartIndex);
+    }
+
+    // The transfer of the only part fails at its last byte, after every record was returned: the
+    // failure comes from the Read that checks the part's end, and again from every later Read.
+    [Theory]
+    [InlineData("drop")]
+    [InlineData("republished")]
+    [InlineData("removed")]
+    [InlineData("client disposed")]
+    public async Task OnlyPartFailsAtItsLastByte_EveryLaterReadThrowsTheSameFailure(string failure)
+    {
+        var content = ClientFixture.Dbc(Codes('R', 300));
+        _fixture.Server.Add(Single, content);
+        _fixture.Server.FailNextTransferAfter(content.Length - 1);
+        DatasusClient? client = null;
+        client = _fixture.Client(configure: options =>
+        {
+            options.MaxRetries = failure == "drop" ? 0 : 2;
+            options.OnRetry = _ =>
+            {
+                switch (failure)
+                {
+                    case "republished":
+                        _fixture.Server.Add(Single, ClientFixture.Dbc(Codes('S', 300)), FakeServer.Time(9));
+                        break;
+                    case "removed":
+                        _fixture.Server.Remove(Single);
+                        break;
+                    case "client disposed":
+                        client!.Dispose();
+                        break;
+                }
+            };
+        });
+        using var reader = await client.OpenStreamingReaderAsync(Table(Info(Single, content)), cancellationToken: Ct);
+        var codes = new List<string>();
+        var expected = failure switch
+        {
+            "drop" => typeof(DatasusRetriesExhaustedException),
+            "republished" => typeof(DatasusRemoteFileChangedException),
+            "removed" => typeof(FileNotFoundException),
+            _ => typeof(ObjectDisposedException),
+        };
+
+        var first = Assert.Throws(expected, () => ReadInto(reader, codes));
+
+        Assert.Equal(300, codes.Count);
+        for (var i = 0; i < 3; i++)
+        {
+            Assert.Equal(first.Message, Assert.Throws(expected, () => reader.Read()).Message);
+        }
+    }
+
     [Fact(Timeout = 120_000)]
     public async Task Stress_TwoReadersOverPartsWithDrops_ReadEveryRecordAndLetGo()
     {
