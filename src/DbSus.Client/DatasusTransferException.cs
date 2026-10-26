@@ -41,7 +41,8 @@ public abstract class DatasusTransferException : IOException
 /// Transient failures (dropped connections, timeouts, FTP 4xx replies, truncated transfers, or an
 /// exception that the FTP library is not meant to throw) persisted after
 /// <see cref="DatasusClientOptions.MaxRetries"/> retries. The last failure is the
-/// <see cref="Exception.InnerException"/>.
+/// <see cref="Exception.InnerException"/>. A download also throws it, without an inner exception,
+/// when the file changed on the server at every attempt to download it.
 /// </summary>
 [SuppressMessage("Design", "CA1032", Justification = "Created only by the client with the transfer details.")]
 public sealed class DatasusRetriesExhaustedException : DatasusTransferException

@@ -271,7 +271,10 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     /// <returns>The full local path of the downloaded file.</returns>
     /// <exception cref="FileNotFoundException">The file does not exist (FTP 550; never retried).</exception>
     /// <exception cref="InvalidDataException">The file failed its CRC-32 check twice.</exception>
-    /// <exception cref="DatasusRetriesExhaustedException">Transient failures persisted after every retry.</exception>
+    /// <exception cref="DatasusRetriesExhaustedException">
+    /// Transient failures persisted after every retry, or the file changed on the server at every
+    /// attempt to download it.
+    /// </exception>
     /// <exception cref="DatasusRequestRefusedException">The server refused the request permanently.</exception>
     /// <exception cref="InsufficientDiskSpaceException">There is not enough free disk space for the file.</exception>
     /// <exception cref="IOException">
@@ -588,6 +591,18 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
             catch (RemoteFileChangedException changed) when (restarts < MaxVersionRestarts)
             {
                 info = changed.Current; // a new version: start again from zero, never resume across versions
+            }
+            catch (RemoteFileChangedException)
+            {
+                var attempts = restarts + 1;
+                throw new DatasusRetriesExhaustedException(
+                    $"Downloading {remote.Relative} failed after {attempts} attempts: the file changed on the server at every attempt.",
+                    ftpReplyCode: null,
+                    innerException: null)
+                {
+                    RemotePath = remote.Relative,
+                    Attempts = attempts,
+                };
             }
         }
     }

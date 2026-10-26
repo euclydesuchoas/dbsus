@@ -249,6 +249,35 @@ public sealed class DatasusClientTests : IDisposable
         Assert.Equal(0L, _fixture.Server.TransferOffsets.Last());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DownloadAsync_FileRepublishedAtEveryAttempt_ThrowsRetriesExhaustedSayingItChanged(bool openReader)
+    {
+        var content = ClientFixture.Dbc("A1", "B2");
+        _fixture.Server.Add(Dados + "/RDMG2407.dbc", content);
+        _fixture.Server.BeforeTransfer = transfer => _fixture.Server.Add(Dados + "/RDMG2407.dbc", content, FakeServer.Time(transfer));
+        var client = _fixture.Client();
+
+        var exception = await Assert.ThrowsAsync<DatasusRetriesExhaustedException>(async () =>
+        {
+            if (openReader)
+            {
+                using var reader = await client.OpenReaderAsync(Dados + "/RDMG2407.dbc", cancellationToken: Ct);
+            }
+            else
+            {
+                await client.DownloadAsync(Dados + "/RDMG2407.dbc", Ct);
+            }
+        });
+
+        Assert.Contains("changed on the server at every attempt", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("/SIASUS/200801_/Dados/RDMG2407.dbc", exception.RemotePath);
+        Assert.Equal(4, exception.Attempts);
+        Assert.Null(exception.FtpReplyCode);
+        Assert.Equal(4, _fixture.Server.Transfers);
+    }
+
     [Fact]
     public async Task DownloadAsync_TransientConnectFailures_AreRetried()
     {
