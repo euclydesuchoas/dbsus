@@ -128,6 +128,12 @@ internal sealed class LoopbackFtpServer : IDisposable
     public ConcurrentDictionary<string, byte[]> Files { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Gets the final replies RETR gives, without any data, to the files named here by full path,
+    /// as a server that refuses (5xx) or fails (4xx) one file; the other files are served as usual.
+    /// </summary>
+    public ConcurrentDictionary<string, string> RetrReplies { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Gets or sets a number of bytes after which RETR stops sending, keeping both connections
     /// open and silent, as a server that hangs in the middle of a transfer.
     /// </summary>
@@ -354,6 +360,15 @@ internal sealed class LoopbackFtpServer : IDisposable
 
                         restart = asked;
                         await writer.WriteLineAsync($"350 Restarting at {restart}.").ConfigureAwait(false);
+                        continue;
+                    }
+
+                    if (command == "RETR" && RetrReplies.TryGetValue(argument, out var retrReply))
+                    {
+                        data?.Stop();
+                        data = null;
+                        restart = 0;
+                        await writer.WriteLineAsync(retrReply).ConfigureAwait(false);
                         continue;
                     }
 

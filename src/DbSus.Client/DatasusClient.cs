@@ -341,13 +341,22 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     private async Task<DbfReader> OpenPartsAsync(IReadOnlyList<DatasusFileInfo> parts, DbfReadOptions? dbfOptions, DbcReadOptions? dbcOptions, CancellationToken cancellationToken)
     {
         var locals = new List<string>();
-        foreach (var part in parts)
+        try
         {
-            var remote = RemotePath.Parse(part.Path, Root);
-            var info = part.LastModifiedUtc is { } modified
-                ? new RemoteFileInfo(part.Size, modified)
-                : await GetRemoteInfoAsync(remote, cancellationToken).ConfigureAwait(false);
-            locals.Add(await DownloadVersionAsync(remote, info, cancellationToken).ConfigureAwait(false));
+            foreach (var part in parts)
+            {
+                var remote = RemotePath.Parse(part.Path, Root);
+                var info = part.LastModifiedUtc is { } modified
+                    ? new RemoteFileInfo(part.Size, modified)
+                    : await GetRemoteInfoAsync(remote, cancellationToken).ConfigureAwait(false);
+                locals.Add(await DownloadVersionAsync(remote, info, cancellationToken).ConfigureAwait(false));
+            }
+        }
+        catch
+        {
+            // A later part failed (or the call was cancelled): the parts already downloaded go too.
+            RemoveTemporaryDownloads(locals);
+            throw;
         }
 
         var streams = new List<Stream>();
@@ -385,7 +394,27 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
                 stream.Dispose();
             }
 
+            // A temporary stream deletes its file when disposed; those not opened yet are deleted here.
+            RemoveTemporaryDownloads(locals.Skip(streams.Count));
             throw;
+        }
+    }
+
+    // Without a cache, deletes downloads of this call that no stream owns, with their folders, as
+    // TemporaryDownloadStream does when disposed. Best effort: a failure to delete is left for the
+    // clean-up of orphans and never replaces the exception being thrown. With a cache, the parts
+    // already downloaded are valid entries and stay.
+    private void RemoveTemporaryDownloads(IEnumerable<string> locals)
+    {
+        if (_cache is not null)
+        {
+            return;
+        }
+
+        foreach (var local in locals)
+        {
+            FileLocks.TryDelete(local);
+            TempStore.RemoveDownloadFolder(Path.GetDirectoryName(local)!);
         }
     }
 
