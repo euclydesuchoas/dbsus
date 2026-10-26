@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using DbSus.Dbc.Implode;
 
 namespace DbSus.Dbc;
@@ -30,6 +31,9 @@ internal sealed class DbcDbfStream : Stream
     private Crc32 _checksum = new();
     private int _headerPosition;
     private bool _checksumVerified;
+
+    // A checksum that did not match: thrown again by every later read, never a clean end.
+    private ExceptionDispatchInfo? _checksumFailure;
     private bool _disposed;
 
     public DbcDbfStream(Stream source, bool leaveOpen, DbcReadOptions options, int partIndex, string? partName)
@@ -118,6 +122,7 @@ internal sealed class DbcDbfStream : Stream
     private int ReadCore(Span<byte> destination)
     {
         Guard.NotDisposed(_disposed, this);
+        _checksumFailure?.Throw();
 
         if (destination.IsEmpty)
         {
@@ -178,8 +183,10 @@ internal sealed class DbcDbfStream : Stream
         }
 
         NotifyMismatch(actual);
-        throw new InvalidDataException(
+        var failure = new InvalidDataException(
             $"{_prefix}DBC checksum mismatch: the file declares CRC-32 0x{_expectedChecksum:X8} but the decompressed DBF has 0x{actual:X8}.");
+        _checksumFailure = ExceptionDispatchInfo.Capture(failure);
+        throw failure;
     }
 
     // By contract the checksum exception is the one that propagates, whatever the callback does.
