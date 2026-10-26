@@ -98,6 +98,10 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     /// (<see cref="DatasusFileInfo.LastModifiedUtc"/> is always set here).
     /// </returns>
     /// <exception cref="FileNotFoundException">The file does not exist.</exception>
+    /// <exception cref="DatasusRetriesExhaustedException">Transient failures persisted after every retry.</exception>
+    /// <exception cref="DatasusRequestRefusedException">
+    /// The server refused the request with a permanent reply (FTP 5xx other than 550). It is not retried.
+    /// </exception>
     public async Task<DatasusFileInfo> GetInfoAsync(string path, CancellationToken cancellationToken = default)
     {
         Guard.NotDisposed(_disposed, this);
