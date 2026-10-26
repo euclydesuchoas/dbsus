@@ -306,7 +306,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         Guard.NotDisposed(_disposed, this);
         var remote = RemotePath.Parse(path, Root);
         var info = await GetRemoteInfoAsync(remote, cancellationToken).ConfigureAwait(false);
-        return await DownloadVersionAsync(remote, info, cancellationToken).ConfigureAwait(false);
+        return (await DownloadVersionAsync(remote, info, cancellationToken).ConfigureAwait(false)).Path;
     }
 
     /// <summary>
@@ -342,18 +342,55 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
 
     // Downloads the parts, one after the other, and opens them as one reader. A part that comes
     // from a listing has no exact time: the server is asked for it, as before every download.
+    // Once the last part is downloaded (and checked by its own download), the parts before it are
+    // asked for their size and time again: if one changed, the table was republished while it was
+    // downloaded, so this round's downloads go and the table starts over with the versions the
+    // server has now (a part that did not change comes from the cache, when there is one).
     private async Task<DbfReader> OpenPartsAsync(IReadOnlyList<DatasusFileInfo> parts, DbfReadOptions? dbfOptions, DbcReadOptions? dbcOptions, CancellationToken cancellationToken)
     {
         var locals = new List<string>();
+        var remotes = parts.Select(part => RemotePath.Parse(part.Path, Root)).ToList();
+        var expected = parts.Select(part => part.LastModifiedUtc is { } modified ? new RemoteFileInfo(part.Size, modified) : null).ToList();
         try
         {
-            foreach (var part in parts)
+            for (var restarts = 0; ; restarts++)
             {
-                var remote = RemotePath.Parse(part.Path, Root);
-                var info = part.LastModifiedUtc is { } modified
-                    ? new RemoteFileInfo(part.Size, modified)
-                    : await GetRemoteInfoAsync(remote, cancellationToken).ConfigureAwait(false);
-                locals.Add(await DownloadVersionAsync(remote, info, cancellationToken).ConfigureAwait(false));
+                var versions = new List<RemoteFileInfo>();
+                for (var i = 0; i < remotes.Count; i++)
+                {
+                    var info = expected[i] ?? await GetRemoteInfoAsync(remotes[i], cancellationToken).ConfigureAwait(false);
+                    var (local, version) = await DownloadVersionAsync(remotes[i], info, cancellationToken).ConfigureAwait(false);
+                    locals.Add(local);
+                    versions.Add(version);
+                }
+
+                var changed = -1;
+                for (var i = 0; i < remotes.Count - 1; i++)
+                {
+                    expected[i] = await GetRemoteInfoAsync(remotes[i], cancellationToken).ConfigureAwait(false);
+                    changed = changed < 0 && !expected[i]!.SameVersionAs(versions[i]) ? i : changed;
+                }
+
+                if (changed < 0)
+                {
+                    break;
+                }
+
+                if (restarts == MaxVersionRestarts)
+                {
+                    throw new DatasusRetriesExhaustedException(
+                        $"Opening the table of {remotes[0].Relative} failed after {restarts + 1} attempts: a part changed on the server at every attempt.",
+                        ftpReplyCode: null,
+                        innerException: null)
+                    {
+                        RemotePath = remotes[changed].Relative,
+                        Attempts = restarts + 1,
+                    };
+                }
+
+                expected[remotes.Count - 1] = versions[remotes.Count - 1];
+                RemoveTemporaryDownloads(locals);
+                locals.Clear();
             }
         }
         catch
@@ -627,15 +664,17 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
             }
         }, cancellationToken);
 
-    private async Task<string> DownloadVersionAsync(RemotePath remote, RemoteFileInfo info, CancellationToken cancellationToken)
+    // The local file, and the version of it that was downloaded.
+    private async Task<(string Path, RemoteFileInfo Version)> DownloadVersionAsync(RemotePath remote, RemoteFileInfo info, CancellationToken cancellationToken)
     {
         for (var restarts = 0; ; restarts++)
         {
             try
             {
-                return _cache is null
+                var local = _cache is null
                     ? await DownloadToTempAsync(remote, info, cancellationToken).ConfigureAwait(false)
                     : await DownloadToCacheAsync(_cache, remote, info, cancellationToken).ConfigureAwait(false);
+                return (local, info);
             }
             catch (RemoteFileChangedException changed) when (restarts < MaxVersionRestarts)
             {
