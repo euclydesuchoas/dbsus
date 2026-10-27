@@ -178,6 +178,9 @@ internal sealed class LoopbackFtpServer : IDisposable
     /// <summary>Gets the commands received, in order, without arguments.</summary>
     public ConcurrentQueue<string> Commands { get; } = new();
 
+    /// <summary>Gets the offsets of the <c>REST</c> commands received, in order.</summary>
+    public ConcurrentQueue<long> Restarts { get; } = new();
+
     private bool ServesData => Listing is not null || ListRefusal is not null || !Files.IsEmpty;
 
     public static int ClosedPort()
@@ -299,6 +302,7 @@ internal sealed class LoopbackFtpServer : IDisposable
                     if (command == "REST")
                     {
                         restart = long.Parse(argument, System.Globalization.CultureInfo.InvariantCulture);
+                        Restarts.Enqueue(restart);
                         await writer.WriteLineAsync($"350 Restarting at {restart}.").ConfigureAwait(false);
                         continue;
                     }

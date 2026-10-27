@@ -394,7 +394,7 @@ public sealed class ReadAheadStreamTests
         server.Add("/X/B.dbc", second);
         using var pool = new ConnectionPool(server.Factory(), 2);
         var a = await Open(pool, FakeServer.Root, first.Length, ct);
-        using var b = await RemoteReadAheadStream.OpenAsync(pool, RemotePath.Parse("/X/B.dbc", FakeServer.Root), second.Length, ct);
+        using var b = await RemoteReadAheadStream.OpenAsync(pool, NoRetries, RemotePath.Parse("/X/B.dbc", FakeServer.Root), Version(second.Length), ct);
         var readA = new MemoryStream();
         var readB = new MemoryStream();
         var buffer = new byte[50_000];
@@ -428,8 +428,15 @@ public sealed class ReadAheadStreamTests
         await AssertEndsAsync(b);
     }
 
+    // One attempt and no resumption: what these tests check is the stream around a single transfer.
+    internal static RetryPolicy NoRetries { get; } = new(0, TimeSpan.Zero, (_, _) => Task.CompletedTask);
+
     internal static Task<RemoteReadAheadStream> Open(ConnectionPool pool, string root, long size, CancellationToken cancellationToken) =>
-        RemoteReadAheadStream.OpenAsync(pool, RemotePath.Parse(FilePath, root), size, cancellationToken);
+        RemoteReadAheadStream.OpenAsync(pool, NoRetries, RemotePath.Parse(FilePath, root), Version(size), cancellationToken);
+
+    // The version the fakes announce for a file of that size: FakeServer.Time(0), which is also the
+    // scripted server's default time and the loopback server's MDTM.
+    internal static RemoteFileInfo Version(long size) => new(size, FakeServer.Time(0));
 
     internal static byte[] Content(int length, int seed)
     {

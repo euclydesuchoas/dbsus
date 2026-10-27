@@ -60,6 +60,19 @@ internal sealed class RetryPolicy(
         }
     }
 
+    /// <summary>
+    /// For an operation that counts its own attempts (a read that resumes): reports the transient
+    /// failure of attempt <paramref name="attempts"/> to OnRetry and waits before the next one, as
+    /// <see cref="RunAsync"/> does between its attempts. Whether to try again is the caller's to
+    /// decide, against <see cref="MaxRetries"/>.
+    /// </summary>
+    public async Task WaitBeforeRetryAsync(string operation, string remotePath, int attempts, TransientTransportException failure, CancellationToken cancellationToken)
+    {
+        var wait = Backoff(attempts - 1);
+        Notify(new DatasusRetryInfo(operation, remotePath, attempts, wait, failure, failure.ReplyCode));
+        await delay(wait, cancellationToken).ConfigureAwait(false);
+    }
+
     public TimeSpan Backoff(int attempt)
     {
         double jitter;
