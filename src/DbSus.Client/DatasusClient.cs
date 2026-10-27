@@ -415,6 +415,8 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         VerifyOnDownload = source.VerifyOnDownload,
         LockTimeout = source.LockTimeout,
         OnRetry = source.OnRetry,
+        ResumeOpenTimeout = source.ResumeOpenTimeout,
+        RestartFromStartUpTo = source.RestartFromStartUpTo,
     };
 
     private static long? FreeSpace(string directory)
@@ -661,13 +663,30 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         var existing = File.Exists(partialPath) ? new FileInfo(partialPath).Length : 0;
         EnsureDiskSpace(Path.GetDirectoryName(partialPath)!, remote, Math.Max(0, info.Size - existing));
         var sentTooMuch = false;
-        return _retry.RunAsync($"Downloading {remote.Relative}", remote.Relative, async token =>
+
+        // Whether an attempt of this call failed to open a resumption (a transfer from an offset
+        // beyond 0): the evidence that resuming does not work here. A failure in the middle of a
+        // transfer that opened is none. The attempts of a download are counted for the whole call,
+        // without starting again after progress, and so is this.
+        var resumptionFailedToOpen = false;
+        return _retry.RunAsync($"Downloading {remote.Relative}", remote.Relative, async (attempt, token) =>
         {
             var offset = File.Exists(partialPath) ? new FileInfo(partialPath).Length : 0;
             if (offset > info.Size)
             {
                 FileLocks.TryDelete(partialPath);
                 offset = 0;
+            }
+
+            // A partial file, from an earlier attempt or another process, is resumed with REST. Only
+            // after a resumption failed to open is it downloaded again from byte 0, without REST:
+            // when it is small (that costs less than another resumption that may fail too), or on
+            // the last attempt the budget allows. One that cannot be deleted is resumed instead:
+            // appending to it from byte 0 would corrupt it.
+            if (offset > 0 && resumptionFailedToOpen && (offset <= _options.RestartFromStartUpTo || attempt == _retry.MaxRetries + 1))
+            {
+                FileLocks.TryDelete(partialPath);
+                offset = File.Exists(partialPath) ? new FileInfo(partialPath).Length : 0;
             }
 
             using var lease = await _pool.AcquireAsync(token).ConfigureAwait(false);
@@ -684,7 +703,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
                 // before any data is requested.
                 bool more;
                 using (var target = OpenPartial(remote, partialPath))
-                using (var source = await lease.Connection.OpenReadAsync(remote.Full, offset, token).ConfigureAwait(false))
+                using (var source = await OpenTransferAsync(lease, offset, token).ConfigureAwait(false))
                 {
                     more = await CopyAtMostAsync(source, target, info.Size - offset, token).ConfigureAwait(false);
                 }
@@ -710,6 +729,20 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
             lease.Keep();
             return true;
         }, cancellationToken);
+
+        // Opens the transfer, and records a resumption that fails to open as the evidence above.
+        async Task<Stream> OpenTransferAsync(ConnectionPool.Lease lease, long offset, CancellationToken token)
+        {
+            try
+            {
+                return await lease.Connection.OpenReadAsync(remote.Full, offset, token).ConfigureAwait(false);
+            }
+            catch (TransientTransportException) when (offset > 0 && !token.IsCancellationRequested)
+            {
+                resumptionFailedToOpen = true;
+                throw;
+            }
+        }
     }
 
     // Copies at most `remaining` bytes and tells whether the source had more. It asks for one byte

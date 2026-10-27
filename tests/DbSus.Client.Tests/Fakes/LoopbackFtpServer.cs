@@ -147,6 +147,12 @@ internal sealed class LoopbackFtpServer : IDisposable
     /// <summary>Gets or sets a command the server stops answering (it keeps the connection open).</summary>
     public string? SilentOn { get; set; }
 
+    /// <summary>Gets or sets a command whose reply comes <see cref="ReplyDelay"/> late, as from a slow server.</summary>
+    public string? DelayedCommand { get; set; }
+
+    /// <summary>Gets or sets how late the reply to <see cref="DelayedCommand"/> comes.</summary>
+    public TimeSpan ReplyDelay { get; set; }
+
     /// <summary>Gets or sets the whole reply to every <c>SIZE</c>, e.g. <c>213 abc</c>; <see langword="null"/> for the normal one.</summary>
     public string? SizeReply { get; set; }
 
@@ -177,6 +183,12 @@ internal sealed class LoopbackFtpServer : IDisposable
 
     /// <summary>Gets the commands received, in order, without arguments.</summary>
     public ConcurrentQueue<string> Commands { get; } = new();
+
+    /// <summary>
+    /// Gets every command line received, in order, exactly as written (case kept), with the number
+    /// of reads of the socket it came in: more than one when the client wrote it in pieces.
+    /// </summary>
+    public ConcurrentQueue<(string Line, int Reads)> CommandLines { get; } = new();
 
     /// <summary>Gets the offsets of the <c>REST</c> commands received, in order.</summary>
     public ConcurrentQueue<long> Restarts { get; } = new();
@@ -239,17 +251,23 @@ internal sealed class LoopbackFtpServer : IDisposable
             try
             {
                 var stream = client.GetStream();
-                using var reader = new StreamReader(stream, Encoding.ASCII);
+                var reader = new LineReader(stream);
                 using var writer = new StreamWriter(stream, Encoding.ASCII) { NewLine = "\r\n", AutoFlush = true };
                 await writer.WriteLineAsync("220 Loopback FTP").ConfigureAwait(false);
-                while (await reader.ReadLineAsync().ConfigureAwait(false) is { } line)
+                while (await reader.ReadLineAsync().ConfigureAwait(false) is var (line, reads) && line is not null)
                 {
+                    CommandLines.Enqueue((line, reads));
                     var command = line.Split(' ')[0].ToUpperInvariant();
                     var argument = line.Length > command.Length ? line.Substring(command.Length + 1) : string.Empty;
                     Commands.Enqueue(command);
                     if (command == SilentOn)
                     {
                         continue;
+                    }
+
+                    if (command == DelayedCommand)
+                    {
+                        await Task.Delay(ReplyDelay).ConfigureAwait(false);
                     }
 
                     if (command == "PASV" && PasvRefusal is not null)
@@ -511,6 +529,49 @@ internal sealed class LoopbackFtpServer : IDisposable
         "QUIT" => "221 Bye.",
         _ => "502 Command not implemented.",
     };
+
+    /// <summary>
+    /// Reads CRLF lines from the control connection and tells, for each, in how many reads of the
+    /// socket it came (a read that ends one line and starts the next counts for both).
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1835", Justification = "Shared with net481, which has no Memory-based overload.")]
+    private sealed class LineReader(Stream stream)
+    {
+        private readonly byte[] _buffer = new byte[4096];
+        private readonly List<byte> _line = [];
+        private int _start;
+        private int _end;
+        private int _reads;
+
+        public async Task<(string? Line, int Reads)> ReadLineAsync()
+        {
+            while (true)
+            {
+                var newline = Array.IndexOf(_buffer, (byte)'\n', _start, _end - _start);
+                if (newline >= 0)
+                {
+                    _line.AddRange(new ArraySegment<byte>(_buffer, _start, newline - _start));
+                    _start = newline + 1;
+                    var reads = _reads;
+                    var text = Encoding.ASCII.GetString([.. _line]).TrimEnd('\r');
+                    _line.Clear();
+                    _reads = _start < _end ? 1 : 0;
+                    return (text, reads);
+                }
+
+                _line.AddRange(new ArraySegment<byte>(_buffer, _start, _end - _start));
+                _start = _end = 0;
+                var count = await stream.ReadAsync(_buffer, 0, _buffer.Length).ConfigureAwait(false);
+                if (count == 0)
+                {
+                    return (null, 0);
+                }
+
+                _end = count;
+                _reads++;
+            }
+        }
+    }
 
     /// <summary>
     /// The listener of one data connection: on the server's address, and over IPv4 also on the

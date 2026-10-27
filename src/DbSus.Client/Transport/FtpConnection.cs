@@ -13,7 +13,7 @@ internal sealed class FtpConnectionFactory(DatasusClientOptions options) : IData
 {
     public async Task<IDatasusConnection> ConnectAsync(CancellationToken cancellationToken)
     {
-        var connection = new FtpConnection(FtpSession.Create(options.Host, options.Port, CreateConfig(options)), options.Host, options.Port, options.ReadTimeout);
+        var connection = new FtpConnection(FtpSession.Create(options.Host, options.Port, CreateConfig(options)), options.Host, options.Port, options.ReadTimeout, options.ResumeOpenTimeout);
         try
         {
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -73,7 +73,7 @@ internal sealed class FtpStep
     public static FtpStep OpeningForReading(string path, string host, int port) => new($"opening {path} for reading on {host}:{port}", port, opensDataConnection: true);
 }
 
-internal sealed class FtpConnection(FtpSession session, string host, int port, TimeSpan readTimeout) : IDatasusConnection, IAbortableConnection
+internal sealed class FtpConnection(FtpSession session, string host, int port, TimeSpan readTimeout, TimeSpan resumeOpenTimeout) : IDatasusConnection, IAbortableConnection
 {
     private volatile bool _broken;
 
@@ -160,14 +160,17 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
     private static TransientTransportException Malformed(string command, string reply, string path) =>
         new($"The server answered {command} for {path} with '{ServerText.Clean(reply.Trim())}', which is not a {(command == "SIZE" ? "size" : "time")}; the answer is not used.");
 
-    // The client limits each read of the transfer itself (see ReadLimitStream).
+    // The client limits each read of the transfer itself (see ReadLimitStream). Opening a transfer
+    // that resumes, from an offset beyond 0, has a limit of its own (see Resumption.OpenTimeout);
+    // opening one from the start keeps the read timeout alone.
     public async Task<Stream> OpenReadAsync(string path, long offset, CancellationToken cancellationToken)
     {
         var stream = await Guard(
             FtpStep.OpeningForReading(path, host, port),
             ConnectCount,
             () => session.OpenReadAsync(path, offset, cancellationToken),
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            offset > 0 ? resumeOpenTimeout : null).ConfigureAwait(false);
         return new ReadLimitStream(stream, readTimeout, Abort);
     }
 
@@ -264,21 +267,50 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
 
     // Runs a step so that the cancellation token is meant to end it on every runtime: canceling
     // closes the connection, which ends any pending read even where the library does not observe
-    // the token.
-    private async Task<T> Guard<T>(FtpStep step, Func<int>? connectCount, Func<Task<T>> operation, CancellationToken cancellationToken)
+    // the token. A step with a limit is ended the same way when the limit runs out, and that is a
+    // transient failure, never a cancellation: the caller's token alone makes one.
+    private async Task<T> Guard<T>(FtpStep step, Func<int>? connectCount, Func<Task<T>> operation, CancellationToken cancellationToken, TimeSpan? limit = null)
     {
+        using var expiry = limit is { } time ? new CancellationTokenSource(time) : null;
         using (cancellationToken.Register(Abort))
+        using (expiry is null ? default : expiry.Token.Register(Abort))
         {
             try
             {
-                return await Translate(step, connectCount, operation).ConfigureAwait(false);
+                var result = await Translate(step, connectCount, operation).ConfigureAwait(false);
+
+                // The limit ran out just as the step ended: the connection is closed already.
+                if (expiry is { IsCancellationRequested: true } && !cancellationToken.IsCancellationRequested)
+                {
+                    try
+                    {
+                        (result as IDisposable)?.Dispose();
+                    }
+                    catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException or FtpException)
+                    {
+                    }
+
+                    throw Expired(step, limit!.Value, null);
+                }
+
+                return result;
             }
             catch (Exception exception) when (cancellationToken.IsCancellationRequested && exception is not OperationCanceledException)
             {
                 throw new OperationCanceledException($"Canceled while {step.Description}; the connection was closed.", exception, cancellationToken);
             }
+            catch (Exception exception) when (expiry is { IsCancellationRequested: true } && !cancellationToken.IsCancellationRequested && exception is not TransientTransportException { IsExpiredLimit: true })
+            {
+                throw Expired(step, limit!.Value, exception);
+            }
         }
     }
+
+    private static TransientTransportException Expired(FtpStep step, TimeSpan limit, Exception? inner) =>
+        new($"FTP transport failure while {step.Description}: the server did not open the resumed transfer within {limit.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture)} s, so the connection was closed.", null, inner)
+        {
+            IsExpiredLimit = true,
+        };
 
     // A refused listing is never a missing file: FTP uses the same 550 for a folder that does not
     // exist and for one that may not be read, and the text of the reply is not interpreted.

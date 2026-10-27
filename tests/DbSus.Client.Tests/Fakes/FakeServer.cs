@@ -23,6 +23,7 @@ internal sealed class FakeServer
     private int _listCalls;
     private int _infoCalls;
     private long _bytesServed;
+    private int _resumptionsThatTimeOut;
 
     public int ActiveConnections => _activeConnections;
 
@@ -45,6 +46,17 @@ internal sealed class FakeServer
 
     /// <summary>Delays each transfer chunk, to make concurrent requests overlap.</summary>
     public TimeSpan ChunkDelay { get; set; }
+
+    /// <summary>
+    /// Gets or sets how many of the next transfers from an offset beyond 0 fail to open, as the
+    /// transport reports a resumption whose REST the server never answers (the opening limit ran
+    /// out); <see cref="int.MaxValue"/> for all of them.
+    /// </summary>
+    public int ResumptionsThatTimeOut
+    {
+        get => Volatile.Read(ref _resumptionsThatTimeOut);
+        set => Volatile.Write(ref _resumptionsThatTimeOut, value);
+    }
 
     public static DateTime Time(int minute) => new(2025, 8, 8, 12, minute, 0, DateTimeKind.Utc);
 
@@ -91,6 +103,19 @@ internal sealed class FakeServer
     }
 
     public IDatasusConnectionFactory Factory() => new Factory_(this);
+
+    private bool TakeResumptionTimeout()
+    {
+        for (var left = Volatile.Read(ref _resumptionsThatTimeOut); left > 0; left = Volatile.Read(ref _resumptionsThatTimeOut))
+        {
+            if (left == int.MaxValue || Interlocked.CompareExchange(ref _resumptionsThatTimeOut, left - 1, left) == left)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private sealed class Factory_(FakeServer server) : IDatasusConnectionFactory
     {
@@ -161,6 +186,14 @@ internal sealed class FakeServer
             server.TransferOffsets.Enqueue(offset);
             server.BeforeTransfer?.Invoke(transfer);
             server.FailIfAsked();
+            if (offset > 0 && server.TakeResumptionTimeout())
+            {
+                throw new TransientTransportException($"FTP transport failure while opening {path} for reading: the server did not open the resumed transfer within 5 s, so the connection was closed.")
+                {
+                    IsExpiredLimit = true,
+                };
+            }
+
             if (!server._files.TryGetValue(path, out var file))
             {
                 throw new FileNotFoundException($"550 {path}");

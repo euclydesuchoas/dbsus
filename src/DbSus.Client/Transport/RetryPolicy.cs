@@ -18,14 +18,21 @@ internal sealed class RetryPolicy(
 
     public int MaxRetries => maxRetries;
 
-    public async Task<T> RunAsync<T>(string operation, string remotePath, Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken)
+    public Task<T> RunAsync<T>(string operation, string remotePath, Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken) =>
+        RunAsync(operation, remotePath, (_, token) => action(token), cancellationToken);
+
+    /// <summary>
+    /// As the other overload, giving the action the number of its attempt, from 1; the last one
+    /// allowed is <see cref="MaxRetries"/> + 1.
+    /// </summary>
+    public async Task<T> RunAsync<T>(string operation, string remotePath, Func<int, CancellationToken, Task<T>> action, CancellationToken cancellationToken)
     {
         for (var attempt = 0; ; attempt++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                return await action(cancellationToken).ConfigureAwait(false);
+                return await action(attempt + 1, cancellationToken).ConfigureAwait(false);
             }
             catch (TransientTransportException exception)
             {
@@ -63,7 +70,7 @@ internal sealed class RetryPolicy(
     /// <summary>
     /// For an operation that counts its own attempts (a read that resumes): reports the transient
     /// failure of attempt <paramref name="attempts"/> to OnRetry and waits before the next one, as
-    /// <see cref="RunAsync"/> does between its attempts. Whether to try again is the caller's to
+    /// <see cref="RunAsync{T}(string, string, Func{int, CancellationToken, Task{T}}, CancellationToken)"/> does between its attempts. Whether to try again is the caller's to
     /// decide, against <see cref="MaxRetries"/>.
     /// </summary>
     public async Task WaitBeforeRetryAsync(string operation, string remotePath, int attempts, TransientTransportException failure, CancellationToken cancellationToken)

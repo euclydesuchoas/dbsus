@@ -84,4 +84,7 @@ internal sealed class TransientTransportException : IOException
     /// meant to throw, in which case it is the <see cref="Exception.InnerException"/>.
     /// </summary>
     public bool IsLibraryFailure { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether the failure is a step that ran out of its own time limit.</summary>
+    public bool IsExpiredLimit { get; set; }
 }

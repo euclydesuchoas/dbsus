@@ -24,10 +24,16 @@ namespace DbSus.Client.Transport;
 /// A transfer that drops, stalls past the read timeout or ends early before its last byte resumes,
 /// on a new connection in the same place of the pool, from the end of what the pump has received:
 /// the buffer keeps what it holds, and the consumer goes on reading it during the wait and the
-/// reconnection. Before resuming, the size and time on the server must still be those given at
-/// opening; otherwise the stream fails with <see cref="DatasusRemoteFileChangedException"/>. The
+/// reconnection. It resumes with REST, its opening limited by <see cref="Resumption.OpenTimeout"/>.
+/// Only after a resumption of the same sequence failed to open does it ask for the file from byte 0
+/// instead, dropping, unpublished, the bytes it already delivered: when the pump has received at
+/// most the restart size (<see cref="Resumption.RestartFromStartUpTo"/> by default), or on the last
+/// attempt the retry budget allows; otherwise it tries REST again. Before resuming, the size and
+/// time on the server must still be those given at opening; otherwise the stream fails with
+/// <see cref="DatasusRemoteFileChangedException"/>. The
 /// attempts follow the client's retry policy (its backoff and OnRetry), counted in a row while
-/// less than <see cref="ResetAfterBytes"/> arrive between two failures; when they run out the
+/// less than <see cref="ResetAfterBytes"/> arrive between two failures (bytes read again and
+/// dropped are no progress); when they run out the
 /// stream fails with <see cref="DatasusRetriesExhaustedException"/>. A file that is gone (550) and
 /// a pool that was disposed end it too. Every failure comes after the bytes received before it.
 /// </para>
@@ -58,6 +64,7 @@ internal sealed class RemoteReadAheadStream : Stream
     private readonly RemotePath _remote;
     private readonly RemoteFileInfo _expected;
     private readonly long _size;
+    private readonly long _restartFromStartUpTo;
     private readonly CancellationToken _cancellationToken;
     private readonly CancellationTokenSource _stop = new();
     private readonly CancellationTokenRegistration _registration;
@@ -77,10 +84,16 @@ internal sealed class RemoteReadAheadStream : Stream
     private bool _disposed;
     private TaskCompletionSource<bool>? _spaceWaiter;
 
-    // The pump's alone, after the opening: the transfer, which it replaces when it resumes, and the
-    // bytes it has published, where it resumes from. The lease's connection is the pump's as well.
+    // The pump's alone, after the opening: the transfer, which it replaces when it resumes, the
+    // bytes it has published, where it resumes from, and, after a transfer that started over from
+    // byte 0, how many of those the transfer has still to send again before anything new. The
+    // lease's connection is the pump's as well.
     private Stream _source;
     private long _received;
+    private long _toDrop;
+
+    // Set by ResumeAsync when the opening of a resumption failed; the pump reads and clears it.
+    private bool _openingFailed;
 
     // How a transfer that reached the size ended.
     private enum TransferEnd
@@ -95,7 +108,7 @@ internal sealed class RemoteReadAheadStream : Stream
         Excess,
     }
 
-    private RemoteReadAheadStream(ConnectionPool.Lease lease, Stream source, RetryPolicy retry, RemotePath remote, RemoteFileInfo expected, CancellationToken cancellationToken)
+    private RemoteReadAheadStream(ConnectionPool.Lease lease, Stream source, RetryPolicy retry, RemotePath remote, RemoteFileInfo expected, long restartFromStartUpTo, CancellationToken cancellationToken)
     {
         _lease = lease;
         _source = source;
@@ -103,6 +116,7 @@ internal sealed class RemoteReadAheadStream : Stream
         _remote = remote;
         _expected = expected;
         _size = expected.Size;
+        _restartFromStartUpTo = restartFromStartUpTo;
         _cancellationToken = cancellationToken;
         _registration = cancellationToken.Register(OnCanceled);
     }
@@ -155,6 +169,16 @@ internal sealed class RemoteReadAheadStream : Stream
     /// </param>
     /// <param name="cancellationToken">Cancels the opening and, afterward, every read, for the life of the stream.</param>
     public static Task<RemoteReadAheadStream> OpenAsync(ConnectionPool pool, RetryPolicy retry, RemotePath remote, RemoteFileInfo expected, CancellationToken cancellationToken) =>
+        OpenAsync(pool, retry, remote, expected, Resumption.RestartFromStartUpTo, cancellationToken);
+
+    /// <summary>Opens a file as <see cref="OpenAsync(ConnectionPool, RetryPolicy, RemotePath, RemoteFileInfo, CancellationToken)"/> does, with another restart size; tests change it.</summary>
+    /// <param name="pool">The pool.</param>
+    /// <param name="retry">The retry policy.</param>
+    /// <param name="remote">The file.</param>
+    /// <param name="expected">The size and time the server announced.</param>
+    /// <param name="restartFromStartUpTo">Up to this many bytes received, a failed transfer starts over from byte 0 instead of resuming.</param>
+    /// <param name="cancellationToken">Cancels the opening and every read.</param>
+    internal static Task<RemoteReadAheadStream> OpenAsync(ConnectionPool pool, RetryPolicy retry, RemotePath remote, RemoteFileInfo expected, long restartFromStartUpTo, CancellationToken cancellationToken) =>
         retry.RunAsync(Operation(remote), remote.Relative, async token =>
         {
             ConnectionPool.Lease? lease = null;
@@ -163,7 +187,7 @@ internal sealed class RemoteReadAheadStream : Stream
             {
                 lease = await pool.AcquireAsync(token).ConfigureAwait(false);
                 source = await lease.Connection.OpenReadAsync(remote.Full, 0, token).ConfigureAwait(false);
-                var stream = new RemoteReadAheadStream(lease, source, retry, remote, expected, cancellationToken);
+                var stream = new RemoteReadAheadStream(lease, source, retry, remote, expected, restartFromStartUpTo, cancellationToken);
                 lease = null;
                 source = null;
                 // Never canceled before it starts: the pump is what gives the connection back.
@@ -295,13 +319,21 @@ internal sealed class RemoteReadAheadStream : Stream
 
         try
         {
+            var fromStart = false;
+
+            // Whether a resumption of this sequence failed to open: the evidence that resuming does
+            // not work here, which alone lets a resumption start over from byte 0. A failure in the
+            // middle of a transfer that opened is none. The sequence ends with the count of
+            // attempts, when enough arrives past the last failure: the next sequence must find its
+            // own evidence, so a link that drops now and then keeps resuming with REST.
+            var resumptionFailedToOpen = false;
             for (var resume = false; ; resume = true)
             {
                 try
                 {
                     if (resume)
                     {
-                        await ResumeAsync(token).ConfigureAwait(false);
+                        await ResumeAsync(fromStart, token).ConfigureAwait(false);
                     }
 
                     var end = await TransferAsync(token).ConfigureAwait(false);
@@ -319,8 +351,11 @@ internal sealed class RemoteReadAheadStream : Stream
                 }
                 catch (TransientTransportException failure) when (!token.IsCancellationRequested)
                 {
+                    var newSequence = _received - lastFailureAt >= ResetAfterBytes;
                     failures = Attempt();
                     lastFailureAt = _received;
+                    resumptionFailedToOpen = (resumptionFailedToOpen && !newSequence) || _openingFailed;
+                    _openingFailed = false;
                     if (failures > _retry.MaxRetries)
                     {
                         throw Exhausted(_remote, failure, failures);
@@ -328,14 +363,22 @@ internal sealed class RemoteReadAheadStream : Stream
 
                     CloseTransfer();
                     await _retry.WaitBeforeRetryAsync(Operation(_remote), _remote.Relative, failures, failure, token).ConfigureAwait(false);
+
+                    // With that evidence, from byte 0 when little has arrived (that costs less than
+                    // another resumption that may fail too), or when the next attempt is the last the
+                    // budget allows; otherwise REST again.
+                    fromStart = resumptionFailedToOpen && (_received <= _restartFromStartUpTo || failures == _retry.MaxRetries);
                 }
             }
 
             End(null);
             delivered = true;
 
-            // Disposing the transfer reads the server's final reply (226); only then may the
-            // connection be reused. A failure there is not the consumer's, who has every byte.
+            // With the synchronous FluentFTP client (.NET Framework), disposing the transfer reads
+            // the server's final reply (226). With the asynchronous one it only drops the data
+            // connection, and FluentFTP reads the reply left on the control connection, as stale
+            // data, before the next command on it (waiting up to 10 s). Either way the connection
+            // may be reused. A failure here is not the consumer's, who has every byte.
             if (exact)
             {
                 _source.Dispose();
@@ -374,6 +417,7 @@ internal sealed class RemoteReadAheadStream : Stream
     // beyond the size, never delivered, tells an exact end from a server that sends more.
     private async Task<TransferEnd> TransferAsync(CancellationToken token)
     {
+        await DropAsync(token).ConfigureAwait(false);
         while (_received < _size)
         {
             var (offset, count) = await ReserveAsync((int)Math.Min(ChunkSize, _size - _received), token).ConfigureAwait(false);
@@ -398,9 +442,34 @@ internal sealed class RemoteReadAheadStream : Stream
         }
     }
 
+    // After a transfer that started over from byte 0: reads again the bytes already delivered and
+    // drops them, unpublished, so that what follows is new. They move neither _received nor the
+    // count of attempts. The read never goes past them, so the check one byte beyond the size is
+    // the same as after any other opening; a transfer that ends before them ended early.
+    private async Task DropAsync(CancellationToken token)
+    {
+        if (_toDrop == 0)
+        {
+            return;
+        }
+
+        var scratch = new byte[ChunkSize];
+        while (_toDrop > 0)
+        {
+            var read = await ReadNetworkAsync(_source, scratch, 0, (int)Math.Min(scratch.Length, _toDrop), token).ConfigureAwait(false);
+            if (read == 0)
+            {
+                throw new TransientTransportException($"Received {_received - _toDrop} of {_size} bytes of {_remote.Relative}.");
+            }
+
+            _toDrop -= read;
+        }
+    }
+
     // A new connection in the same place of the pool, the same version on the server, and the
-    // transfer again from the end of what was received.
-    private async Task ResumeAsync(CancellationToken token)
+    // transfer again: from the end of what was received, or from byte 0, with what was received to
+    // drop again.
+    private async Task ResumeAsync(bool fromStart, CancellationToken token)
     {
         try
         {
@@ -422,7 +491,19 @@ internal sealed class RemoteReadAheadStream : Stream
                 current);
         }
 
-        _source = await _lease.Connection.OpenReadAsync(_remote.Full, _received, token).ConfigureAwait(false);
+        _toDrop = fromStart ? _received : 0;
+        var offset = fromStart ? 0 : _received;
+        try
+        {
+            _source = await _lease.Connection.OpenReadAsync(_remote.Full, offset, token).ConfigureAwait(false);
+        }
+        catch (TransientTransportException) when (offset > 0 && !token.IsCancellationRequested)
+        {
+            // The opening of a resumption failed (its limit ran out, a reset, another failure):
+            // the pump takes it as evidence.
+            _openingFailed = true;
+            throw;
+        }
     }
 
     // Closes the transfer and its connection by force; the place in the pool stays the lease's.

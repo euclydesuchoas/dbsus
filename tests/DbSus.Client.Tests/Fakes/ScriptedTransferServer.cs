@@ -90,6 +90,9 @@ internal sealed class ScriptedTransferServer(byte[] content)
     /// <summary>Gets or sets the read timeout of the client's <see cref="ReadLimitStream"/>.</summary>
     public TimeSpan ReadTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
+    /// <summary>Gets or sets how many of the next transfers from an offset beyond 0 fail to open, as a resumption whose opening limit ran out.</summary>
+    public int ResumptionsThatFail { get; set; }
+
     /// <summary>Gets the offset each transfer started at (its REST), in order.</summary>
     public ConcurrentQueue<long> TransferOffsets { get; } = new();
 
@@ -156,6 +159,14 @@ internal sealed class ScriptedTransferServer(byte[] content)
             var transfer = Interlocked.Increment(ref server._transfers);
             server.BeforeTransfer?.Invoke(transfer);
             server.TransferOffsets.Enqueue(offset);
+            if (offset > 0 && server.ResumptionsThatFail > 0)
+            {
+                server.ResumptionsThatFail--;
+                throw new TransientTransportException("FTP transport failure while opening the file for reading: the server did not open the resumed transfer within 5 s, so the connection was closed.")
+                {
+                    IsExpiredLimit = true,
+                };
+            }
             var fault = server.Faults.TryDequeue(out var next) ? next : null;
             return Task.FromResult<Stream>(new ReadLimitStream(new Transfer(server, offset, fault, () => ClosedByServer, _abort.Token), server.ReadTimeout, Abort));
         }

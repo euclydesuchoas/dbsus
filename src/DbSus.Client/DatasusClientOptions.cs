@@ -70,12 +70,27 @@ public sealed class DatasusClientOptions
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>Gets or sets the longest silence tolerated on a connection. The default is 60 seconds.</summary>
+    /// <remarks>
+    /// Opening a transfer that resumes an interrupted download or read, from a byte beyond the
+    /// start, has a shorter limit of its own, 5 seconds, from the passive-mode request to the
+    /// server's reply to the transfer command. When it runs out, the connection is closed and the
+    /// attempt counts as a transient failure, retried on a new connection (see
+    /// <see cref="MaxRetries"/> for when the retry starts over from the beginning).
+    /// </remarks>
     public TimeSpan ReadTimeout { get; set; } = TimeSpan.FromSeconds(60);
 
     /// <summary>
     /// Gets or sets how many times a transient failure (dropped connection, timeout, FTP 4xx reply)
     /// is retried. The default is 4.
     /// </summary>
+    /// <remarks>
+    /// A download interrupted part way resumes, on the next attempt, from where it stopped; so does
+    /// a partial download left by an earlier call or another process. Only after an attempt of the
+    /// same call failed to open such a resumption does a later attempt start over from the
+    /// beginning of the file instead: when at most 16 MiB had been received, or on the last attempt
+    /// these retries allow; otherwise it tries to resume again. A failure in the middle of a
+    /// transfer that opened never makes the download start over.
+    /// </remarks>
     public int MaxRetries { get; set; } = 4;
 
     /// <summary>
@@ -117,6 +132,20 @@ public sealed class DatasusClientOptions
     /// file into the cache. The default is 10 minutes.
     /// </summary>
     public TimeSpan LockTimeout { get; set; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// Gets or sets the limit on opening a transfer that resumes; internal, so that tests can
+    /// shorten it. The default is <see cref="Transport.Resumption.OpenTimeout"/>.
+    /// </summary>
+    internal TimeSpan ResumeOpenTimeout { get; set; } = Transport.Resumption.OpenTimeout;
+
+    /// <summary>
+    /// Gets or sets up to how many bytes a partial download starts over from byte 0 instead of
+    /// resuming, once a resumption of the same call failed to open; internal, so that tests can
+    /// change it. The default is
+    /// <see cref="Transport.Resumption.RestartFromStartUpTo"/>.
+    /// </summary>
+    internal long RestartFromStartUpTo { get; set; } = Transport.Resumption.RestartFromStartUpTo;
 
     internal void Validate()
     {

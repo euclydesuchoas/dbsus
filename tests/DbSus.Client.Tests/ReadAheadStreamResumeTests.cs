@@ -831,7 +831,7 @@ public sealed class ReadAheadStreamResumeTests
 
     // The place is free (a lease comes at once), and once the pool lets go of its idle connections,
     // none is left open.
-    private static async Task AssertNothingHeldAsync(ConnectionPool pool, Func<int> openConnections)
+    internal static async Task AssertNothingHeldAsync(ConnectionPool pool, Func<int> openConnections)
     {
         using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
         using (await pool.AcquireAsync(timeout.Token))
@@ -878,19 +878,20 @@ public sealed class ReadAheadStreamResumeTests
         }
     }
 
-    private static ConnectionPool LoopbackPool(LoopbackFtpServer server, TimeSpan readTimeout) => new(
+    internal static ConnectionPool LoopbackPool(LoopbackFtpServer server, TimeSpan readTimeout, TimeSpan? resumeOpenTimeout = null) => new(
         new FtpConnectionFactory(new DatasusClientOptions
         {
             Host = "127.0.0.1",
             Port = server.Port,
             ConnectTimeout = TimeSpan.FromSeconds(5),
             ReadTimeout = readTimeout,
+            ResumeOpenTimeout = resumeOpenTimeout ?? Resumption.OpenTimeout,
         }),
         1);
 
     // A retry policy from 100 ms that records what it reports to OnRetry; the waits are not waited
     // unless a test gives its own.
-    private sealed class Retries
+    internal sealed class Retries
     {
         private readonly List<DatasusRetryInfo> _infos = [];
 
