@@ -80,6 +80,67 @@ public sealed class StreamingReaderLoopbackTests : IDisposable
         Assert.Equal(500, records);
     }
 
+    // The transfer of part b's header, read ahead, ends inside the 69 bytes it takes (the header and
+    // its checksum): in the first 32, in the rest of the header, or in the checksum. Part b is longer,
+    // so the transfer was cut short: it is read again on the reader's place, and the opening goes on.
+    [Theory(Timeout = 60_000)]
+    [InlineData(20, "426 Connection closed; transfer aborted.")]
+    [InlineData(50, "226 Transfer complete.")]
+    [InlineData(67, "426 Connection closed; transfer aborted.")]
+    public async Task HeaderReadAheadEndsInsideIt_ItIsReadAgain_AndTheOpeningGoesOn(long cut, string reply)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var a = Dbc(0, 300);
+        var b = Dbc(300, 200);
+        _server.Files["/dissemin/publicos/X/PAMG2407a.dbc"] = a;
+        _server.Files["/dissemin/publicos/X/PAMG2407b.dbc"] = b;
+        _server.EndTransferAfter = cut;
+        _server.EndedTransferReply = reply;
+        var retries = 0;
+        using var client = Client(TimeSpan.FromSeconds(10), onRetry: () =>
+        {
+            Interlocked.Increment(ref retries);
+            _server.EndTransferAfter = null;
+        });
+
+        using var reader = await client.OpenStreamingReaderAsync(Table(a.Length, b.Length), cancellationToken: ct);
+        var records = 0;
+        while (reader.Read())
+        {
+            Assert.Equal(Code(records), reader.GetString(0));
+            records++;
+        }
+
+        // Part b's header twice, then part a's body and part b's.
+        Assert.Equal(500, records);
+        Assert.Equal(1, Volatile.Read(ref retries));
+        Assert.Equal(4, _server.Commands.Count(command => command == "RETR"));
+        Assert.Empty(_server.Restarts);
+        await ReadAheadStreamTests.WaitUntilAsync(() => client.OpenStreamingReaders == 0, "the reader to let go");
+    }
+
+    // A part b that really ends inside the bytes its header takes is invalid, and is not read again.
+    [Theory(Timeout = 60_000)]
+    [InlineData(20)]
+    [InlineData(67)]
+    public async Task PartEndsInsideItsHeader_TheOpeningThrowsInvalidData_WithoutReadingItAgain(int length)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var a = Dbc(0, 300);
+        byte[] b = [.. Dbc(300, 200).Take(length)];
+        _server.Files["/dissemin/publicos/X/PAMG2407a.dbc"] = a;
+        _server.Files["/dissemin/publicos/X/PAMG2407b.dbc"] = b;
+        var retries = 0;
+        using var client = Client(TimeSpan.FromSeconds(10), onRetry: () => Interlocked.Increment(ref retries));
+
+        var exception = await Assert.ThrowsAsync<InvalidDataException>(() => client.OpenStreamingReaderAsync(Table(a.Length, b.Length), cancellationToken: ct));
+
+        Assert.Contains("ends inside its header", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(0, Volatile.Read(ref retries));
+        Assert.Single(_server.Commands, command => command == "RETR");
+        Assert.Equal(0, client.OpenStreamingReaders);
+    }
+
     [Fact(Timeout = 60_000)]
     public async Task DisposedFromAnotherThread_WhileTheReadWaitsForData_TheReadEndsWithObjectDisposed()
     {
@@ -135,7 +196,16 @@ public sealed class StreamingReaderLoopbackTests : IDisposable
         return SyntheticDbc.BuildDbc(builder.Build());
     }
 
-    private DatasusClient Client(TimeSpan readTimeout) => new(new DatasusClientOptions
+    // The table of parts a and b, with the time the server's MDTM answers.
+    private static DatasusTableInfo Table(long sizeA, long sizeB) => new(
+        DatasusCatalog.SiaSus.PA,
+        DatasusUf.MG,
+        DatasusPeriod.OfMonth(2024, 7),
+        isPreliminary: false,
+        FilePath,
+        [new DatasusFileInfo("/X/PAMG2407a.dbc", "PAMG2407a.dbc", sizeA, Modified, isDirectory: false), new DatasusFileInfo("/X/PAMG2407b.dbc", "PAMG2407b.dbc", sizeB, Modified, isDirectory: false)]);
+
+    private DatasusClient Client(TimeSpan readTimeout, Action? onRetry = null) => new(new DatasusClientOptions
     {
         Host = "127.0.0.1",
         Port = _server.Port,
@@ -143,5 +213,6 @@ public sealed class StreamingReaderLoopbackTests : IDisposable
         ReadTimeout = readTimeout,
         InitialRetryDelay = TimeSpan.Zero,
         CacheDirectory = null,
+        OnRetry = onRetry is null ? null : _ => onRetry(),
     });
 }

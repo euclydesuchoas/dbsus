@@ -394,6 +394,47 @@ public sealed class StreamingReaderTests : IDisposable
         Assert.Equal(2, _fixture.Delays.Count);
     }
 
+    // A file republished, with the same size or another, after a resumption failed to open and
+    // before the transfer that would start over from byte 0: the version is asked before that
+    // transfer too, so the read ends with the change, after records of the first version alone.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RepublishedBeforeTheTransferThatStartsOver_ThrowsRemoteFileChanged_AfterRecordsOfTheFirstVersionAlone(bool sameSize)
+    {
+        var first = ClientFixture.Dbc(Codes('R', 3000));
+        var second = ClientFixture.Dbc(Codes('S', sameSize ? 3000 : 3100));
+        Assert.Equal(sameSize, first.Length == second.Length);
+        _fixture.Server.Add(Single, first);
+        _fixture.Server.BeforeTransfer = transfer =>
+        {
+            if (transfer == 1)
+            {
+                // The body drops after 5000 bytes, and its resumption with REST does not open.
+                _fixture.Server.FailNextTransferAfter(5000);
+                _fixture.Server.ResumptionsThatTimeOut = 1;
+            }
+        };
+        var client = _fixture.Client(configure: options => options.OnRetry = info =>
+        {
+            if (info.Attempt == 2)
+            {
+                _fixture.Server.Add(Single, second, FakeServer.Time(9));
+            }
+        });
+        using var reader = await client.OpenStreamingReaderAsync(Single, cancellationToken: Ct);
+        var codes = new List<string>();
+
+        var exception = Assert.Throws<DatasusRemoteFileChangedException>(() => ReadInto(reader, codes));
+
+        Assert.InRange(codes.Count, 1, 2999);
+        Assert.Equal(Codes('R', 3000).Take(codes.Count), codes);
+        Assert.Equal(first.Length, exception.Expected.Size);
+        Assert.Equal(second.Length, exception.Current.Size);
+        Assert.Equal(FakeServer.Time(9), exception.Current.LastModifiedUtc);
+        Assert.Equal(new long[] { 0, 5000 }, _fixture.Server.TransferOffsets);
+    }
+
     [Fact]
     public async Task PartRemovedAfterTheOpening_ThrowsFileNotFound_AndLetsGo()
     {

@@ -104,6 +104,37 @@ public sealed class DownloadRestartTests : IDisposable
         Assert.True(Assert.IsType<TransientTransportException>(infos[1].Exception).IsExpiredLimit);
     }
 
+    // The version is asked before every attempt that goes on with a partial download, the one that
+    // starts over from byte 0 included, as it was before there was any: a file republished after the
+    // resumption failed to open is found before the next transfer, and downloaded once, whole, in
+    // its new version.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(100)]
+    [InlineData(-100)]
+    public async Task RepublishedBeforeTheAttemptThatStartsOver_IsFoundBeforeItsTransfer(int sizeChange)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        const string path = "/X/RDMG2407.dbf";
+        byte[] first = [.. Enumerable.Range(0, 20_000).Select(i => (byte)(i % 251))];
+        byte[] second = [.. Enumerable.Range(0, 20_000 + sizeChange).Select(i => (byte)(i % 241))];
+        _fixture.Server.Add(path, first, FakeServer.Time(1));
+        _fixture.Server.FailNextTransferAfter(5000);
+        _fixture.Server.ResumptionsThatTimeOut = 1;
+
+        var local = await _fixture.Client(configure: options => options.OnRetry = info =>
+        {
+            if (info.Attempt == 2)
+            {
+                _fixture.Server.Add(path, second, FakeServer.Time(2));
+            }
+        }).DownloadAsync(path, ct);
+
+        Assert.Equal(second, File.ReadAllBytes(local));
+        Assert.Equal([0L, 5000L, 0L], _fixture.Server.TransferOffsets);
+        Assert.Equal(5000 + second.Length, _fixture.Server.BytesServed);
+    }
+
     [Fact]
     public async Task RestAlwaysUnanswered_LargePartial_TriesRestAgain_ThenTheLastAttemptDownloadsTheFileWhole()
     {

@@ -711,23 +711,24 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
                 offset = 0;
             }
 
+            using var lease = await _pool.AcquireAsync(token).ConfigureAwait(false);
+            if (offset > 0 || sentTooMuch)
+            {
+                // Go on with a partial file only if the server still has the same version; otherwise
+                // start over. After a transfer that sent more than the size, the file may have grown:
+                // ask again first.
+                await EnsureSameVersionAsync(lease, remote, info, partialPath, token).ConfigureAwait(false);
+            }
+
             // A partial file, from an earlier attempt or another process, is resumed with REST. Only
             // after a resumption failed to open is it downloaded again from byte 0, without REST:
             // when it is small (that costs less than another resumption that may fail too), or on
             // the last attempt the budget allows. One that cannot be deleted is resumed instead:
-            // appending to it from byte 0 would corrupt it.
+            // appending to it from byte 0 would corrupt it. Either way, the version was asked above.
             if (offset > 0 && resumptionFailedToOpen && (offset <= _options.RestartFromStartUpTo || attempt == _retry.MaxRetries + 1))
             {
                 FileLocks.TryDelete(partialPath);
                 offset = File.Exists(partialPath) ? new FileInfo(partialPath).Length : 0;
-            }
-
-            using var lease = await _pool.AcquireAsync(token).ConfigureAwait(false);
-            if (offset > 0 || sentTooMuch)
-            {
-                // Resume only if the server still has the same version; otherwise start over. After a
-                // transfer that sent more than the size, the file may have grown: ask again first.
-                await EnsureSameVersionAsync(lease, remote, info, partialPath, token).ConfigureAwait(false);
             }
 
             if (offset < info.Size)

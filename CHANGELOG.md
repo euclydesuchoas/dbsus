@@ -14,7 +14,11 @@ All notable changes to this project are documented in this file. The format foll
 ### Changed
 
 - `DbSus.Client` gives the opening of a transfer that resumes an interrupted download, from a byte beyond the start, a limit of its own: 5 seconds from the passive-mode request to the server's reply to the transfer command. Past it the connection is closed and the attempt counts as a transient failure, retried on a new connection with the usual backoff and `OnRetry`. Before, such an opening could wait as long as `ReadTimeout`, or until the operating system gave up on an unanswered command. Opening a transfer from the start keeps `ReadTimeout` alone.
-- An interrupted download still resumes from where it stopped, and so does a partial download left by an earlier call or another process sharing the cache. When an attempt fails to open such a resumption, the next attempt of the same call starts over from the beginning of the file, without resuming, if at most 16 MiB had been received or if it is the last attempt that `MaxRetries` allows; otherwise it tries to resume again. A failure in the middle of a transfer that opened never makes the download start over. With `MaxRetries` set to 0, a resumption that fails to open is thrown as any other failure, and the partial download is kept.
+- An interrupted download still resumes from where it stopped, and so does a partial download left by an earlier call or another process sharing the cache. When an attempt fails to open such a resumption, the next attempt of the same call starts over from the beginning of the file, without resuming, if at most 16 MiB had been received or if it is the last attempt that `MaxRetries` allows; otherwise it tries to resume again. That attempt first checks the file's size and time again, as every attempt that goes on with a partial download does. A failure in the middle of a transfer that opened never makes the download start over. With `MaxRetries` set to 0, a resumption that fails to open is thrown as any other failure, and the partial download is kept.
+
+### Fixed
+
+- `ReadHeaderAsync` threw `InvalidDataException`, without retrying, when the transfer ended inside the header of a file the server announces as longer. That is a transfer cut short: it is now retried, as any transient failure. A file that really ends inside its header still throws `InvalidDataException`, and is not retried.
 
 ## [0.1.0-preview.4] - 2026-10-21
 

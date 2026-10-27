@@ -216,7 +216,7 @@ public sealed partial class DatasusClient
             var ahead = new List<byte[]> { Array.Empty<byte>() };
             for (var i = 1; i < files.Count; i++)
             {
-                ahead.Add(await ReadHeaderAheadAsync(lease, files[i].Remote, cancellationToken).ConfigureAwait(false));
+                ahead.Add(await ReadHeaderAheadAsync(lease, files[i].Remote, files[i].Info, cancellationToken).ConfigureAwait(false));
             }
 
             for (var i = 0; i < files.Count; i++)
@@ -244,20 +244,29 @@ public sealed partial class DatasusClient
     }
 
     // The DBF header and the checksum after it (the first bytes of a .dbc), on the reader's place:
-    // a new connection when the one there cannot be used, and the transfer aborted afterward.
-    private Task<byte[]> ReadHeaderAheadAsync(ConnectionPool.Lease lease, RemotePath remote, CancellationToken cancellationToken) =>
+    // a new connection when the one there cannot be used, and the transfer aborted afterward. A
+    // transfer that ends inside them is cut short when the size announced at the opening has them,
+    // and is read again then, as any transient failure.
+    private Task<byte[]> ReadHeaderAheadAsync(ConnectionPool.Lease lease, RemotePath remote, RemoteFileInfo info, CancellationToken cancellationToken) =>
         _retry.RunAsync($"Reading the header of {remote.Relative}", remote.Relative, async token =>
         {
             await lease.EnsureConnectionAsync(token).ConfigureAwait(false);
             try
             {
                 using var stream = await lease.Connection.OpenReadAsync(remote.Full, 0, token).ConfigureAwait(false);
+                var needed = 32 + 4;
                 try
                 {
                     var prefix = await ReadExactlyAsync(stream, 32, remote, token).ConfigureAwait(false);
                     var headerLength = prefix[8] | (prefix[9] << 8);
+                    needed = Math.Max(32, headerLength) + 4;
                     var rest = await ReadExactlyAsync(stream, Math.Max(0, headerLength - 32) + 4, remote, token).ConfigureAwait(false);
                     return (byte[])[.. prefix, .. rest];
+                }
+                catch (InvalidDataException)
+                {
+                    // ReadExactlyAsync throws it when the transfer ends before the bytes asked for.
+                    throw EndedInsideHeader(remote, needed, info.Size);
                 }
                 finally
                 {
