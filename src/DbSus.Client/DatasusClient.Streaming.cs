@@ -83,7 +83,10 @@ public sealed partial class DatasusClient
     /// and the reading. A <see cref="DbfReader.Read"/> that waits for the server then throws
     /// <see cref="OperationCanceledException"/> at once; records already decompressed in memory may
     /// still be returned first, and after them every read throws. A token with a short deadline
-    /// meant only for the opening also cancels the reads that follow.
+    /// meant only for the opening also cancels the reads that follow. If the transfer of the part
+    /// being read already has every byte when it sees the cancellation, the reader keeps its place
+    /// among the connections, and among the streaming readers the client allows, until it is
+    /// disposed; disposing it always lets both go, so dispose it after a cancellation too.
     /// </para>
     /// <para>
     /// The reader is not thread-safe. Disposing it from another thread makes a
@@ -94,7 +97,7 @@ public sealed partial class DatasusClient
     /// <param name="path">Path of any part or of the unsplit name.</param>
     /// <param name="dbfOptions">DBF read options, or <see langword="null"/>.</param>
     /// <param name="dbcOptions">DBC read options, or <see langword="null"/>.</param>
-    /// <param name="cancellationToken">Cancels the opening and, afterward, every read of the reader.</param>
+    /// <param name="cancellationToken">Cancels the opening and, afterward, every read of the reader. Dispose the reader after a cancellation too: if the transfer of the part being read already had every byte, only disposing it lets its place go.</param>
     /// <returns>A reader positioned before the first record, after every part's header has been read and checked.</returns>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ArgumentException">
@@ -163,8 +166,11 @@ public sealed partial class DatasusClient
     /// of the headers read ahead come from the opening's asynchronous flow, not necessarily on the
     /// thread that called this method. <paramref name="cancellationToken"/> holds for the life of the
     /// reader, so a token with a short deadline meant only for the opening also cancels the reads that
-    /// follow. The reader is not thread-safe; disposing it from another thread makes a
-    /// <see cref="DbfReader.Read"/> in progress end with <see cref="ObjectDisposedException"/>, and
+    /// follow. If the transfer of the part being read already has every byte when it sees the
+    /// cancellation, the reader keeps its place among the connections, and among the streaming
+    /// readers the client allows, until it is disposed; disposing it always lets both go, so dispose
+    /// it after a cancellation too. The reader is not thread-safe; disposing it from another thread
+    /// makes a <see cref="DbfReader.Read"/> in progress end with <see cref="ObjectDisposedException"/>, and
     /// leaves the reader unusable.
     /// The version expected of each part is the size and time of <see cref="DatasusTableInfo.Parts"/>:
     /// a table from <see cref="FindTableAsync"/> or <see cref="FindNationalTableAsync"/> has them, so a
@@ -175,7 +181,7 @@ public sealed partial class DatasusClient
     /// <param name="table">The table to open.</param>
     /// <param name="dbfOptions">DBF read options, or <see langword="null"/>.</param>
     /// <param name="dbcOptions">DBC read options, or <see langword="null"/>.</param>
-    /// <param name="cancellationToken">Cancels the opening and, afterward, every read of the reader.</param>
+    /// <param name="cancellationToken">Cancels the opening and, afterward, every read of the reader. Dispose the reader after a cancellation too: if the transfer of the part being read already had every byte, only disposing it lets its place go.</param>
     /// <returns>A reader positioned before the first record, after every part's header has been read and checked.</returns>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="InvalidOperationException">
@@ -221,7 +227,7 @@ public sealed partial class DatasusClient
     /// <param name="period">A month for a monthly dataset, a year for a yearly one.</param>
     /// <param name="dbfOptions">DBF read options, or <see langword="null"/>.</param>
     /// <param name="dbcOptions">DBC read options, or <see langword="null"/>.</param>
-    /// <param name="cancellationToken">Cancels the opening and, afterward, every read of the reader.</param>
+    /// <param name="cancellationToken">Cancels the opening and, afterward, every read of the reader. Dispose the reader after a cancellation too: if the transfer of the part being read already had every byte, only disposing it lets its place go.</param>
     /// <returns>A reader positioned before the first record, after every part's header has been read and checked.</returns>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ArgumentOutOfRangeException">As for <see cref="FindTableAsync"/>.</exception>
@@ -266,7 +272,7 @@ public sealed partial class DatasusClient
     /// <param name="period">A month for a monthly dataset, a year for a yearly one.</param>
     /// <param name="dbfOptions">DBF read options, or <see langword="null"/>.</param>
     /// <param name="dbcOptions">DBC read options, or <see langword="null"/>.</param>
-    /// <param name="cancellationToken">Cancels the opening and, afterward, every read of the reader.</param>
+    /// <param name="cancellationToken">Cancels the opening and, afterward, every read of the reader. Dispose the reader after a cancellation too: if the transfer of the part being read already had every byte, only disposing it lets its place go.</param>
     /// <returns>A reader positioned before the first record, after its header has been read and checked.</returns>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
     /// <exception cref="ArgumentOutOfRangeException">As for <see cref="FindNationalTableAsync"/>.</exception>
