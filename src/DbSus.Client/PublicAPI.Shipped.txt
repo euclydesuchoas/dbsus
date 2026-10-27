@@ -277,3 +277,10 @@ static DbSus.Client.DatasusPeriod.operator <=(DbSus.Client.DatasusPeriod left, D
 static DbSus.Client.DatasusPeriod.operator ==(DbSus.Client.DatasusPeriod left, DbSus.Client.DatasusPeriod right) -> bool
 static DbSus.Client.DatasusPeriod.operator >(DbSus.Client.DatasusPeriod left, DbSus.Client.DatasusPeriod right) -> bool
 static DbSus.Client.DatasusPeriod.operator >=(DbSus.Client.DatasusPeriod left, DbSus.Client.DatasusPeriod right) -> bool
+DbSus.Client.DatasusClient.OpenNationalStreamingReaderAsync(DbSus.Client.DatasusDataset! dataset, DbSus.Client.DatasusPeriod period, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfReader!>!
+DbSus.Client.DatasusClient.OpenStreamingReaderAsync(DbSus.Client.DatasusDataset! dataset, DbSus.Client.DatasusUf uf, DbSus.Client.DatasusPeriod period, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfReader!>!
+DbSus.Client.DatasusClient.OpenStreamingReaderAsync(DbSus.Client.DatasusTableInfo! table, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfReader!>!
+DbSus.Client.DatasusClient.OpenStreamingReaderAsync(string! path, DbSus.Dbf.DbfReadOptions? dbfOptions = null, DbSus.Dbc.DbcReadOptions? dbcOptions = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfReader!>!
+DbSus.Client.DatasusRemoteFileChangedException
+DbSus.Client.DatasusRemoteFileChangedException.Current.get -> DbSus.Client.DatasusFileInfo!
+DbSus.Client.DatasusRemoteFileChangedException.Expected.get -> DbSus.Client.DatasusFileInfo!
