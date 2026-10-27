@@ -97,6 +97,10 @@ public sealed partial class DatasusClient
     /// <param name="cancellationToken">Cancels the opening and, afterward, every read of the reader.</param>
     /// <returns>A reader positioned before the first record, after every part's header has been read and checked.</returns>
     /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="path"/> is not acceptable (the message says why). It is checked before the
+    /// limit of readers, and nothing was sent to the server.
+    /// </exception>
     /// <exception cref="InvalidOperationException">
     /// <see cref="DatasusClientOptions.MaxConnections"/> is 1, or MaxConnections - 1 readers from
     /// this method are open already. Nothing was sent to the server.
@@ -114,6 +118,7 @@ public sealed partial class DatasusClient
     public async Task<DbfReader> OpenStreamingReaderAsync(string path, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null, CancellationToken cancellationToken = default)
     {
         Guard.NotDisposed(_disposed, this);
+        _ = RemotePath.Parse(path, Root); // a path that is not acceptable throws before a place is taken
         var releaseReader = ReserveStreamingReader();
         IReadOnlyList<DatasusFileInfo> parts;
         try
