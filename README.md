@@ -96,7 +96,7 @@ while (reader.Read())
 - Tables split into parts read as one table, from paths or streams.
 - The CRC-32 stored in each `.dbc` is verified.
 - `DbSus.Client`: listing, file size and date, split-table discovery, headers without a full download, resumable and verified downloads, an optional cache shared safely between threads and processes, retries with backoff, typed exceptions, read timeouts and cancellation.
-- `DbSus.Client`, in preview: reading a table straight from the server, without a download (see "Reading without a download" in the [client guide](https://github.com/euclydesuchoas/dbsus/blob/main/docs/client.md)).
+- `DbSus.Client`, opt-in and in preview (its API may change before a stable release): reading a table straight from the server, without a download, with `OpenStreamingReaderAsync` (see "Reading without a download" in the [client guide](https://github.com/euclydesuchoas/dbsus/blob/main/docs/client.md)).
 - `DatasusCatalog`: 112 DATASUS file types by name, to build paths and to find, list and open tables by dataset, state and period, and the table for the whole country of the 73 that have one.
 
 ## Guides

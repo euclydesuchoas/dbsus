@@ -15,9 +15,9 @@ public sealed partial class DatasusClient
     private int _streamingReaders;
 
     /// <summary>
-    /// Opens a table for reading straight from the server, without downloading it: every part of
-    /// the table (see <see cref="FindPartsAsync"/>), in order, as one <see cref="DbfReader"/>.
-    /// Preview: the behavior may change before a stable release.
+    /// Preview: this method's API and behavior may change before a stable release. Opens a table
+    /// for reading straight from the server, without downloading it: every part of the table (see
+    /// <see cref="FindPartsAsync"/>), in order, as one <see cref="DbfReader"/>.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -130,10 +130,11 @@ public sealed partial class DatasusClient
     }
 
     /// <summary>
-    /// Opens a table already found for reading straight from the server, without downloading it and
-    /// without looking for the table again, as one <see cref="DbfReader"/> over exactly
+    /// Preview: this method's API and behavior may change before a stable release. Opens a table
+    /// already found for reading straight from the server, without downloading it and without
+    /// looking for the table again, as one <see cref="DbfReader"/> over exactly
     /// <see cref="DatasusTableInfo.Parts"/>, in order. Use it to read preliminary data and the tables
-    /// for the whole country. Preview: the behavior may change before a stable release.
+    /// for the whole country.
     /// </summary>
     /// <remarks>
     /// Everything said for

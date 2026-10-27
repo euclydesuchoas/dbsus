@@ -66,7 +66,7 @@ The file types, their folders and names, and what the catalog leaves out are in 
 
 ## Reading without a download
 
-**Preview:** `OpenStreamingReaderAsync` may change before a stable release.
+**Preview:** `OpenStreamingReaderAsync` is an opt-in feature in preview: its API and its behavior may change before a stable release. The other methods of the client do not use it.
 
 `OpenStreamingReaderAsync` reads a table straight from the server, as it arrives, without writing it to disk. Use it when there is no disk to spare for the file, or to start on the first records before the whole file has arrived. It does not speed up the transfer: it reads the file over one connection, as a download does.
 
