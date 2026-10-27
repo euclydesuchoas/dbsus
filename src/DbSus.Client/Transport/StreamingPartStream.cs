@@ -7,7 +7,8 @@ namespace DbSus.Client.Transport;
 /// done with it: from byte 0, dropping the bytes read ahead, so that REST is sent only to resume
 /// after a failure. Disposing it, from any thread, makes a read waiting for it end with
 /// <see cref="ObjectDisposedException"/>, and stops the transfer unless every byte has arrived (the
-/// transfer then ends on its own, and the connection stays good for the next part).
+/// transfer then ends on its own, and the connection stays good for the next part). Once every
+/// part is disposed, the session stops every transfer still under way, even one with every byte.
 /// </summary>
 internal sealed class StreamingPartStream : Stream
 {

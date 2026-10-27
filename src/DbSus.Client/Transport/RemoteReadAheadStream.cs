@@ -18,7 +18,10 @@ namespace DbSus.Client.Transport;
 /// have been read. A failure after the last byte, while the pump reads one more to see that the
 /// transfer ends there (a reset, or a server that keeps the data connection open and silent until
 /// the read timeout), fails nothing: every byte is in the buffer, so the stream ends as at an exact
-/// end, without resuming, and the connection is closed instead of going back to the pool.
+/// end, without resuming, and the connection is closed instead of going back to the pool. On a
+/// lease (a reader of several parts), a server that sends more fails the reader only while it
+/// still reads: on the last or only part, the reader may end before the check, which the session
+/// stops once every part is disposed. Each part's CRC-32, not this check, guarantees its bytes.
 /// </para>
 /// <para>
 /// A transfer that drops, stalls past the read timeout or ends early before its last byte resumes,
@@ -328,6 +331,13 @@ internal sealed class RemoteReadAheadStream : Stream
     public override void SetLength(long value) => throw new NotSupportedException();
 
     public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+    /// <summary>
+    /// Stops the pump, as disposing a stream that has not every byte does, even when every byte has
+    /// arrived: the transfer is closed by force, without the check one byte beyond the size, and the
+    /// connection is not kept. Nothing happens once the pump is over. It never waits for the pump.
+    /// </summary>
+    internal void Stop() => StopLater();
 
     protected override void Dispose(bool disposing)
     {

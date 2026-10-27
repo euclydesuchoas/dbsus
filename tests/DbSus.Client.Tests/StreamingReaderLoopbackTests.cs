@@ -183,6 +183,125 @@ public sealed class StreamingReaderLoopbackTests : IDisposable
         Assert.Equal(1, _server.Commands.Count(command => command == "RETR"));
     }
 
+    // A table of one part, whose size and time are known: nothing is asked of the server before the
+    // place is taken, and the place comes from an idle connection at once. The opening still gives
+    // the caller's thread back before the first part's transfer answers.
+    [Fact(Timeout = 60_000)]
+    public async Task OnePartTable_RetrAnsweredLate_TheOpeningReturnsAnIncompleteTaskAtOnce()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var content = Dbc(0, 300);
+        _server.Files[FullPath] = content;
+        using var client = Client(TimeSpan.FromSeconds(10));
+        await client.GetInfoAsync(FilePath, ct);
+        _server.DelayedCommand = "RETR";
+        _server.ReplyDelay = TimeSpan.FromSeconds(3);
+        var part = new DatasusFileInfo(FilePath, "PAMG2407.dbc", content.Length, Modified, isDirectory: false);
+        var table = new DatasusTableInfo(DatasusCatalog.SiaSus.PA, DatasusUf.MG, DatasusPeriod.OfMonth(2024, 7), isPreliminary: false, FilePath, [part]);
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var opening = client.OpenStreamingReaderAsync(table, cancellationToken: ct);
+        var returnedAfter = watch.Elapsed;
+        var completed = opening.IsCompleted;
+
+        Assert.False(completed);
+        Assert.True(returnedAfter < TimeSpan.FromMilliseconds(1000), $"The opening returned after {returnedAfter.TotalMilliseconds:N0} ms.");
+        using var reader = await opening;
+        var records = 0;
+        while (reader.Read())
+        {
+            records++;
+        }
+
+        Assert.Equal(300, records);
+    }
+
+    // A permanent refusal of the request to resume (FTP 5xx) is not retried: Read throws it, after
+    // the records already returned.
+    [Fact(Timeout = 60_000)]
+    public async Task RestRefusedWithAPermanentReply_ReadThrowsRequestRefused_AfterTheRecordsReturned_WithoutAnotherAttempt()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var content = Dbc(0, 30_000);
+        _server.Files[FullPath] = content;
+        _server.EndTransferAfter = 50_000;
+        _server.RestReply = "502 Command not implemented.";
+        var retries = 0;
+        using var client = Client(TimeSpan.FromSeconds(10), onRetry: () => Interlocked.Increment(ref retries));
+        var part = new DatasusFileInfo(FilePath, "PAMG2407.dbc", content.Length, Modified, isDirectory: false);
+        var table = new DatasusTableInfo(DatasusCatalog.SiaSus.PA, DatasusUf.MG, DatasusPeriod.OfMonth(2024, 7), isPreliminary: false, FilePath, [part]);
+        using var reader = await client.OpenStreamingReaderAsync(table, cancellationToken: ct);
+        var records = 0;
+
+        var exception = Assert.Throws<DatasusRequestRefusedException>(() =>
+        {
+            while (reader.Read())
+            {
+                Assert.Equal(Code(records), reader.GetString(0));
+                records++;
+            }
+        });
+
+        Assert.Equal("502", exception.FtpReplyCode);
+        Assert.InRange(records, 1, 29_999);
+        Assert.Equal([50_000L], _server.Restarts);
+        Assert.Equal(1, _server.Commands.Count(command => command == "RETR"));
+        Assert.Equal(1, Volatile.Read(ref retries));
+    }
+
+    // A reader read to its end no longer counts among the open readers once Read returns false, so
+    // the next opening, right after, is never refused for it; with a server that keeps the data
+    // connection open and silent after the last byte, the read timeout delays neither the place
+    // among the readers nor the next opening. The default two connections; no connection is left
+    // open after the client is disposed.
+    [Theory(Timeout = 600_000)]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReadToItsEnd_TheNextOpeningRightAfterIsNeverRefused(bool silentAfterTheLastByte)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var content = Dbc(0, 300);
+        _server.Files[FullPath] = content;
+        if (silentAfterTheLastByte)
+        {
+            _server.StallTransferAfter = content.Length;
+        }
+
+        var client = Client(TimeSpan.FromSeconds(5));
+        var part = new DatasusFileInfo(FilePath, "PAMG2407.dbc", content.Length, Modified, isDirectory: false);
+        var table = new DatasusTableInfo(DatasusCatalog.SiaSus.PA, DatasusUf.MG, DatasusPeriod.OfMonth(2024, 7), isPreliminary: false, FilePath, [part]);
+        var refused = 0;
+        var counted = 0;
+        var slowest = TimeSpan.Zero;
+        for (var round = 0; round < 300; round++)
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                using var reader = await client.OpenStreamingReaderAsync(table, cancellationToken: ct);
+                slowest = TimeSpan.FromTicks(Math.Max(slowest.Ticks, watch.Elapsed.Ticks));
+                var records = 0;
+                while (reader.Read())
+                {
+                    records++;
+                }
+
+                counted += client.OpenStreamingReaders;
+                Assert.Equal(300, records);
+            }
+            catch (InvalidOperationException)
+            {
+                refused++;
+            }
+        }
+
+        Assert.Equal(0, refused);
+        Assert.Equal(0, counted);
+        Assert.True(slowest < TimeSpan.FromSeconds(2), $"The slowest opening took {slowest.TotalMilliseconds:N0} ms.");
+        client.Dispose();
+        await ReadAheadStreamTests.WaitUntilAsync(() => _server.OpenControlConnections == 0, "every connection to close");
+    }
+
     private static string Code(int record) => (record % 10_000).ToString("0000", System.Globalization.CultureInfo.InvariantCulture);
 
     private static byte[] Dbc(int first, int count)

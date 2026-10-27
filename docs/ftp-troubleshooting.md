@@ -40,11 +40,16 @@ In a web request or any call with a deadline, lower `MaxRetries`, `ConnectTimeou
 What a reader from `OpenStreamingReaderAsync` shows when something goes wrong:
 
 - **Too many readers.** `OpenStreamingReaderAsync` throws `InvalidOperationException` at once, before anything is sent to the server. That happens when `MaxConnections` − 1 of its readers are open already (one, with the default of two), or when `MaxConnections` is 1. The message says how many are open. Dispose a reader that is done, raise `MaxConnections` (at most 4), or download with `OpenReaderAsync`.
-- **A file replaced on the server.** Before a transfer resumes, the reader checks the file's size and time again. If they changed, `Read` throws `DatasusRemoteFileChangedException`, after the records already returned, with both versions. The opening throws it when the first part changed since the table was found. Discard what was read and open the reader again.
+- **A file replaced on the server.** Before each transfer of a part opens or resumes, the reader checks the file's size and time again; a change during a transfer that does not drop is not seen.
+  - If they changed, `Read` throws `DatasusRemoteFileChangedException`, after the records already returned, with both versions.
+  - The opening throws it when the first part changed since the table was found, or when a later part changed so that its header no longer fits the table.
+  - The tables of `ListTablesAsync` carry no time: for them, the version expected is the one at the opening, so a change before it is not seen. `FindTableAsync` gives the time.
+  - Discard what was read, and open the reader again by path or with the table found again: a table found earlier keeps the version it was found with.
 - **A connection that drops.** A transfer that drops, stalls past `ReadTimeout` or ends early resumes on a new connection, with the client's retries and backoff.
-  - `OnRetry` reports each attempt, on the reader's background thread.
+  - `OnRetry` reports the attempts of a part's transfer on a background thread. During the opening, those of the listing, of the sizes and times, and of the headers read ahead come from the opening's asynchronous flow.
+  - The attempts are counted in a row: the count starts again once 1 MiB has been read since the last failure. A download counts the attempts of its whole call.
   - When the attempts run out, `Read` throws `DatasusRetriesExhaustedException`, after the records already returned.
-  - A reader holds its connection even while the code does not call `Read`, so a connection closed while idle shows the same way.
+  - A reader holds its connection even while the code does not call `Read`, so a connection closed while idle shows the same way. Each such closing costs one attempt: long pauses again and again, with little read between them, can use up the attempts (a known limitation).
 - **Resuming.** Some servers or networks may not honor a request to resume a transfer from where it stopped.
   - When the opening of such a resumption fails with a transient failure (its 5-second limit runs out, the connection drops, an FTP 4xx reply), the client tries again. It asks for the file from the beginning instead, dropping the bytes already delivered, when at most 16 MiB had been received, or on the last attempt `MaxRetries` allows. Before that transfer too, it checks the file's size and time. This behavior is covered by tests against simulated servers.
   - A permanent refusal of the request to resume (an FTP 5xx reply) is not retried: the reading ends with `DatasusRequestRefusedException`, from `Read` after the records already returned (`FileNotFoundException` for a 550, as for any request for a file).

@@ -400,6 +400,30 @@ public sealed class DownloadRestartTests : IDisposable
         Assert.Equal(5000, new FileInfo(Assert.Single(PartialFiles())).Length);
     }
 
+    // A permanent refusal of the request to resume (FTP 5xx) is not retried: the download ends with
+    // the refusal, after the one retry of the transfer that ended early.
+    [Fact(Timeout = 60_000)]
+    public async Task Loopback_RestRefusedWithAPermanentReply_EndsWithRequestRefused_WithoutAnotherAttempt()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        _server.Files[FullPath] = _content;
+        _server.EndTransferAfter = 5000;
+        _server.RestReply = "502 Command not implemented.";
+        var infos = new List<DatasusRetryInfo>();
+        using var client = Loopback(options =>
+        {
+            options.MaxRetries = 3;
+            options.OnRetry = infos.Add;
+        });
+
+        var exception = await Assert.ThrowsAsync<DatasusRequestRefusedException>(() => client.DownloadAsync(FilePath, ct));
+
+        Assert.Equal("502", exception.FtpReplyCode);
+        Assert.Equal([5000L], _server.Restarts);
+        Assert.Equal(1, _server.Commands.Count(command => command == "RETR"));
+        Assert.Equal([1], infos.Select(info => info.Attempt));
+    }
+
     private IEnumerable<string> PartialFiles() =>
         Directory.Exists(_fixture.CacheDirectory)
             ? Directory.EnumerateFiles(_fixture.CacheDirectory, "*.partial", SearchOption.AllDirectories)

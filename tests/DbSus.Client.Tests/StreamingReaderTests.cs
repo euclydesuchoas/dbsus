@@ -95,6 +95,116 @@ public sealed class StreamingReaderTests : IDisposable
         (await another).Dispose();
     }
 
+    // The bodies stopped from outside, as the session does once every part is disposed: before or
+    // after their Dispose, after their pump is over, twice, and at the same time as the Dispose, in
+    // random order. None of it throws, the place in the pool and the count of readers are each let
+    // go once, and no task is left with a failure that nobody observes.
+    [Fact(Timeout = 300_000)]
+    public async Task BodiesStoppedFromOutside_InAnyOrderWithTheirDisposeAndTheEndOfTheirPumps_LetGoOnce()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var content = ClientFixture.Dbc(Codes('B', 400));
+        _fixture.Server.Add(PartB, content);
+        var remote = RemotePath.Parse(PartB, FakeServer.Root);
+        var expected = new RemoteFileInfo(content.Length, FakeServer.Time(0));
+        var retry = new ReadAheadStreamResumeTests.Retries(0).Policy;
+        var unobserved = new ConcurrentQueue<Exception>();
+        void OnUnobserved(object? sender, UnobservedTaskExceptionEventArgs e)
+        {
+            if (e.Exception.ToString().Contains("DbSus.Client.Transport", StringComparison.Ordinal))
+            {
+                unobserved.Enqueue(e.Exception);
+            }
+        }
+
+        var random = new Random(20261026);
+
+        // Two places, one held by the test: a place let go twice would let two leases through.
+        using var pool = new ConnectionPool(_fixture.Server.Factory(), 2);
+        using var held = await pool.AcquireAsync(ct);
+        TaskScheduler.UnobservedTaskException += OnUnobserved;
+        try
+        {
+            for (var round = 0; round < 1000; round++)
+            {
+                _fixture.Server.MaxChunk = random.Next(256, 4097);
+                var released = 0;
+                var session = new StreamingSession(await pool.AcquireAsync(ct), () => Interlocked.Increment(ref released));
+                var bodies = new RemoteReadAheadStream[random.Next(1, 3)];
+                for (var i = 0; i < bodies.Length; i++)
+                {
+                    session.AddPart();
+                }
+
+                for (var i = 0; i < bodies.Length; i++)
+                {
+                    bodies[i] = session.StartPart(after => RemoteReadAheadStream.StartOnLease(session.Lease, retry, remote, expected, 0, 16L << 20, after, session.Failed, ct));
+                }
+
+                if (random.Next(3) == 0)
+                {
+                    await WithinAsync(Task.WhenAll(bodies.Select(body => body.Completion)), $"Round {round}: the pumps");
+                }
+
+                var steps = new List<(Action Step, int Spins, int Key)>();
+                foreach (var body in bodies)
+                {
+                    steps.Add((body.Stop, random.Next(20_000), random.Next()));
+                    steps.Add((body.Stop, random.Next(20_000), random.Next()));
+                    steps.Add((
+                        () =>
+                        {
+                            body.Dispose();
+                            session.PartDisposed();
+                        },
+                        random.Next(20_000),
+                        random.Next()));
+                }
+
+                var order = steps.OrderBy(step => step.Key).ToList();
+                if (random.Next(2) == 0)
+                {
+                    await Task.WhenAll(order.Select(step => Task.Run(
+                        () =>
+                        {
+                            Thread.SpinWait(step.Spins);
+                            step.Step();
+                        },
+                        ct)));
+                }
+                else
+                {
+                    foreach (var step in order)
+                    {
+                        Thread.SpinWait(step.Spins);
+                        step.Step();
+                    }
+                }
+
+                await WithinAsync(Task.WhenAll(bodies.Select(body => body.Completion)), $"Round {round}: the pumps");
+                await ReadAheadStreamTests.WaitUntilAsync(() => session.IsReleased, "the session to let go");
+                Assert.Equal(1, Volatile.Read(ref released));
+
+                // One lease goes through, and the next waits for it.
+                var next = await WithinAsync(pool.AcquireAsync(ct), $"Round {round}: the place");
+                var another = pool.AcquireAsync(ct);
+                Assert.False(another.IsCompleted, $"Round {round}: the place was let go twice.");
+                next.Dispose();
+                (await WithinAsync(another, $"Round {round}: the place")).Dispose();
+            }
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+        }
+        finally
+        {
+            TaskScheduler.UnobservedTaskException -= OnUnobserved;
+        }
+
+        Assert.Empty(unobserved);
+    }
+
     [Fact]
     public async Task PartStream_DropDiesBeforeTheBytesReadAheadAreDropped_ResumesAfterThem_WithEveryByteOnce()
     {
@@ -718,10 +828,13 @@ public sealed class StreamingReaderTests : IDisposable
         await Assert.ThrowsAsync<ObjectDisposedException>(() => WithinAsync(reading, "The read"));
         Assert.Equal(["A001", "A002"], codes);
 
-        // The pump of part b still has the connection, until the server lets it go.
-        Assert.Equal(1, client.OpenStreamingReaders);
+        // The reader no longer counts among the open readers, but the pump of part b still has the
+        // place in the pool and its connection, until the server lets it go.
+        Assert.Equal(0, client.OpenStreamingReaders);
+        Assert.Equal(1, client.FreeConnectionPlaces);
+        Assert.Equal(1, _fixture.Server.ActiveConnections);
         _fixture.Server.ReleaseHeld();
-        await ReadAheadStreamTests.WaitUntilAsync(() => client.OpenStreamingReaders == 0, "the reader to let go");
+        await ReadAheadStreamTests.WaitUntilAsync(() => client.FreeConnectionPlaces == 2, "the pump of part b to give its place back");
     }
 
     [Fact]
@@ -908,6 +1021,145 @@ public sealed class StreamingReaderTests : IDisposable
         {
             Assert.Equal(first.Message, Assert.Throws(expected, () => reader.Read()).Message);
         }
+    }
+
+    // Part b republished with another schema after the table was found: the opening tells a file
+    // that changed from a table whose parts do not match, by asking part b's size and time, only
+    // then.
+    [Fact]
+    public async Task PartBRepublishedWithAnotherSchema_SinceTheTableWasFound_TheOpeningThrowsRemoteFileChanged()
+    {
+        var a = ClientFixture.Dbc("A001", "A002");
+        var b = ClientFixture.Dbc("B001");
+        _fixture.Server.Add(PartA, a);
+        _fixture.Server.Add(PartB, b);
+        _fixture.Server.Add(Single, ClientFixture.Dbc(Codes('R', 300)));
+        var client = _fixture.Client();
+        var table = Table(Info(PartA, a), Info(PartB, b));
+        var other = SyntheticDbc.BuildDbc(new DbfBuilder().Field("CODE", 'C', 4).Field("MORE", 'C', 2).Record("B001", "XX").Build());
+        _fixture.Server.Add(PartB, other, FakeServer.Time(9));
+        var infos = _fixture.Server.InfoCalls;
+
+        var exception = await Assert.ThrowsAsync<DatasusRemoteFileChangedException>(() => client.OpenStreamingReaderAsync(table, cancellationToken: Ct));
+
+        Assert.Equal(PartB, exception.RemotePath);
+        Assert.Equal(b.Length, exception.Expected.Size);
+        Assert.Equal(FakeServer.Time(0), exception.Expected.LastModifiedUtc);
+        Assert.Equal(other.Length, exception.Current.Size);
+        Assert.Equal(FakeServer.Time(9), exception.Current.LastModifiedUtc);
+        Assert.IsType<InvalidDataException>(exception.InnerException);
+        Assert.InRange(_fixture.Server.InfoCalls - infos, 1, 2);
+        await AssertEveryPlaceFreeAsync(client, 2);
+    }
+
+    [Fact]
+    public async Task PartBWithAnotherSchema_NotRepublished_TheOpeningThrowsInvalidData()
+    {
+        var a = ClientFixture.Dbc("A001", "A002");
+        var other = SyntheticDbc.BuildDbc(new DbfBuilder().Field("CODE", 'C', 4).Field("MORE", 'C', 2).Record("B001", "XX").Build());
+        _fixture.Server.Add(PartA, a);
+        _fixture.Server.Add(PartB, other);
+        _fixture.Server.Add(Single, ClientFixture.Dbc(Codes('R', 300)));
+        var client = _fixture.Client();
+
+        var exception = await Assert.ThrowsAsync<InvalidDataException>(() => client.OpenStreamingReaderAsync(Table(Info(PartA, a), Info(PartB, other)), cancellationToken: Ct));
+
+        Assert.Contains("does not match", exception.Message, StringComparison.Ordinal);
+        await AssertEveryPlaceFreeAsync(client, 2);
+    }
+
+    // A reader disposed in the middle of its part no longer counts among the open readers once
+    // Dispose returns, even while its transfer is being closed: the next opening, right after, is
+    // never refused for it. The default two connections; no connection is left open afterward.
+    [Fact(Timeout = 120_000)]
+    public async Task DisposedInTheMiddle_TheNextOpeningRightAfterIsNeverRefused()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var content = ClientFixture.Dbc(Codes('R', 3000));
+        _fixture.Server.Add(Single, content);
+        _fixture.Server.ChunkDelay = TimeSpan.FromMilliseconds(1);
+        var client = _fixture.Client();
+        var refused = 0;
+        var counted = 0;
+        for (var round = 0; round < 300; round++)
+        {
+            try
+            {
+                var reader = await client.OpenStreamingReaderAsync(Table(Info(Single, content)), cancellationToken: ct);
+                Assert.True(reader.Read());
+                reader.Dispose();
+                counted += client.OpenStreamingReaders;
+            }
+            catch (InvalidOperationException)
+            {
+                refused++;
+            }
+        }
+
+        Assert.Equal(0, refused);
+        Assert.Equal(0, counted);
+        client.Dispose();
+        await ReadAheadStreamTests.WaitUntilAsync(() => _fixture.Server.ActiveConnections == 0, "every connection to close");
+    }
+
+    // An OnRetry that waits for the thread that called the opening, as Control.Invoke or
+    // Dispatcher.Invoke do: the opening gives that thread back before the first part's transfer is
+    // retried, so neither waits for the other.
+    [Fact(Timeout = 60_000)]
+    public void OnRetryThatWaitsForTheCallersThread_DuringTheOpening_IsNotHeldUp()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var content = ClientFixture.Dbc(Codes('R', 300));
+        _fixture.Server.Add(Single, content);
+        _fixture.Server.FailNextTransferAfter(5);
+        using var callerFree = new ManualResetEventSlim();
+        var waited = new ConcurrentQueue<bool>();
+        var client = _fixture.Client(configure: options => options.OnRetry = _ => waited.Enqueue(callerFree.Wait(TimeSpan.FromSeconds(8))));
+        var codes = new List<string>();
+        Exception? failure = null;
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var caller = new Thread(() =>
+        {
+            try
+            {
+                var opening = client.OpenStreamingReaderAsync(Table(Info(Single, content)), cancellationToken: ct);
+                callerFree.Set();
+                using var reader = opening.GetAwaiter().GetResult();
+                ReadInto(reader, codes);
+            }
+            catch (Exception exception)
+            {
+                failure = exception;
+            }
+        });
+
+        caller.Start();
+
+        Assert.True(caller.Join(TimeSpan.FromSeconds(30)), "The caller's thread did not end within 30 seconds.");
+        Assert.Null(failure);
+        Assert.Equal(300, codes.Count);
+        Assert.Equal([true], waited);
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(8), $"The opening took {watch.Elapsed.TotalMilliseconds:N0} ms.");
+    }
+
+    [Fact(Timeout = 60_000)]
+    public async Task OnePartTable_CanceledWhileTheFirstTransferOpens_TheTaskOfTheOpeningIsCanceled()
+    {
+        var content = ClientFixture.Dbc(Codes('R', 300));
+        _fixture.Server.Add(Single, content);
+        _fixture.Server.Hold = (_, _) => true;
+        var client = _fixture.Client();
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+
+        var opening = client.OpenStreamingReaderAsync(Table(Info(Single, content)), cancellationToken: cancel.Token);
+        await ReadAheadStreamTests.WaitUntilAsync(() => _fixture.Server.Held == 1, "the first transfer to be held");
+        cancel.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => opening);
+
+        // The fake server holds the transfer whatever the token; once it lets it go, so does the reader.
+        _fixture.Server.ReleaseHeld();
+        await ReadAheadStreamTests.WaitUntilAsync(() => client.OpenStreamingReaders == 0, "the canceled reader to let go");
     }
 
     // A link that drops every 4000 bytes, after one resumption failed to open: once the transfer

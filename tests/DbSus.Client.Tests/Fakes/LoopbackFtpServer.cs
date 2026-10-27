@@ -37,6 +37,7 @@ internal sealed class LoopbackFtpServer : IDisposable
     private readonly CancellationTokenSource _stop = new();
     private readonly ConcurrentBag<TcpClient> _connections = [];
     private int _controlConnections;
+    private int _openControlConnections;
     private int _controlClosedByClient;
     private int _dataClosedByClient;
     private long _extraBytesSent;
@@ -176,6 +177,13 @@ internal sealed class LoopbackFtpServer : IDisposable
     public string? MdtmReply { get; set; }
 
     /// <summary>
+    /// Gets or sets the whole reply to every <c>REST</c>, e.g. a 502, which then leaves the next
+    /// transfer at byte 0; <see langword="null"/> for the normal 350. The offset is recorded in
+    /// <see cref="Restarts"/> either way.
+    /// </summary>
+    public string? RestReply { get; set; }
+
+    /// <summary>
     /// Gets or sets a number of bytes RETR sends after the end of the file, more than its SIZE
     /// announces; <see cref="long.MaxValue"/> sends without end, until the client closes the data
     /// connection. When the client closes it first, the reply is 426.
@@ -187,6 +195,9 @@ internal sealed class LoopbackFtpServer : IDisposable
 
     /// <summary>Gets the number of control connections accepted.</summary>
     public int ControlConnections => Volatile.Read(ref _controlConnections);
+
+    /// <summary>Gets the number of control connections still served: accepted, and not yet ended by either side.</summary>
+    public int OpenControlConnections => Volatile.Read(ref _openControlConnections);
 
     /// <summary>Gets the number of control connections the client closed or reset.</summary>
     public int ControlConnectionsClosedByClient => Volatile.Read(ref _controlClosedByClient);
@@ -241,6 +252,7 @@ internal sealed class LoopbackFtpServer : IDisposable
                 var client = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);
                 _connections.Add(client);
                 Interlocked.Increment(ref _controlConnections);
+                Interlocked.Increment(ref _openControlConnections);
                 _ = ServeAsync(client);
             }
         }
@@ -332,8 +344,15 @@ internal sealed class LoopbackFtpServer : IDisposable
 
                     if (command == "REST")
                     {
-                        restart = long.Parse(argument, System.Globalization.CultureInfo.InvariantCulture);
-                        Restarts.Enqueue(restart);
+                        var asked = long.Parse(argument, System.Globalization.CultureInfo.InvariantCulture);
+                        Restarts.Enqueue(asked);
+                        if (RestReply is { } refusal)
+                        {
+                            await writer.WriteLineAsync(refusal).ConfigureAwait(false);
+                            continue;
+                        }
+
+                        restart = asked;
                         await writer.WriteLineAsync($"350 Restarting at {restart}.").ConfigureAwait(false);
                         continue;
                     }
@@ -392,6 +411,7 @@ internal sealed class LoopbackFtpServer : IDisposable
             finally
             {
                 data?.Stop();
+                Interlocked.Decrement(ref _openControlConnections);
             }
         }
     }

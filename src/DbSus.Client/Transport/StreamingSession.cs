@@ -7,15 +7,21 @@ namespace DbSus.Client.Transport;
 /// in the pool, with one connection at a time (the headers read ahead, then each part's body and
 /// its resumptions, in turn), and the client's count of open streaming readers. Both are let go
 /// once, whichever comes first: the reader is disposed, its last part is read, its opening fails,
-/// or a part fails for good. Letting go waits for the part being read, if any, to stop using the
-/// connection.
+/// or a part fails for good. Once every part is disposed (the reader is disposed, or its last part
+/// is read), the count is let go at once and every transfer still under way is stopped, even one
+/// that has every byte; the place is let go once the parts stop using the connection. A part that
+/// fails for good lets both go once the part stops using it.
 /// </summary>
 internal sealed class StreamingSession
 {
     private readonly ConnectionPool.Lease _lease;
     private readonly Action _releaseReader;
+
+    // Every body started, so that the last part disposed can stop them all; guarded by itself.
+    private readonly List<RemoteReadAheadStream> _bodies = [];
     private int _parts;
     private int _released;
+    private int _readerReleased;
     private ExceptionDispatchInfo? _failure;
     private Task _current = Task.CompletedTask;
 
@@ -47,6 +53,11 @@ internal sealed class StreamingSession
             TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
         var body = start(after);
+        lock (_bodies)
+        {
+            _bodies.Add(body);
+        }
+
         Volatile.Write(ref _current, body.Completion);
         return body;
     }
@@ -55,6 +66,21 @@ internal sealed class StreamingSession
     {
         if (Interlocked.Decrement(ref _parts) == 0)
         {
+            // The reader is done with every part: it no longer counts among the open readers, even
+            // while its connection is being closed, and the check one byte beyond the size of a part
+            // that has every byte is not waited for.
+            ReleaseReader();
+            RemoteReadAheadStream[] bodies;
+            lock (_bodies)
+            {
+                bodies = [.. _bodies];
+            }
+
+            foreach (var body in bodies)
+            {
+                body.Stop();
+            }
+
             ReleaseWhenIdle();
         }
     }
@@ -80,13 +106,22 @@ internal sealed class StreamingSession
         }
         finally
         {
-            _releaseReader();
+            ReleaseReader();
         }
     }
 
     // Set before the failed pump ends, so a pump that waits for it sees it: the next part ends with
     // the same failure, which the reader may not have seen (one after the part's last record).
     private void ThrowIfFailed() => Volatile.Read(ref _failure)?.Throw();
+
+    // The count of open readers is let go once, by whichever comes first.
+    private void ReleaseReader()
+    {
+        if (Interlocked.Exchange(ref _readerReleased, 1) == 0)
+        {
+            _releaseReader();
+        }
+    }
 
     private void ReleaseWhenIdle() =>
         Volatile.Read(ref _current).ContinueWith(

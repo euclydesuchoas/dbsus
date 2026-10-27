@@ -15,6 +15,9 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
     private readonly object _gate = new();
     private volatile bool _disposed;
 
+    /// <summary>Gets how many places are free; tests check it.</summary>
+    internal int FreePlaces => _slots.CurrentCount;
+
     public async Task<Lease> AcquireAsync(CancellationToken cancellationToken)
     {
         Guard.NotDisposed(_disposed, this);

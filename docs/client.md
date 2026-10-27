@@ -68,7 +68,7 @@ The file types, their folders and names, and what the catalog leaves out are in 
 
 **Preview:** `OpenStreamingReaderAsync` may change before a stable release.
 
-`OpenStreamingReaderAsync` reads a table straight from the server, as it arrives, without writing it to disk. Use it when there is no disk to spare for the file, or to start on the first records before the whole file has arrived. It does not transfer faster than a download: both read the file over one connection, as fast as the server sends it.
+`OpenStreamingReaderAsync` reads a table straight from the server, as it arrives, without writing it to disk. Use it when there is no disk to spare for the file, or to start on the first records before the whole file has arrived. It does not speed up the transfer: it reads the file over one connection, as a download does.
 
 ```csharp
 using System;
@@ -93,36 +93,44 @@ try
 }
 catch (DatasusRemoteFileChangedException)
 {
-    // The file was replaced on the server while it was read: discard what was read and open it again.
+    // The file was replaced on the server while it was read: discard what was read, find the table
+    // again (the one found earlier keeps the version it was found with) and open it again.
 }
 ```
 
 - **Two ways to open.**
   - `OpenStreamingReaderAsync(path)` takes the path of any part, or of the unsplit name. Like `FindPartsAsync`, it lists the folder on the server to find the other parts; in the largest folders that listing runs to a few megabytes.
   - `OpenStreamingReaderAsync(table)` takes a `DatasusTableInfo` found earlier (`FindTableAsync`, `FindNationalTableAsync`, `ListTablesAsync`) and reads exactly its parts, without listing the folder. It is also the way to read preliminary data and the tables for the whole country.
+  - The tables of `ListTablesAsync` carry no time, so the version a reader expects of them is the one on the server when it opens. To detect a change since the table was found, find it with `FindTableAsync`.
 - **The reader.** Both return a `DbfReader` positioned before the first record, after every part's header has been read and checked.
   - `Read` blocks the calling thread while it waits for the server, and `ReadAsync` completes synchronously, as `Read` does.
   - The reader is not thread-safe, except that `Dispose` may be called from another thread to stop a waiting `Read`.
   - Failures of the opening come from `OpenStreamingReaderAsync`. Once the reader is open, every failure comes from `Read`, after the records already returned.
 - **Tables in several parts** are read in order, as one table. To compare the schemas before any record, the opening reads ahead the header of each part after the first. A table of several parts therefore takes about one more connection and login per part after the first.
-- **One connection per reader.** A reader holds one of the client's connections for its whole life, until it is disposed, has read its last part, or has failed.
+- **One connection per reader.** A reader holds one place among the client's connections for its whole life, until it is disposed, has read its last part, or has failed for good. Once it is disposed or has read its last part, it no longer counts among the readers the client allows, at once; a transfer of it still under way is closed without waiting for the server, and its place among the connections is free once that is done. After a checksum failure, it holds that place until it is disposed. The connection in that place changes along the way: after the headers read ahead, and at each resumption.
   - At most `MaxConnections` − 1 readers are open at a time (one, with the default of two), so that a connection stays free for listings and sizes.
   - One more fails at once with `InvalidOperationException`, before anything is sent to the server.
   - With `MaxConnections` = 1, no reader can be opened.
-- **The cancellation token holds for the life of the reader**, not only for the opening: canceling it makes the next `Read` throw `OperationCanceledException`. A token with a short deadline, meant for the opening, also cancels the reading.
-- **Retries.** A transfer that drops or stalls resumes on a new connection, with the client's retries and backoff (`MaxRetries`), once the file's size and time on the server have been checked again. `OnRetry` runs in the caller's flow during the opening and, afterward, on the reader's background thread, never on the thread that calls `Read`.
+- **The cancellation token holds for the life of the reader**, not only for the opening. Canceling it makes a `Read` that waits for the server throw `OperationCanceledException` at once. Records already decompressed in memory may still be returned first; after them, every `Read` throws. A token with a short deadline, meant for the opening, also cancels the reading.
+- **Retries.** A transfer that drops or stalls resumes on a new connection, with the client's retries and backoff (`MaxRetries`), once the file's size and time on the server have been checked again.
+  - The reader counts its attempts in a row: the count starts again once 1 MiB has been read since the last failure. A download counts the attempts of its whole call.
+  - `OnRetry` reports the retries of a part's transfer on a background thread, never on the thread that calls `Read`; the first part's transfer starts during the opening, so its retries run there too. During the opening, the retries of the listing, of the sizes and times, and of the headers read ahead run in the opening's asynchronous flow, not necessarily on the thread that called it.
+  - The reader's work in the background runs on threads of the thread pool.
 - **Integrity.** Each part's CRC-32 is checked when that part has been read to its end, so the records are confirmed only when `Read` returns `false`; disposing the reader earlier skips the check.
   - Nothing is written to disk: the cache (`CacheDirectory`) and the temporary folder are not used, and `VerifyOnDownload` does not apply.
   - When loading into a database, commit only after `Read` returned `false` (see "Integrity is confirmed only at the end" in the [reading guide](https://github.com/euclydesuchoas/dbsus/blob/main/docs/reading.md)).
-- **A file replaced on the server while it is read.** DATASUS republishes files from time to time. If a part changes while it is read, `DatasusRemoteFileChangedException` comes from `Read`, or from the opening for the first part, with both versions (`Expected`, `Current`). The records already returned are from the earlier version: discard them and open the reader again, which reads the new version.
-- **A slow consumer.** A reader holds its connection while it is open, even while the code does not call `Read`. If the server, or a device on the network, closes an idle connection, the reading resumes on its own within `MaxRetries`, or `Read` throws. No limit is promised on how long a reader may wait between reads.
+- **A file replaced on the server while it is read.** DATASUS republishes files from time to time. The reader checks each part's size and time before each of its transfers opens or resumes; a change during a transfer that does not drop is not seen.
+  - A part found changed makes `Read` throw `DatasusRemoteFileChangedException`, with both versions (`Expected`, `Current`).
+  - The opening throws it instead when the first part changed, or when a later part changed so that its header no longer fits the table.
+  - The records already returned are from the earlier version: discard them. To read the new version, open the reader again by path, or with the table found again (`FindTableAsync`). A table found earlier keeps the size and time it was found with, so opening it again fails the same way.
+- **A slow consumer.** A reader holds its place among the connections while it is open, even while the code does not call `Read`. If the server, or a device on the network, closes an idle connection, the reading resumes on its own, and that costs one attempt of `MaxRetries`. Since the count starts again only after 1 MiB has been read, long pauses again and again, with little read between them, can use up the attempts, and then `Read` throws: a known limitation. No limit is promised on how long a reader may wait between reads.
 - **Disposing the client** lets a transfer in progress go on to the end of its part; the next part, or a resumption, makes `Read` throw `ObjectDisposedException`.
-- **Dispose the reader when done.** A reader that is not disposed keeps its connection, and its place among the readers the client allows, until it reads its last part or fails. Disposing the client does not free them, since a transfer in progress goes on.
+- **Dispose the reader when done.** A reader that is not disposed keeps its place among the connections, and its place among the readers the client allows, until it reads its last part or fails for good; after a checksum failure, until it is disposed. Disposing the client does not free them, since a transfer in progress goes on.
 - **Stopping a `Read` that waits for the server.**
   - Cancel the token given at opening: the `Read` throws `OperationCanceledException`, and so does every later one.
   - Or dispose the reader from another thread: the `Read` throws `ObjectDisposedException`, and the reader can no longer be used.
-  - Either way the connection is closed.
-- **Memory:** a buffer of about 1 MiB per reader, measured on the managed heap.
+  - Either way, a transfer that has not delivered every byte yet is stopped, and its connection closed. Disposing the reader also closes a transfer that has every byte but has not ended yet.
+- **Memory:** a buffer of about 1 MiB for each part read so far, held until the reader is disposed, on the managed heap.
 
 ## Behavior
 
@@ -149,9 +157,9 @@ When a connection fails or takes long, see [FTP troubleshooting](https://github.
 | `ArgumentOutOfRangeException` | In the catalog: a value that is not a state; a period before the oldest folder layout the catalog knows for the file type; or, for a dataset whose file names carry two digits of the year (every monthly one, and the yearly ones of PCE, RESP, ESUSNOTIFICA-DCCR, the five SIM file types for the whole country only and every one of SINAN), a period more than ninety-nine years after the start of the layout in use now, whose file name would be the one of an earlier period. |
 | `FileNotFoundException` | The file does not exist (FTP 550 to a request for a file), a part before the last one is missing, or the server has no table for a dataset and period, of a state or for the whole country (the message says when only a preliminary one exists, and when the folder of preliminary data could not be listed). |
 | `DatasusTransferException` | The base of the next three: a transfer with the server failed. Catch it to handle all of them; `Attempts`, `FtpReplyCode` and `RemotePath` are defined here. |
-| `DatasusRetriesExhaustedException` | Transient failures persisted after every retry. `Attempts`, `FtpReplyCode` (e.g. `421`) and `RemotePath` tell the details. |
+| `DatasusRetriesExhaustedException` | Transient failures persisted after every retry, or a download found the file changed on the server at every attempt. `Attempts`, `FtpReplyCode` (e.g. `421`) and `RemotePath` tell the details. |
 | `DatasusRequestRefusedException` | The server refused the request with a permanent reply (FTP 5xx, e.g. `530`); not retried. Same properties. For a file, 550 is not one of these: it is the missing file above. For a listing, 550 is one of these: FTP uses it both for a folder that does not exist and for one that may not be read, so a refused listing is never reported as a missing file, and `FindTableAsync`, `ListTablesAsync`, `FindPartsAsync` and `OpenReaderAsync`, which list a folder first, let it through. The one exception is the folder of preliminary data (SIM, SINASC, ESUSNOTIFICA and SINAN have one), which is optional: a 550 to its listing is taken as there being no such folder. |
-| `DatasusRemoteFileChangedException` | Reading without a download (preview): a part changed on the server while it was read (from `Read`), or the first part changed before the reader opened (from `OpenStreamingReaderAsync`). `Expected` and `Current` give both versions; open the reader again to read the new one. A download never throws it: it downloads the new version instead. |
+| `DatasusRemoteFileChangedException` | Reading without a download (preview): a part changed on the server, found before one of its transfers opened or resumed (from `Read`), or found by the opening: the first part, or a later part whose header no longer fits the table (from `OpenStreamingReaderAsync`). `Expected` and `Current` give both versions. To read the new one, open the reader again by path, or with the table found again (`FindTableAsync`): a table found earlier keeps the version it was found with. A download never throws it: it downloads the new version instead. |
 | `InsufficientDiskSpaceException` | Not enough free space for the file (`Directory`, `RequiredBytes`, `AvailableBytes`), checked before the transfer. |
 | `IOException` | A file of a cache entry could not be written (for example, on .NET Framework without long path support, a path too long for a deep `CacheDirectory`: see [compatibility](https://github.com/euclydesuchoas/dbsus/blob/main/docs/compatibility.md)). The original exception is the inner exception. |
 | `IOException` | Part names on the server are ambiguous, or an invalid cached copy is still open by a reader. `DatasusRetriesExhaustedException`, `DatasusRequestRefusedException` and `DatasusRemoteFileChangedException` (through `DatasusTransferException`), and `InsufficientDiskSpaceException`, also derive from `IOException`, so a `catch (IOException)` still sees them. |

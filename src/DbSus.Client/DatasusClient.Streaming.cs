@@ -28,17 +28,26 @@ public sealed partial class DatasusClient
     /// returns <see langword="false"/>; disposing the reader before the end skips the check.
     /// </para>
     /// <para>
-    /// The reader holds one of the client's connections until it is disposed, has read its last
-    /// part, or has failed. At most <see cref="DatasusClientOptions.MaxConnections"/> - 1 such
-    /// readers are open at a time, so that one connection stays free for other operations; opening
-    /// one more fails at once, and so does opening one when MaxConnections is 1.
+    /// The reader holds one place among the client's connections until it is disposed, has read
+    /// its last part, or has failed for good; after a checksum failure, until it is disposed. Once
+    /// it is disposed or has read its last part, it no longer counts among the open readers, at
+    /// once; a transfer of it still under way is closed without waiting for the server, and the
+    /// place is free once that is done. The connection in that place changes along the way (after the headers read ahead, and at each
+    /// resumption). At most <see cref="DatasusClientOptions.MaxConnections"/> - 1 such readers are
+    /// open at a time, so that one connection stays free for other operations; opening one more
+    /// fails at once, and so does opening one when MaxConnections is 1. A buffer of about 1 MiB is
+    /// held for each part read, until the reader is disposed.
     /// </para>
     /// <para>
     /// A transfer that drops or stalls is resumed on a new connection, with the client's retries
-    /// and backoff, once the size and time on the server are checked again. During the opening,
-    /// <see cref="DatasusClientOptions.OnRetry"/> runs in the caller's flow; afterward, it runs on
-    /// the reader's background thread, never on the thread that called <see cref="DbfReader.Read"/>.
-    /// The first part's transfer starts during the opening, so its retries already run on that thread.
+    /// and backoff, once the size and time on the server are checked again. The attempts are
+    /// counted in a row: the count starts again once 1 MiB has been read since the last failure.
+    /// <see cref="DatasusClientOptions.OnRetry"/> reports the retries of a part's transfer on a
+    /// background thread, never on the thread that called <see cref="DbfReader.Read"/>; the first
+    /// part's transfer starts during the opening, so its retries run there too. During the opening,
+    /// the retries of the listing, of the sizes and times, and of the headers read ahead run in the
+    /// opening's asynchronous flow, not necessarily on the thread that called this method. The
+    /// reader's work in the background runs on threads of the thread pool.
     /// </para>
     /// <para>
     /// Failures of the opening come from this method. Once the reader is open, every failure comes
@@ -54,8 +63,10 @@ public sealed partial class DatasusClient
     /// </para>
     /// <para>
     /// <paramref name="cancellationToken"/> holds for the life of the reader: it cancels the opening
-    /// and every later read, which then throws <see cref="OperationCanceledException"/>. A token with
-    /// a short deadline meant only for the opening also cancels the reads that follow.
+    /// and the reading. A <see cref="DbfReader.Read"/> that waits for the server then throws
+    /// <see cref="OperationCanceledException"/> at once; records already decompressed in memory may
+    /// still be returned first, and after them every read throws. A token with a short deadline
+    /// meant only for the opening also cancels the reads that follow.
     /// </para>
     /// <para>
     /// The reader is not thread-safe. Disposing it from another thread makes a
@@ -74,7 +85,10 @@ public sealed partial class DatasusClient
     /// this method are open already. Nothing was sent to the server.
     /// </exception>
     /// <exception cref="FileNotFoundException">No such file, or a part before the last one is missing.</exception>
-    /// <exception cref="DatasusRemoteFileChangedException">The first part changed on the server while the reader was being opened.</exception>
+    /// <exception cref="DatasusRemoteFileChangedException">
+    /// The first part changed on the server while the reader was being opened, or a later part
+    /// changed so that its header no longer fits the table.
+    /// </exception>
     /// <exception cref="DatasusRequestRefusedException">The server refused a request permanently. It is not retried.</exception>
     /// <exception cref="DatasusRetriesExhaustedException">Transient failures persisted after every retry.</exception>
     /// <exception cref="InvalidDataException">A part's header is invalid, or the parts' schemas differ.</exception>
@@ -108,17 +122,23 @@ public sealed partial class DatasusClient
     /// Everything said for
     /// <see cref="OpenStreamingReaderAsync(string, DbfReadOptions?, DbcReadOptions?, CancellationToken)"/>
     /// holds: nothing is written to disk, the checksums are checked at the end of each part, the
-    /// reader holds one connection until it is done, and at most MaxConnections - 1 such readers are
-    /// open at a time. Failures of the opening come from this method; once the reader is open, every
-    /// failure comes from <see cref="DbfReader.Read"/>, after the records already returned.
-    /// <see cref="DbfReader.Read"/> blocks the calling thread while it waits for the server, and
-    /// <c>ReadAsync</c> completes synchronously, as Read does. During the opening,
-    /// <see cref="DatasusClientOptions.OnRetry"/> runs in the caller's flow; afterward, it runs on the
-    /// reader's background thread. <paramref name="cancellationToken"/> holds for the life of the
+    /// reader holds one place among the connections until it is done, and at most MaxConnections - 1
+    /// such readers are open at a time. Failures of the opening come from this method; once the
+    /// reader is open, every failure comes from <see cref="DbfReader.Read"/>, after the records
+    /// already returned. <see cref="DbfReader.Read"/> blocks the calling thread while it waits for the
+    /// server, and <c>ReadAsync</c> completes synchronously, as Read does.
+    /// <see cref="DatasusClientOptions.OnRetry"/> reports the retries of a part's transfer, the first
+    /// part's included, on a background thread; during the opening, those of the sizes and times and
+    /// of the headers read ahead come from the opening's asynchronous flow, not necessarily on the
+    /// thread that called this method. <paramref name="cancellationToken"/> holds for the life of the
     /// reader, so a token with a short deadline meant only for the opening also cancels the reads that
     /// follow. The reader is not thread-safe; disposing it from another thread makes a
     /// <see cref="DbfReader.Read"/> in progress end with <see cref="ObjectDisposedException"/>, and
     /// leaves the reader unusable.
+    /// The version expected of each part is the size and time of <see cref="DatasusTableInfo.Parts"/>:
+    /// a table from <see cref="FindTableAsync"/> has them, so a change since the table was found is
+    /// seen; the tables of <see cref="ListTablesAsync"/> carry no time, so the version expected is the
+    /// one on the server at the opening. To read a new version, find the table again.
     /// </remarks>
     /// <param name="table">The table to open.</param>
     /// <param name="dbfOptions">DBF read options, or <see langword="null"/>.</param>
@@ -131,7 +151,11 @@ public sealed partial class DatasusClient
     /// these methods are open already. Nothing was sent to the server.
     /// </exception>
     /// <exception cref="FileNotFoundException">A part is no longer on the server.</exception>
-    /// <exception cref="DatasusRemoteFileChangedException">The first part changed on the server since the table was found.</exception>
+    /// <exception cref="DatasusRemoteFileChangedException">
+    /// The first part changed on the server since the table was found (for a table without times,
+    /// as <see cref="ListTablesAsync"/> gives them, during the opening), or a later part changed so
+    /// that its header no longer fits the table.
+    /// </exception>
     /// <exception cref="DatasusRequestRefusedException">The server refused a request permanently. It is not retried.</exception>
     /// <exception cref="DatasusRetriesExhaustedException">Transient failures persisted after every retry.</exception>
     /// <exception cref="InvalidDataException">A part's header is invalid, or the parts' schemas differ.</exception>
@@ -147,6 +171,9 @@ public sealed partial class DatasusClient
 
     /// <summary>Gets how many readers from OpenStreamingReaderAsync are open; tests check it.</summary>
     internal int OpenStreamingReaders => Volatile.Read(ref _streamingReaders);
+
+    /// <summary>Gets how many places of the pool are free; tests check it.</summary>
+    internal int FreeConnectionPlaces => _pool.FreePlaces;
 
     // Takes one of the MaxConnections - 1 places of streaming readers, at once or not at all, before
     // anything is sent to the server. The action given back lets it go, once, however often it runs.
@@ -211,22 +238,31 @@ public sealed partial class DatasusClient
 
         var session = new StreamingSession(lease, releaseReader);
         var streams = new List<StreamingPartStream>();
+
+        // The part whose header is being read ahead, while it is; 0 afterward.
+        var readingAhead = 0;
         try
         {
             var ahead = new List<byte[]> { Array.Empty<byte>() };
             for (var i = 1; i < files.Count; i++)
             {
+                readingAhead = i;
                 ahead.Add(await ReadHeaderAheadAsync(lease, files[i].Remote, files[i].Info, cancellationToken).ConfigureAwait(false));
             }
+
+            readingAhead = 0;
 
             for (var i = 0; i < files.Count; i++)
             {
                 streams.Add(new StreamingPartStream(session, _retry, files[i].Remote, files[i].Info, ahead[i], _options.RestartFromStartUpTo, cancellationToken));
             }
 
-            return DbSusFile.OpenDbcReader([.. streams.Select((stream, i) => new DbcPart(parts[i].Name, stream))], dbfOptions, dbcOptions);
+            // Opening the reader reads the first part's header from its transfer, synchronously, and
+            // waits for its first bytes: on the thread pool, never on the caller's thread.
+            DbcPart[] dbcParts = [.. streams.Select((stream, i) => new DbcPart(parts[i].Name, stream))];
+            return await Task.Run(() => DbSusFile.OpenDbcReader(dbcParts, dbfOptions, dbcOptions), CancellationToken.None).ConfigureAwait(false);
         }
-        catch
+        catch (Exception exception)
         {
             // The streams are the caller's to DbSus, which does not dispose them when opening fails.
             foreach (var stream in streams)
@@ -239,7 +275,36 @@ public sealed partial class DatasusClient
                 session.Release();
             }
 
+            if (exception is InvalidDataException invalid && files.Count > 1)
+            {
+                // A part after the first republished since the table was found, with another schema,
+                // is a file that changed: its size and time tell it from parts that do not match.
+                // Asked only on this way out: for the part whose header was read ahead, or, when the
+                // headers were compared, for every part after the first (the first part's version is
+                // checked before its transfer).
+                await ThrowIfChangedAsync(readingAhead > 0 ? [files[readingAhead]] : files.Skip(1), invalid, cancellationToken).ConfigureAwait(false);
+            }
+
             throw;
+        }
+    }
+
+    // Throws DatasusRemoteFileChangedException for the first of the parts whose size or time on the
+    // server is not the one expected.
+    private async Task ThrowIfChangedAsync(IEnumerable<(RemotePath Remote, RemoteFileInfo Info)> parts, InvalidDataException invalid, CancellationToken cancellationToken)
+    {
+        foreach (var (remote, expected) in parts)
+        {
+            var current = await GetRemoteInfoAsync(remote, cancellationToken).ConfigureAwait(false);
+            if (!current.SameVersionAs(expected))
+            {
+                throw new DatasusRemoteFileChangedException(
+                    $"{remote.Relative} changed on the server since the table was found: it had {expected.Size} bytes, modified {expected.LastModifiedUtc:yyyy-MM-dd HH:mm:ss} UTC, and now has {current.Size}, modified {current.LastModifiedUtc:yyyy-MM-dd HH:mm:ss} UTC, so its header does not fit the table: {invalid.Message}",
+                    remote,
+                    expected,
+                    current,
+                    invalid);
+            }
         }
     }
 

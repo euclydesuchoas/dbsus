@@ -89,7 +89,9 @@ public sealed class DatasusClientOptions
     /// same call failed to open such a resumption does a later attempt start over from the
     /// beginning of the file instead: when at most 16 MiB had been received, or on the last attempt
     /// these retries allow; otherwise it tries to resume again. A failure in the middle of a
-    /// transfer that opened never makes the download start over.
+    /// transfer that opened never makes the download start over. A download counts the attempts of
+    /// its whole call; a reader from <c>OpenStreamingReaderAsync</c> counts them in a row instead,
+    /// and the count starts again once 1 MiB has been read since the last failure.
     /// </remarks>
     public int MaxRetries { get; set; } = 4;
 
