@@ -73,7 +73,7 @@ internal sealed class FtpStep
     public static FtpStep OpeningForReading(string path, string host, int port) => new($"opening {path} for reading on {host}:{port}", port, opensDataConnection: true);
 }
 
-internal sealed class FtpConnection(FtpSession session, string host, int port, TimeSpan readTimeout) : IDatasusConnection
+internal sealed class FtpConnection(FtpSession session, string host, int port, TimeSpan readTimeout) : IDatasusConnection, IAbortableConnection
 {
     private volatile bool _broken;
 
@@ -256,7 +256,7 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
     private int ConnectCount() => session.ConnectCount;
 
     // Closes the connection by force; it is never reused.
-    private void Abort()
+    public void Abort()
     {
         _broken = true;
         session.Abort();
