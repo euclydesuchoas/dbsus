@@ -20,6 +20,7 @@ internal sealed class FakeServer
     private int _maxActiveConnections;
     private int _connectionsOpened;
     private int _transfers;
+    private int _transfersClosed;
     private int _listCalls;
     private int _infoCalls;
     private long _bytesServed;
@@ -35,6 +36,9 @@ internal sealed class FakeServer
     public int ConnectionsOpened => _connectionsOpened;
 
     public int Transfers => _transfers;
+
+    /// <summary>Gets how many transfers were closed by the client.</summary>
+    public int TransfersClosed => Volatile.Read(ref _transfersClosed);
 
     public int ListCalls => _listCalls;
 
@@ -356,6 +360,7 @@ internal sealed class FakeServer
                 }
 
                 connection.TransferClosed();
+                Interlocked.Increment(ref server._transfersClosed);
             }
 
             base.Dispose(disposing);

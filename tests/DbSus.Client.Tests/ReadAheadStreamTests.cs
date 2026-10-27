@@ -386,7 +386,9 @@ public sealed class ReadAheadStreamTests
     {
         var ct = TestContext.Current.CancellationToken;
         // Larger than the buffer, so that each pump still holds its connection while it is read:
-        // a connection is given back when its transfer ends, before the stream is disposed.
+        // a connection is given back when its transfer ends, before the stream is disposed. Each
+        // stream is read until it has 1 MiB, and no further, so that its pump, at most a buffer
+        // ahead, has not received every byte when the third lease is asked for.
         var first = Content((3 * Capacity) + 11, seed: 26);
         var second = Content((3 * Capacity) + 22, seed: 27);
         var server = new FakeServer();
@@ -401,8 +403,15 @@ public sealed class ReadAheadStreamTests
         var random = new Random(28);
         while (readA.Length < Capacity || readB.Length < Capacity)
         {
-            readA.Write(buffer, 0, a.Read(buffer, 0, random.Next(1, buffer.Length)));
-            readB.Write(buffer, 0, b.Read(buffer, 0, random.Next(1, buffer.Length)));
+            if (readA.Length < Capacity)
+            {
+                readA.Write(buffer, 0, a.Read(buffer, 0, random.Next(1, buffer.Length)));
+            }
+
+            if (readB.Length < Capacity)
+            {
+                readB.Write(buffer, 0, b.Read(buffer, 0, random.Next(1, buffer.Length)));
+            }
         }
 
         var third = pool.AcquireAsync(ct);

@@ -849,7 +849,49 @@ public sealed class StreamingReaderTests : IDisposable
         cancellation.Cancel();
 
         Assert.ThrowsAny<OperationCanceledException>(() => ReadAll(reader));
-        await ReadAheadStreamTests.WaitUntilAsync(() => client.OpenStreamingReaders == 0, "the canceled reader to let go");
+        Assert.ThrowsAny<OperationCanceledException>(() => reader.Read());
+
+        // A canceled reader may keep its place until it is disposed; disposing it lets both go.
+        reader.Dispose();
+        Assert.Equal(0, client.OpenStreamingReaders);
+        await ReadAheadStreamTests.WaitUntilAsync(() => client.FreeConnectionPlaces == 2, "every place to be free");
+    }
+
+    // The case the guide names: the transfer of the part being read has every byte before the token
+    // is canceled. The reader keeps its place and its count until it is disposed.
+    [Fact]
+    public async Task CallerTokenCanceledAfterThePartArrived_TheReaderKeepsItsPlaceUntilDisposed()
+    {
+        var a = ClientFixture.Dbc("A001", "A002");
+        var b = ClientFixture.Dbc(Codes('B', 50_000));
+        _fixture.Server.Add(PartA, a);
+        _fixture.Server.Add(PartB, b);
+
+        // Part b in one chunk, within the buffer, and larger than what the reader takes of it for
+        // its first record: its transfer ends while records of it are still to be read.
+        _fixture.Server.MaxChunk = int.MaxValue;
+        Assert.InRange(b.Length, 128 * 1024, RemoteReadAheadStream.Capacity / 2);
+        var client = _fixture.Client();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        using var reader = await client.OpenStreamingReaderAsync(Split, cancellationToken: cancellation.Token);
+        Assert.True(reader.Read());
+        Assert.True(reader.Read());
+        Assert.True(reader.Read());
+        Assert.Equal(1, reader.PartIndex);
+
+        // The header of b read ahead, the body of a and the body of b: all three closed.
+        await ReadAheadStreamTests.WaitUntilAsync(() => _fixture.Server.TransfersClosed == 3, "the transfer of part b to end with every byte");
+
+        cancellation.Cancel();
+
+        Assert.ThrowsAny<OperationCanceledException>(() => ReadAll(reader));
+        Assert.ThrowsAny<OperationCanceledException>(() => reader.Read());
+        Assert.Equal(1, client.OpenStreamingReaders);
+        Assert.Equal(1, client.FreeConnectionPlaces);
+
+        reader.Dispose();
+        Assert.Equal(0, client.OpenStreamingReaders);
+        await ReadAheadStreamTests.WaitUntilAsync(() => client.FreeConnectionPlaces == 2, "every place to be free");
     }
 
     [Fact]

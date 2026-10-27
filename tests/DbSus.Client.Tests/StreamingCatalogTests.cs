@@ -252,7 +252,12 @@ public sealed class StreamingCatalogTests : IDisposable
         cancellation.Cancel();
 
         Assert.ThrowsAny<OperationCanceledException>(() => ReadAll(reader));
-        await ReadAheadStreamTests.WaitUntilAsync(() => client.OpenStreamingReaders == 0, "the canceled reader to let go");
+        Assert.ThrowsAny<OperationCanceledException>(() => reader.Read());
+
+        // A canceled reader may keep its place until it is disposed; disposing it lets both go.
+        reader.Dispose();
+        Assert.Equal(0, client.OpenStreamingReaders);
+        await ReadAheadStreamTests.WaitUntilAsync(() => client.FreeConnectionPlaces == 2, "every place to be free");
     }
 
     [Fact]
@@ -269,7 +274,11 @@ public sealed class StreamingCatalogTests : IDisposable
         cancellation.Cancel();
 
         Assert.ThrowsAny<OperationCanceledException>(() => ReadAll(reader));
-        await ReadAheadStreamTests.WaitUntilAsync(() => client.OpenStreamingReaders == 0, "the canceled reader to let go");
+        Assert.ThrowsAny<OperationCanceledException>(() => reader.Read());
+
+        reader.Dispose();
+        Assert.Equal(0, client.OpenStreamingReaders);
+        await ReadAheadStreamTests.WaitUntilAsync(() => client.FreeConnectionPlaces == 2, "every place to be free");
     }
 
     // Every form of OpenStreamingReaderAsync, with its first argument only and with all of them,
