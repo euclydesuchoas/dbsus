@@ -6,6 +6,11 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- `DbSus.Client` reads a table straight from the server, without a download, with `OpenStreamingReaderAsync`, in preview (its behavior may change before a stable release). It takes a path, of any part or of the unsplit name, whose folder it lists to find the other parts, or a `DatasusTableInfo`, whose parts it reads as they are, and returns a `DbfReader` over every part of the table, in order. Nothing is written to disk: the cache and the temporary folder are not used, and `VerifyOnDownload` does not apply.
+- Each reader from `OpenStreamingReaderAsync` holds one of the client's connections for its whole life, and at most `MaxConnections` − 1 readers are open at a time; one more, or any with `MaxConnections` = 1, fails at once with `InvalidOperationException`. `Read` blocks while it waits for the server, the cancellation token holds for the life of the reader, and each part's CRC-32 is checked at the end of that part, so the records are confirmed only when `Read` returns `false`. A transfer that drops or stalls resumes on a new connection with the usual retries and `OnRetry`; a part that changes on the server while it is read makes `Read` throw the new `DatasusRemoteFileChangedException`, with both versions. See "Reading without a download" in the client guide.
+
 ### Changed
 
 - `DbSus.Client` gives the opening of a transfer that resumes an interrupted download, from a byte beyond the start, a limit of its own: 5 seconds from the passive-mode request to the server's reply to the transfer command. Past it the connection is closed and the attempt counts as a transient failure, retried on a new connection with the usual backoff and `OnRetry`. Before, such an opening could wait as long as `ReadTimeout`, or until the operating system gave up on an unanswered command. Opening a transfer from the start keeps `ReadTimeout` alone.

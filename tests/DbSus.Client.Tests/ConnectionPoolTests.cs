@@ -173,11 +173,12 @@ public sealed class ConnectionPoolTests
         var expected = new RemoteFileInfo(100, new DateTime(2025, 8, 8, 12, 0, 0, DateTimeKind.Utc));
         var current = new RemoteFileInfo(120, new DateTime(2025, 8, 9, 12, 0, 0, DateTimeKind.Utc));
 
-        DatasusTransferException exception = new DatasusRemoteFileChangedException("changed", expected, current);
+        DatasusTransferException exception = new DatasusRemoteFileChangedException("changed", RemotePath.Parse("/X/A.dbc", "/dissemin/publicos"), expected, current);
 
         var changed = Assert.IsType<DatasusRemoteFileChangedException>(exception);
-        Assert.Same(expected, changed.Expected);
-        Assert.Same(current, changed.Current);
+        Assert.Equal("/X/A.dbc", changed.RemotePath);
+        Assert.Equal(("/X/A.dbc", "A.dbc", 100L, (DateTime?)expected.LastModifiedUtc, false), (changed.Expected.Path, changed.Expected.Name, changed.Expected.Size, changed.Expected.LastModifiedUtc, changed.Expected.IsDirectory));
+        Assert.Equal(("/X/A.dbc", "A.dbc", 120L, (DateTime?)current.LastModifiedUtc, false), (changed.Current.Path, changed.Current.Name, changed.Current.Size, changed.Current.LastModifiedUtc, changed.Current.IsDirectory));
         Assert.Null(changed.FtpReplyCode);
         Assert.Null(changed.InnerException);
     }

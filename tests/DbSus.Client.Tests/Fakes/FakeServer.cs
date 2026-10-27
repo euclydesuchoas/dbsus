@@ -24,6 +24,9 @@ internal sealed class FakeServer
     private int _infoCalls;
     private long _bytesServed;
     private int _resumptionsThatTimeOut;
+    private int _held;
+    private int _overlaps;
+    private readonly TaskCompletionSource<bool> _holdRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public int ActiveConnections => _activeConnections;
 
@@ -46,6 +49,31 @@ internal sealed class FakeServer
 
     /// <summary>Delays each transfer chunk, to make concurrent requests overlap.</summary>
     public TimeSpan ChunkDelay { get; set; }
+
+    /// <summary>Gets or sets the most bytes a transfer serves to one read, 4096 by default.</summary>
+    public int MaxChunk { get; set; } = 4096;
+
+    /// <summary>
+    /// Gets or sets which transfers (by full path and offset) wait, before they start, until
+    /// <see cref="ReleaseHeld"/>; the thread that opens them is blocked meanwhile, as a server that
+    /// does not answer would hold it.
+    /// </summary>
+    public Func<string, long, bool>? Hold { get; set; }
+
+    /// <summary>Gets how many transfers have started to wait (see <see cref="Hold"/>).</summary>
+    public int Held => Volatile.Read(ref _held);
+
+    /// <summary>
+    /// Gets how many listings, info requests or transfers started on a connection whose previous
+    /// transfer was not closed yet: an FTP connection takes one command at a time.
+    /// </summary>
+    public int Overlaps => Volatile.Read(ref _overlaps);
+
+    /// <summary>Delays the closing of each transfer, as reading the server's final reply would.</summary>
+    public TimeSpan TransferCloseDelay { get; set; }
+
+    /// <summary>Delays the read that finds the end of each transfer, as a server slow to close it would.</summary>
+    public TimeSpan TransferEndDelay { get; set; }
 
     /// <summary>
     /// Gets or sets how many of the next transfers from an offset beyond 0 fail to open, as the
@@ -104,6 +132,9 @@ internal sealed class FakeServer
 
     public IDatasusConnectionFactory Factory() => new Factory_(this);
 
+    /// <summary>Lets every transfer held by <see cref="Hold"/> go on, and those that come after.</summary>
+    public void ReleaseHeld() => _holdRelease.TrySetResult(true);
+
     private bool TakeResumptionTimeout()
     {
         for (var left = Volatile.Read(ref _resumptionsThatTimeOut); left > 0; left = Volatile.Read(ref _resumptionsThatTimeOut))
@@ -145,12 +176,24 @@ internal sealed class FakeServer
     private sealed class Connection(FakeServer server) : IDatasusConnection
     {
         private bool _disposed;
+        private int _openTransfers;
 
         public bool IsBroken => false;
+
+        public void TransferClosed() => Interlocked.Decrement(ref _openTransfers);
+
+        private void CountOverlap()
+        {
+            if (Volatile.Read(ref _openTransfers) > 0)
+            {
+                Interlocked.Increment(ref server._overlaps);
+            }
+        }
 
         public Task<IReadOnlyList<RemoteEntry>> ListAsync(string directory, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref server._listCalls);
+            CountOverlap();
             server.FailIfAsked();
             var prefix = directory.TrimEnd('/') + "/";
             var entries = new Dictionary<string, RemoteEntry>(StringComparer.OrdinalIgnoreCase);
@@ -174,6 +217,7 @@ internal sealed class FakeServer
         public Task<RemoteFileInfo> GetInfoAsync(string path, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref server._infoCalls);
+            CountOverlap();
             server.FailIfAsked();
             return server._files.TryGetValue(path, out var file)
                 ? Task.FromResult(new RemoteFileInfo(file.Content.Length, file.ModifiedUtc))
@@ -183,8 +227,15 @@ internal sealed class FakeServer
         public Task<Stream> OpenReadAsync(string path, long offset, CancellationToken cancellationToken)
         {
             var transfer = Interlocked.Increment(ref server._transfers);
+            CountOverlap();
             server.TransferOffsets.Enqueue(offset);
             server.BeforeTransfer?.Invoke(transfer);
+            if (server.Hold?.Invoke(path, offset) == true)
+            {
+                Interlocked.Increment(ref server._held);
+                server._holdRelease.Task.Wait(60_000, CancellationToken.None);
+            }
+
             server.FailIfAsked();
             if (offset > 0 && server.TakeResumptionTimeout())
             {
@@ -201,7 +252,8 @@ internal sealed class FakeServer
 
             long? failAfter = server._transferFaults.TryDequeue(out var bytes) ? bytes : null;
             var extra = server._extraBytes.TryDequeue(out var more) ? more : 0;
-            return Task.FromResult<Stream>(new TransferStream(server, file.Content, offset, failAfter, extra));
+            Interlocked.Increment(ref _openTransfers);
+            return Task.FromResult<Stream>(new TransferStream(server, this, file.Content, offset, failAfter, extra));
         }
 
         public void Dispose()
@@ -214,11 +266,12 @@ internal sealed class FakeServer
         }
     }
 
-    private sealed class TransferStream(FakeServer server, byte[] content, long offset, long? failAfter, int extra) : Stream
+    private sealed class TransferStream(FakeServer server, Connection connection, byte[] content, long offset, long? failAfter, int extra) : Stream
     {
         private long _position = offset;
         private long _served;
         private int _extraLeft = extra;
+        private int _closed;
 
         public override bool CanRead => true;
 
@@ -246,7 +299,7 @@ internal sealed class FakeServer
                 throw new IOException("Connection reset by the fake server.");
             }
 
-            var available = (int)Math.Min(Math.Min(count, 4096), content.Length - _position);
+            var available = (int)Math.Min(Math.Min(count, server.MaxChunk), content.Length - _position);
             if (failAfter is { } cap)
             {
                 available = (int)Math.Min(available, cap - _served);
@@ -268,6 +321,11 @@ internal sealed class FakeServer
 
             if (available <= 0)
             {
+                if (server.TransferEndDelay > TimeSpan.Zero)
+                {
+                    Thread.Sleep(server.TransferEndDelay);
+                }
+
                 return 0;
             }
 
@@ -287,6 +345,21 @@ internal sealed class FakeServer
         public override void SetLength(long value) => throw new NotSupportedException();
 
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && Interlocked.Exchange(ref _closed, 1) == 0)
+            {
+                if (server.TransferCloseDelay > TimeSpan.Zero)
+                {
+                    Thread.Sleep(server.TransferCloseDelay);
+                }
+
+                connection.TransferClosed();
+            }
+
+            base.Dispose(disposing);
+        }
     }
 
     private sealed class FakeFile(byte[] content, DateTime modifiedUtc)

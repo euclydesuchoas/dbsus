@@ -20,10 +20,30 @@ public class PublicSurfaceTests
     }
 
     [Fact]
+    public void DatasusRemoteFileChangedException_IsASealedTransferFailureThatOnlyTheClientCreates()
+    {
+        var type = typeof(DatasusRemoteFileChangedException);
+        var constructors = type.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+        Assert.True(type.IsSealed);
+        Assert.Equal(typeof(DatasusTransferException), type.BaseType);
+        Assert.NotEmpty(constructors);
+        Assert.All(constructors, constructor => Assert.True(constructor.IsAssembly, constructor.ToString()));
+        AssertReadOnlyFileInfo(type.GetProperty(nameof(DatasusRemoteFileChangedException.Expected))!);
+        AssertReadOnlyFileInfo(type.GetProperty(nameof(DatasusRemoteFileChangedException.Current))!);
+    }
+
+    [Fact]
     public void DatasusClientOptions_ConstructorIsDocumented()
     {
         var documentation = File.ReadAllText(Path.ChangeExtension(typeof(DatasusClientOptions).Assembly.Location, ".xml"));
 
         Assert.Contains("<member name=\"M:DbSus.Client.DatasusClientOptions.#ctor\">", documentation, StringComparison.Ordinal);
+    }
+
+    private static void AssertReadOnlyFileInfo(PropertyInfo property)
+    {
+        Assert.Equal(typeof(DatasusFileInfo), property.PropertyType);
+        Assert.Null(property.SetMethod);
     }
 }

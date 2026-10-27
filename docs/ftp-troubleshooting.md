@@ -35,6 +35,18 @@ These waits end at their timeouts, and canceling the token ends them at once (th
 
 In a web request or any call with a deadline, lower `MaxRetries`, `ConnectTimeout` and `ReadTimeout`, and pass a cancellation token that carries the deadline.
 
+## Reading without a download (preview)
+
+What a reader from `OpenStreamingReaderAsync` shows when something goes wrong:
+
+- **Too many readers.** `OpenStreamingReaderAsync` throws `InvalidOperationException` at once, before anything is sent to the server. That happens when `MaxConnections` − 1 of its readers are open already (one, with the default of two), or when `MaxConnections` is 1. The message says how many are open. Dispose a reader that is done, raise `MaxConnections` (at most 4), or download with `OpenReaderAsync`.
+- **A file replaced on the server.** Before a transfer resumes, the reader checks the file's size and time again. If they changed, `Read` throws `DatasusRemoteFileChangedException`, after the records already returned, with both versions. The opening throws it when the first part changed since the table was found. Discard what was read and open the reader again.
+- **A connection that drops.** A transfer that drops, stalls past `ReadTimeout` or ends early resumes on a new connection, with the client's retries and backoff.
+  - `OnRetry` reports each attempt, on the reader's background thread.
+  - When the attempts run out, `Read` throws `DatasusRetriesExhaustedException`, after the records already returned.
+  - A reader holds its connection even while the code does not call `Read`, so a connection closed while idle shows the same way.
+- **Resuming.** Some servers or networks may not honor a request to resume a transfer from where it stopped. When such a resumption fails to open, the client tries again. It asks for the file from the beginning instead, dropping the bytes already delivered, when at most 16 MiB had been received, or on the last attempt `MaxRetries` allows. Downloads do the same (see Time, above). This behavior is covered by tests against simulated servers.
+
 ## What to check
 
 - Logging in and changing directory (`CWD`) use only the control connection; a listing or a download also needs a data connection. If, with any FTP client, the first two work but a listing times out, look at the data connection first.

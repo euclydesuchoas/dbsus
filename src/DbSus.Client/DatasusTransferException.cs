@@ -4,10 +4,11 @@ namespace DbSus.Client;
 
 /// <summary>
 /// A transfer with the DATASUS server failed. The subclasses tell why: retries were exhausted
-/// (<see cref="DatasusRetriesExhaustedException"/>) or the server refused the request
-/// (<see cref="DatasusRequestRefusedException"/>). A missing file is a
+/// (<see cref="DatasusRetriesExhaustedException"/>), the server refused the request
+/// (<see cref="DatasusRequestRefusedException"/>), or a file changed on the server while a reader
+/// read it without a download (<see cref="DatasusRemoteFileChangedException"/>). A missing file is a
 /// <see cref="FileNotFoundException"/> instead (FTP 550 to a request for a file), never one of these.
-/// Only the subclasses are thrown; catch this type to handle both.
+/// Only the subclasses are thrown; catch this type to handle all three.
 /// </summary>
 [SuppressMessage("Design", "CA1032", Justification = "Created only by the client with the transfer details; constructors without them would make no sense.")]
 public abstract class DatasusTransferException : IOException

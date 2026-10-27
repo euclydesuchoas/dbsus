@@ -79,6 +79,17 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
 
         public void Keep() => _keep = true;
 
+        /// <summary>Gets a value indicating whether the pool is disposed, so that no new connection is made.</summary>
+        public bool IsPoolDisposed => pool._disposed;
+
+        /// <summary>
+        /// Keeps the connection when it can still be used, and otherwise connects a new one in its
+        /// place, as <see cref="ReplaceConnectionAsync"/> does. Only the operation that holds the lease calls it.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException">A new connection was needed and the pool is disposed.</exception>
+        public Task EnsureConnectionAsync(CancellationToken cancellationToken) =>
+            _connection is { IsBroken: false } ? Task.CompletedTask : ReplaceConnectionAsync(cancellationToken);
+
         /// <summary>Closes the connection by force, when it can be; it is then never kept.</summary>
         public void Abort() => (_connection as IAbortableConnection)?.Abort();
 
