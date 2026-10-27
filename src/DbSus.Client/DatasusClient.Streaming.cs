@@ -8,7 +8,7 @@ namespace DbSus.Client;
 public sealed partial class DatasusClient
 {
     private const string OverloadsJustification =
-        "The two overloads follow the shape of OpenReaderAsync (a path or a table, then the options and the token); any new parameter comes as a new overload, never as one more optional parameter.";
+        "The overloads follow the shape of OpenReaderAsync (a path, a table, or a dataset, state and period, then the options and the token); any new parameter comes as a new overload whose first parameter has a type of its own, never as one more optional parameter.";
 
     // Readers from OpenStreamingReaderAsync that are open: each holds one place of the pool until
     // it is done, and at most MaxConnections - 1 may, so that one place stays free.
@@ -199,6 +199,95 @@ public sealed partial class DatasusClient
         return await OpenStreamingPartsAsync(table.Parts, dbfOptions, dbcOptions, releaseReader, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Preview: this method's API and behavior may change before a stable release. Finds the table
+    /// of one state and period in the folder of <b>final</b> data, as
+    /// <see cref="OpenReaderAsync(DatasusDataset, DatasusUf, DatasusPeriod, DbfReadOptions, DbcReadOptions, CancellationToken)"/>
+    /// does, and opens it for reading straight from the server, without downloading it, as
+    /// <see cref="OpenStreamingReaderAsync(DatasusTableInfo, DbfReadOptions?, DbcReadOptions?, CancellationToken)"/> does.
+    /// </summary>
+    /// <remarks>
+    /// The arguments are checked first; then the reader takes its place among the
+    /// <see cref="DatasusClientOptions.MaxConnections"/> - 1 streaming readers, before anything is
+    /// sent to the server. Preliminary data is never opened here: find the table with
+    /// <see cref="FindTableAsync"/>, check <see cref="DatasusTableInfo.IsPreliminary"/>, and pass it
+    /// to the overload that takes a table. Once the table is found, everything said for
+    /// <see cref="OpenStreamingReaderAsync(string, DbfReadOptions?, DbcReadOptions?, CancellationToken)"/> holds.
+    /// </remarks>
+    /// <param name="dataset">The dataset, from <see cref="DatasusCatalog"/>.</param>
+    /// <param name="uf">The state.</param>
+    /// <param name="period">A month for a monthly dataset, a year for a yearly one.</param>
+    /// <param name="dbfOptions">DBF read options, or <see langword="null"/>.</param>
+    /// <param name="dbcOptions">DBC read options, or <see langword="null"/>.</param>
+    /// <param name="cancellationToken">Cancels the opening and, afterward, every read of the reader.</param>
+    /// <returns>A reader positioned before the first record, after every part's header has been read and checked.</returns>
+    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">As for <see cref="FindTableAsync"/>.</exception>
+    /// <exception cref="ArgumentException">As for <see cref="FindTableAsync"/>.</exception>
+    /// <exception cref="InvalidOperationException">As for the overload that takes a path. Nothing was sent to the server.</exception>
+    /// <exception cref="FileNotFoundException">
+    /// The server has no final table for that state and period; the message says so when only a
+    /// preliminary one exists, as <see cref="OpenReaderAsync(DatasusDataset, DatasusUf, DatasusPeriod, DbfReadOptions, DbcReadOptions, CancellationToken)"/> does.
+    /// </exception>
+    /// <exception cref="DatasusRequestRefusedException">As for <see cref="FindTableAsync"/>, and for the overload that takes a path.</exception>
+    /// <exception cref="DatasusRemoteFileChangedException">As for the overload that takes a path.</exception>
+    /// <exception cref="DatasusRetriesExhaustedException">Transient failures persisted after every retry.</exception>
+    /// <exception cref="InvalidDataException">A part's header is invalid, or the parts' schemas differ.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled during the opening.</exception>
+    [SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = OverloadsJustification)]
+    public async Task<DbfReader> OpenStreamingReaderAsync(DatasusDataset dataset, DatasusUf uf, DatasusPeriod period, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null, CancellationToken cancellationToken = default)
+    {
+        Guard.NotDisposed(_disposed, this);
+        Guard.NotNull(dataset, nameof(dataset));
+        RequireFilesByState(dataset);
+        var ufName = DatasusUfNames.Require(uf, nameof(uf));
+        var era = dataset.EraFor(period, nameof(period));
+        return await OpenFinalStreamingAsync(dataset, era, era.FileName(ufName, period), uf, ufName, period, nameof(FindTableAsync), dbfOptions, dbcOptions, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Preview: this method's API and behavior may change before a stable release. Finds the table
+    /// for the whole country of one period in the folder of <b>final</b> data, as
+    /// <see cref="OpenNationalReaderAsync"/> does, and opens it for reading straight from the server,
+    /// without downloading it, as
+    /// <see cref="OpenStreamingReaderAsync(DatasusTableInfo, DbfReadOptions?, DbcReadOptions?, CancellationToken)"/> does.
+    /// </summary>
+    /// <remarks>
+    /// The arguments are checked first; then the reader takes its place among the
+    /// <see cref="DatasusClientOptions.MaxConnections"/> - 1 streaming readers, before anything is
+    /// sent to the server. Preliminary data is never opened here: find the table with
+    /// <see cref="FindNationalTableAsync"/>, check <see cref="DatasusTableInfo.IsPreliminary"/>, and
+    /// pass it to the overload of <c>OpenStreamingReaderAsync</c> that takes a table. Once the table is found, everything said for
+    /// <see cref="OpenStreamingReaderAsync(string, DbfReadOptions?, DbcReadOptions?, CancellationToken)"/> holds.
+    /// </remarks>
+    /// <param name="dataset">The dataset, from <see cref="DatasusCatalog"/>.</param>
+    /// <param name="period">A month for a monthly dataset, a year for a yearly one.</param>
+    /// <param name="dbfOptions">DBF read options, or <see langword="null"/>.</param>
+    /// <param name="dbcOptions">DBC read options, or <see langword="null"/>.</param>
+    /// <param name="cancellationToken">Cancels the opening and, afterward, every read of the reader.</param>
+    /// <returns>A reader positioned before the first record, after its header has been read and checked.</returns>
+    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">As for <see cref="FindNationalTableAsync"/>.</exception>
+    /// <exception cref="ArgumentException">As for <see cref="FindNationalTableAsync"/>.</exception>
+    /// <exception cref="InvalidOperationException">As for <see cref="OpenStreamingReaderAsync(string, DbfReadOptions?, DbcReadOptions?, CancellationToken)"/>. Nothing was sent to the server.</exception>
+    /// <exception cref="FileNotFoundException">
+    /// The server has no final table for the whole country for that period; the message says so
+    /// when only a preliminary one exists, as <see cref="OpenNationalReaderAsync"/> does.
+    /// </exception>
+    /// <exception cref="DatasusRequestRefusedException">As for <see cref="FindNationalTableAsync"/>, and for the reading.</exception>
+    /// <exception cref="DatasusRemoteFileChangedException">As for <see cref="OpenStreamingReaderAsync(string, DbfReadOptions?, DbcReadOptions?, CancellationToken)"/>.</exception>
+    /// <exception cref="DatasusRetriesExhaustedException">Transient failures persisted after every retry.</exception>
+    /// <exception cref="InvalidDataException">The header is invalid.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled during the opening.</exception>
+    public async Task<DbfReader> OpenNationalStreamingReaderAsync(DatasusDataset dataset, DatasusPeriod period, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null, CancellationToken cancellationToken = default)
+    {
+        Guard.NotDisposed(_disposed, this);
+        Guard.NotNull(dataset, nameof(dataset));
+        RequireFileForTheCountry(dataset);
+        var era = dataset.EraFor(period, nameof(period));
+        return await OpenFinalStreamingAsync(dataset, era, era.NationalFileName(period), uf: null, ufName: null, period, nameof(FindNationalTableAsync), dbfOptions, dbcOptions, cancellationToken).ConfigureAwait(false);
+    }
+
     /// <summary>Gets how many readers from OpenStreamingReaderAsync are open; tests check it.</summary>
     internal int OpenStreamingReaders => Volatile.Read(ref _streamingReaders);
 
@@ -238,6 +327,46 @@ public sealed partial class DatasusClient
                 Interlocked.Decrement(ref _streamingReaders);
             }
         };
+    }
+
+    // The final table of one file name, read without a download: the place of a streaming reader
+    // first, as for a path, then the table, found as OpenFinalCoreAsync finds it, with the message
+    // that names the overload that takes a table. Preliminary data is never opened here.
+    private async Task<DbfReader> OpenFinalStreamingAsync(
+        DatasusDataset dataset, DatasusEra era, string fileName, DatasusUf? uf, string? ufName, DatasusPeriod period, string findMethod, DbfReadOptions? dbfOptions, DbcReadOptions? dbcOptions, CancellationToken cancellationToken)
+    {
+        var releaseReader = ReserveStreamingReader();
+        DatasusTableInfo table;
+        try
+        {
+            var found = await FindInAsync(dataset, era, era.Directory, fileName, uf, period, isPreliminary: false, cancellationToken).ConfigureAwait(false);
+            if (found is null)
+            {
+                DatasusRequestRefusedException? notListed = null;
+                if (era.PreliminaryDirectory is not null)
+                {
+                    (var preliminary, notListed) = await FindPreliminaryAsync(dataset, era, era.PreliminaryDirectory, fileName, uf, period, cancellationToken).ConfigureAwait(false);
+                    if (preliminary is not null)
+                    {
+                        throw new FileNotFoundException(
+                            $"{dataset}{OfState(ufName)} for {period} is not published as final data: only the preliminary table {preliminary.Path} exists, and this method opens final data only. "
+                            + $"To read preliminary data, find the table with {findMethod} and pass it to OpenStreamingReaderAsync(DatasusTableInfo).",
+                            era.Directory + "/" + fileName);
+                    }
+                }
+
+                throw NoTable(dataset, era, ufName, period, fileName, notListed);
+            }
+
+            table = found;
+        }
+        catch
+        {
+            releaseReader();
+            throw;
+        }
+
+        return await OpenStreamingPartsAsync(table.Parts, dbfOptions, dbcOptions, releaseReader, cancellationToken).ConfigureAwait(false);
     }
 
     // The versions first (on any place of the pool), then one place for the reader's life: the
