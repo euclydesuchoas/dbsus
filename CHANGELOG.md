@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [0.1.0-preview.5] - 2026-10-27
+
 ### Added
 
 - `DbSus.Client` reads a table straight from the server, without a download, with `OpenStreamingReaderAsync`, an opt-in feature in preview: its API and its behavior may change before a stable release. It was validated against simulated servers, and against the real server on reads without a drop; a resumption against the real server has not been exercised yet. Feedback is welcome. It takes a path, of any part or of the unsplit name, whose folder it lists to find the other parts, or a `DatasusTableInfo`, whose parts it reads as they are, and returns a `DbfReader` over every part of the table, in order. Nothing is written to disk: the cache and the temporary folder are not used, and `VerifyOnDownload` does not apply.
