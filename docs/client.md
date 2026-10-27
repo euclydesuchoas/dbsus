@@ -98,14 +98,33 @@ catch (DatasusRemoteFileChangedException)
 }
 ```
 
-- **Two ways to open.**
+- **Four ways to open.**
   - `OpenStreamingReaderAsync(path)` takes the path of any part, or of the unsplit name. Like `FindPartsAsync`, it lists the folder on the server to find the other parts; in the largest folders that listing runs to a few megabytes.
-  - `OpenStreamingReaderAsync(table)` takes a `DatasusTableInfo` found earlier (`FindTableAsync`, `FindNationalTableAsync`, `ListTablesAsync`) and reads exactly its parts, without listing the folder. It is also the way to read preliminary data and the tables for the whole country.
-  - The tables of `ListTablesAsync` carry no time, so the version a reader expects of them is the one on the server when it opens. To detect a change since the table was found, find it with `FindTableAsync`.
-- **The reader.** Both return a `DbfReader` positioned before the first record, after every part's header has been read and checked.
+  - `OpenStreamingReaderAsync(table)` takes a `DatasusTableInfo` found earlier (`FindTableAsync`, `FindNationalTableAsync`, `ListTablesAsync`, `ListNationalTablesAsync`) and reads exactly its parts, without listing the folder again. It is the way to read preliminary data.
+  - `OpenStreamingReaderAsync(dataset, uf, period)` and `OpenNationalStreamingReaderAsync(dataset, period)` find the table in the folder of final data as `OpenReaderAsync(dataset, uf, period)` and `OpenNationalReaderAsync` do, with the same exceptions, and read it as the overload that takes a table does. They open final data only.
+  - The tables of `ListTablesAsync` and `ListNationalTablesAsync` carry no time, so the version a reader expects of them is the one on the server when it opens. To detect a change since the table was found, find it with `FindTableAsync` or `FindNationalTableAsync`.
+
+```csharp
+using System;
+using DbSus.Client;
+
+await using var client = new DatasusClient(new DatasusClientOptions { MaxConnections = 2 });
+
+// The final table of one state and period, found as OpenReaderAsync finds it, read as it arrives.
+using var reader = await client.OpenStreamingReaderAsync(DatasusCatalog.SiaSus.PA, DatasusUf.MG, DatasusPeriod.OfMonth(2024, 7));
+long count = 0;
+while (reader.Read())
+{
+    count++;
+}
+
+Console.WriteLine($"{count} records");
+```
+
+- **The reader.** Every form returns a `DbfReader` positioned before the first record, after every part's header has been read and checked.
   - `Read` blocks the calling thread while it waits for the server, and `ReadAsync` completes synchronously, as `Read` does.
   - The reader is not thread-safe, except that `Dispose` may be called from another thread to stop a waiting `Read`.
-  - Failures of the opening come from `OpenStreamingReaderAsync`. Once the reader is open, every failure comes from `Read`, after the records already returned.
+  - Failures of the opening come from the method that opens. Once the reader is open, every failure comes from `Read`, after the records already returned.
 - **Tables in several parts** are read in order, as one table. To compare the schemas before any record, the opening reads ahead the header of each part after the first. A table of several parts therefore takes about one more connection and login per part after the first.
 - **One connection per reader.** A reader holds one place among the client's connections for its whole life, until it is disposed, has read its last part, or has failed for good. Once it is disposed or has read its last part, it no longer counts among the readers the client allows, at once; a transfer of it still under way is closed without waiting for the server, and its place among the connections is free once that is done. If the client was disposed before, its connection is closed instead of going back to the client, and then the last `Read` and the reader's `Dispose` can wait for the server's reply to the closing (`QUIT`), up to `ReadTimeout`. After a checksum failure, it holds that place until it is disposed. The connection in that place changes along the way: after the headers read ahead, and at each resumption.
   - At most `MaxConnections` − 1 readers are open at a time (one, with the default of two), so that a connection stays free for listings and sizes.
@@ -163,13 +182,13 @@ When a connection fails or takes long, see [FTP troubleshooting](https://github.
 | `DatasusTransferException` | The base of the next three: a transfer with the server failed. Catch it to handle all of them; `Attempts`, `FtpReplyCode` and `RemotePath` are defined here. |
 | `DatasusRetriesExhaustedException` | Transient failures persisted after every retry, or a download found the file changed on the server at every attempt. `Attempts`, `FtpReplyCode` (e.g. `421`) and `RemotePath` tell the details. |
 | `DatasusRequestRefusedException` | The server refused the request with a permanent reply (FTP 5xx, e.g. `530`); not retried. Same properties. For a file, 550 is not one of these: it is the missing file above. For a listing, 550 is one of these: FTP uses it both for a folder that does not exist and for one that may not be read, so a refused listing is never reported as a missing file, and `FindTableAsync`, `ListTablesAsync`, `FindPartsAsync` and `OpenReaderAsync`, which list a folder first, let it through. The one exception is the folder of preliminary data (SIM, SINASC, ESUSNOTIFICA and SINAN have one), which is optional: a 550 to its listing is taken as there being no such folder. |
-| `DatasusRemoteFileChangedException` | Reading without a download (preview): a part changed on the server, found before one of its transfers opened or resumed (from `Read`), or found by the opening: the first part, or a later part whose header no longer fits the table (from `OpenStreamingReaderAsync`). `Expected` and `Current` give both versions. To read the new one, open the reader again by path, or with the table found again (`FindTableAsync`): a table found earlier keeps the version it was found with. A download never throws it: it downloads the new version instead. |
+| `DatasusRemoteFileChangedException` | Reading without a download (preview): a part changed on the server, found before one of its transfers opened or resumed (from `Read`), or found by the opening: the first part, or a later part whose header no longer fits the table (from `OpenStreamingReaderAsync` or `OpenNationalStreamingReaderAsync`). `Expected` and `Current` give both versions. To read the new one, open the reader again by path, or with the table found again (`FindTableAsync`): a table found earlier keeps the version it was found with. A download never throws it: it downloads the new version instead. |
 | `InsufficientDiskSpaceException` | Not enough free space for the file (`Directory`, `RequiredBytes`, `AvailableBytes`), checked before the transfer. |
 | `IOException` | A file of a cache entry could not be written (for example, on .NET Framework without long path support, a path too long for a deep `CacheDirectory`: see [compatibility](https://github.com/euclydesuchoas/dbsus/blob/main/docs/compatibility.md)). The original exception is the inner exception. |
 | `IOException` | Part names on the server are ambiguous, or an invalid cached copy is still open by a reader. `DatasusRetriesExhaustedException`, `DatasusRequestRefusedException` and `DatasusRemoteFileChangedException` (through `DatasusTransferException`), and `InsufficientDiskSpaceException`, also derive from `IOException`, so a `catch (IOException)` still sees them. |
 | `InvalidDataException` | A downloaded `.dbc` failed its CRC-32 check twice, a remote header is invalid, or, while reading, the data is corrupt or fails its checksum at the end. |
 | `TimeoutException` | Another thread or process held the same cache entry for longer than `LockTimeout` (10 minutes by default). |
-| `InvalidOperationException` | Reading without a download (preview): `MaxConnections` is 1, or `MaxConnections` − 1 readers from `OpenStreamingReaderAsync` are open already. Nothing was sent to the server. |
+| `InvalidOperationException` | Reading without a download (preview): `MaxConnections` is 1, or `MaxConnections` − 1 readers from `OpenStreamingReaderAsync` and `OpenNationalStreamingReaderAsync` are open already. Nothing was sent to the server. |
 | `OperationCanceledException` | The cancellation token was canceled. |
 | `ObjectDisposedException` | A method of `DatasusClient` was called after the client was disposed. Reading without a download (preview): from `Read`, when a new transfer was needed after the client was disposed, or when the reader was disposed. |
 | `NotSupportedException` | From `DatasusDataset`: the path asked for is of files the file type does not have (`GetNationalPath` of one with files by state only, or `GetPath` of one with a file for the whole country only). From the client, on .NET Framework only: the FluentFTP version in use did not report its connections to the client (see [compatibility](https://github.com/euclydesuchoas/dbsus/blob/main/docs/compatibility.md)). |

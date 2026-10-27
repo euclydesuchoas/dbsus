@@ -138,8 +138,9 @@ public sealed partial class DatasusClient
     /// Preview: this method's API and behavior may change before a stable release. Opens a table
     /// already found for reading straight from the server, without downloading it and without
     /// looking for the table again, as one <see cref="DbfReader"/> over exactly
-    /// <see cref="DatasusTableInfo.Parts"/>, in order. Use it to read preliminary data and the tables
-    /// for the whole country.
+    /// <see cref="DatasusTableInfo.Parts"/>, in order. Use it to read preliminary data; for final data,
+    /// a table can also be opened by dataset, state and period, or with
+    /// <see cref="OpenNationalStreamingReaderAsync"/>.
     /// </summary>
     /// <remarks>
     /// Everything said for
@@ -166,9 +167,10 @@ public sealed partial class DatasusClient
     /// <see cref="DbfReader.Read"/> in progress end with <see cref="ObjectDisposedException"/>, and
     /// leaves the reader unusable.
     /// The version expected of each part is the size and time of <see cref="DatasusTableInfo.Parts"/>:
-    /// a table from <see cref="FindTableAsync"/> has them, so a change since the table was found is
-    /// seen; the tables of <see cref="ListTablesAsync"/> carry no time, so the version expected is the
-    /// one on the server at the opening. To read a new version, find the table again.
+    /// a table from <see cref="FindTableAsync"/> or <see cref="FindNationalTableAsync"/> has them, so a
+    /// change since the table was found is seen; the tables of <see cref="ListTablesAsync"/> and
+    /// <see cref="ListNationalTablesAsync"/> carry no time, so the version expected is the one on the
+    /// server at the opening. To read a new version, find the table again.
     /// </remarks>
     /// <param name="table">The table to open.</param>
     /// <param name="dbfOptions">DBF read options, or <see langword="null"/>.</param>

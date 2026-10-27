@@ -85,6 +85,22 @@ while (reader.Read())
 }
 ```
 
+Or read it as it arrives, without a download (opt-in and in preview; see "Reading without a download" in the [client guide](https://github.com/euclydesuchoas/dbsus/blob/main/docs/client.md)):
+
+```csharp
+using System;
+using DbSus.Client;
+
+// MaxConnections must be 2 or more: the reader holds one connection while it is open.
+await using var client = new DatasusClient(new DatasusClientOptions { MaxConnections = 2 });
+using var reader = await client.OpenStreamingReaderAsync(DatasusCatalog.Cnes.LT, DatasusUf.RR, DatasusPeriod.OfMonth(2006, 10));
+int cnes = reader.GetOrdinal("CNES");
+while (reader.Read())   // the checksums are confirmed when Read returns false
+{
+    Console.WriteLine(reader.GetString(cnes));
+}
+```
+
 ## Features
 
 - DBC decompressed while you read: no temporary file, no full copy in memory.
