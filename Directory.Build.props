@@ -60,7 +60,7 @@
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <EnablePackageValidation>true</EnablePackageValidation>
     <!-- The last published version; raise it at every release, before packing the next one. -->
-    <PackageValidationBaselineVersion>0.1.0-preview.4</PackageValidationBaselineVersion>
+    <PackageValidationBaselineVersion>0.1.0-preview.5</PackageValidationBaselineVersion>
   </PropertyGroup>
 
   <ItemGroup Label="Package files" Condition="'$(IsPackable)' != 'false'">
