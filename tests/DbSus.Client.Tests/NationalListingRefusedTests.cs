@@ -156,13 +156,15 @@ public sealed class NationalListingRefusedTests : IDisposable
         Assert.Equal(1, _server.ControlConnections);
     }
 
-    // The default number of retries; only the waits are shortened.
+    // The default number of retries; only the waits between them are shortened. The timeouts are
+    // ones a slow runner does not reach: a timeout would be retried and send the listing again,
+    // which the tests count. No test here waits for one, since every refusal comes at once.
     private DatasusClient Client() => new(new DatasusClientOptions
     {
         Host = "127.0.0.1",
         Port = _server.Port,
         InitialRetryDelay = TimeSpan.FromMilliseconds(10),
-        ConnectTimeout = TimeSpan.FromSeconds(1),
-        ReadTimeout = TimeSpan.FromSeconds(1),
+        ConnectTimeout = TimeSpan.FromSeconds(10),
+        ReadTimeout = TimeSpan.FromSeconds(10),
     });
 }
