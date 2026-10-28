@@ -70,7 +70,9 @@ public sealed class ResumeOpenTimeoutTests : IDisposable
             AssertSameBytes(_content, await ReadToEndAsync(connection, 0, ct));
         }
 
-        // From an offset: the limit covers the PASV too, before any REST is sent.
+        // From an offset: the limit covers the PASV too, before any REST is sent. The PASV now goes
+        // unanswered, so only the limit can end the opening, however late its timer fires.
+        _server.SilentOn = "PASV";
         using (var connection = await Factory(ShortLimit).ConnectAsync(ct))
         {
             var failure = await Assert.ThrowsAsync<TransientTransportException>(() => connection.OpenReadAsync(FullPath, 1000, ct));
