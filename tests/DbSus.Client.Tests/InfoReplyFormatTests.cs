@@ -64,14 +64,17 @@ public sealed class InfoReplyFormatTests : IDisposable
     {
         _server.SizeReply = sizeReply;
         _server.MdtmReply = mdtmReply;
+
+        // Timeouts that a slow runner does not reach: the malformed reply comes at once, and a
+        // timeout would be one more failure to count.
         using var client = new DatasusClient(new DatasusClientOptions
         {
             Host = "127.0.0.1",
             Port = _server.Port,
             MaxRetries = 1,
             InitialRetryDelay = TimeSpan.FromMilliseconds(10),
-            ConnectTimeout = TimeSpan.FromSeconds(1),
-            ReadTimeout = TimeSpan.FromSeconds(1),
+            ConnectTimeout = TimeSpan.FromSeconds(10),
+            ReadTimeout = TimeSpan.FromSeconds(10),
         });
 
         var exception = await Assert.ThrowsAsync<DatasusRetriesExhaustedException>(() => client.GetInfoAsync("/X/RDRR2206.dbc", TestContext.Current.CancellationToken));
