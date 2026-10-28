@@ -43,6 +43,10 @@ public sealed class ListingCompletionTests : IDisposable
         using var client = Client();
 
         await Assert.ThrowsAsync<DatasusRetriesExhaustedException>(() => client.ListAsync("/X", ct));
+
+        // The first listing failed at its end, after its LIST: a failure before it, connecting or
+        // logging in, would not be the case under test.
+        Assert.Equal(1, _server.Commands.Count(command => command == "LIST"));
         _server.ListingEnd = ListingEnd.Complete;
         var entries = await client.ListAsync("/X", ct);
 
@@ -50,12 +54,14 @@ public sealed class ListingCompletionTests : IDisposable
         Assert.Equal(2, _server.Commands.Count(command => command == "LIST"));
     }
 
+    // Timeouts that a slow runner does not reach while connecting and logging in; the read timeout
+    // is also how long the client waits for the final reply that never comes.
     private DatasusClient Client() => new(new DatasusClientOptions
     {
         Host = "127.0.0.1",
         Port = _server.Port,
         MaxRetries = 0,
-        ConnectTimeout = TimeSpan.FromSeconds(1),
-        ReadTimeout = TimeSpan.FromSeconds(1),
+        ConnectTimeout = TimeSpan.FromSeconds(10),
+        ReadTimeout = TimeSpan.FromSeconds(5),
     });
 }
