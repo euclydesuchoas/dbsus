@@ -94,9 +94,11 @@ public sealed class HookCheckTests : IDisposable
         Assert.Contains($"its {connection} connection", exception.Message, StringComparison.Ordinal);
     }
 
+    // A connect timeout that a slow runner does not reach: connecting to the loopback took more
+    // than 2 s on CI.
     private SyncFtpSession Session(SocketHooks disabledForTest) => new(
         "127.0.0.1",
         _server.Port,
-        new FtpConfig { DataConnectionType = FtpDataConnectionType.PASVEX, ConnectTimeout = 2000, ReadTimeout = 5000, DataConnectionReadTimeout = 5000 },
+        new FtpConfig { DataConnectionType = FtpDataConnectionType.PASVEX, ConnectTimeout = 10_000, ReadTimeout = 5000, DataConnectionReadTimeout = 5000 },
         disabledForTest);
 }
