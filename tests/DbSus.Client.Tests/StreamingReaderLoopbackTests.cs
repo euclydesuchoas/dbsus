@@ -252,8 +252,10 @@ public sealed class StreamingReaderLoopbackTests : IDisposable
     // A reader read to its end no longer counts among the open readers once Read returns false, so
     // the next opening, right after, is never refused for it; with a server that keeps the data
     // connection open and silent after the last byte, the read timeout delays neither the place
-    // among the readers nor the next opening. The default two connections; no connection is left
-    // open after the client is disposed.
+    // among the readers nor the next opening: the read timeout is 60 s, and every opening must take
+    // well under it, at most 20 s, which leaves room for a slow runner (up to 10 s measured on two
+    // busy cores). The default two connections; no connection is left open after the client is
+    // disposed.
     [Theory(Timeout = 600_000)]
     [InlineData(false)]
     [InlineData(true)]
@@ -267,7 +269,7 @@ public sealed class StreamingReaderLoopbackTests : IDisposable
             _server.StallTransferAfter = content.Length;
         }
 
-        var client = Client(TimeSpan.FromSeconds(5));
+        var client = Client(TimeSpan.FromSeconds(60));
         var part = new DatasusFileInfo(FilePath, "PAMG2407.dbc", content.Length, Modified, isDirectory: false);
         var table = new DatasusTableInfo(DatasusCatalog.SiaSus.PA, DatasusUf.MG, DatasusPeriod.OfMonth(2024, 7), isPreliminary: false, FilePath, [part]);
         var refused = 0;
@@ -297,7 +299,7 @@ public sealed class StreamingReaderLoopbackTests : IDisposable
 
         Assert.Equal(0, refused);
         Assert.Equal(0, counted);
-        Assert.True(slowest < TimeSpan.FromSeconds(2), $"The slowest opening took {slowest.TotalMilliseconds:N0} ms.");
+        Assert.True(slowest < TimeSpan.FromSeconds(20), $"The slowest opening took {slowest.TotalMilliseconds:N0} ms.");
         client.Dispose();
         await ReadAheadStreamTests.WaitUntilAsync(() => _server.OpenControlConnections == 0, "every connection to close");
     }
