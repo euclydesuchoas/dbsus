@@ -71,8 +71,9 @@ public sealed class StreamingReaderTests : IDisposable
 
         Assert.Equal(content, data);
         Assert.Equal(new long[] { 0 }, _fixture.Server.TransferOffsets);
-        await ReadAheadStreamTests.WaitUntilAsync(() => Volatile.Read(ref released) == 1, "the session to let go");
-        Assert.True(session.IsReleased);
+        // The count goes at once; the place, once the part's pump is over: wait for the place.
+        await ReadAheadStreamTests.WaitUntilAsync(() => session.IsReleased, "the session to let go of its place");
+        Assert.Equal(1, Volatile.Read(ref released));
     }
 
     [Fact]
