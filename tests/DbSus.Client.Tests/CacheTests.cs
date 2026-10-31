@@ -165,6 +165,46 @@ public sealed class CacheTests : IDisposable
         }
     }
 
+    // The limit is soft: a part of a table that is being opened is never removed to make room for
+    // the next part, even when the table holds more than the limit.
+    [Fact]
+    public async Task OpenReaderAsync_TableLargerThanTheLimit_KeepsItsPartsForTheReader()
+    {
+        var a = ClientFixture.Dbc(Codes('A', 60));
+        var b = ClientFixture.Dbc(Codes('B', 60));
+        var c = ClientFixture.Dbc(Codes('C', 60));
+        _fixture.Server.Add("/SIASUS/200801_/Dados/PAMG2407a.dbc", a);
+        _fixture.Server.Add("/SIASUS/200801_/Dados/PAMG2407b.dbc", b);
+        _fixture.Server.Add("/SIASUS/200801_/Dados/PAMG2407c.dbc", c);
+        var client = _fixture.Client(configure: o => o.MaxCacheSizeBytes = a.Length + b.Length - 1);
+
+        using var reader = await client.OpenReaderAsync("/SIASUS/200801_/Dados/PAMG2407a.dbc", cancellationToken: Ct);
+
+        Assert.Equal(180, Drain(reader));
+        Assert.Equal(3, _fixture.Server.Transfers);
+    }
+
+    // With VerifyOnDownload off, a part whose checksum fails at the end of the reading marks its
+    // entry invalid: the next opening, once that reader is disposed, downloads it again.
+    [Fact]
+    public async Task OpenReaderAsync_UnverifiedEntryFailingItsChecksum_IsDownloadedAgainByTheNextOpening()
+    {
+        _fixture.Server.Add(Dados + "/RDRR2206.dbc", ClientFixture.CorruptDbc("A1", "B2"));
+        var client = _fixture.Client(configure: o => o.VerifyOnDownload = false);
+
+        using (var reader = await client.OpenReaderAsync(Dados + "/RDRR2206.dbc", cancellationToken: Ct))
+        {
+            Assert.ThrowsAny<InvalidDataException>(() => Drain(reader));
+        }
+
+        Assert.Equal(1, _fixture.Server.Transfers);
+        _fixture.Server.Add(Dados + "/RDRR2206.dbc", ClientFixture.Dbc("A1", "B2"));
+        using var again = await client.OpenReaderAsync(Dados + "/RDRR2206.dbc", cancellationToken: Ct);
+
+        Assert.Equal(2, Drain(again));
+        Assert.Equal(2, _fixture.Server.Transfers);
+    }
+
     [Fact]
     public async Task DownloadAsync_NewVersionOnTheServer_ReplacesTheOldEntryWhenUnused()
     {
@@ -230,6 +270,9 @@ public sealed class CacheTests : IDisposable
         Assert.Empty(Directory.EnumerateFiles(_fixture.TempDirectory, "RDRR2206.dbc", SearchOption.AllDirectories));
         Assert.Empty(Directory.EnumerateFileSystemEntries(_fixture.TempDirectory));
     }
+
+    private static string[] Codes(char letter, int count) =>
+        [.. Enumerable.Range(1, count).Select(i => letter + i.ToString("000", System.Globalization.CultureInfo.InvariantCulture))];
 
     private static int Drain(DbfReader reader)
     {

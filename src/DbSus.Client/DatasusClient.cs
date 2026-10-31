@@ -349,10 +349,14 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     // Once the last part is downloaded (and checked by its own download), the parts before it are
     // asked for their size and time again: if one changed, the table was republished while it was
     // downloaded, so this round's downloads go and the table starts over with the versions the
-    // server has now (a part that did not change comes from the cache, when there is one).
+    // server has now (a part that did not change comes from the cache, when there is one). With a
+    // cache, each part is opened as soon as it is downloaded: an entry that is open is never
+    // pruned, so the size limit cannot remove a part before the reader has it; the cache holds
+    // more than the limit for a moment instead.
     private async Task<DbfReader> OpenPartsAsync(IReadOnlyList<DatasusFileInfo> parts, DbfReadOptions? dbfOptions, DbcReadOptions? dbcOptions, CancellationToken cancellationToken)
     {
         var locals = new List<string>();
+        var held = new List<Stream>();
         var remotes = parts.Select(part => RemotePath.Parse(part.Path, Root)).ToList();
         var expected = parts.Select(part => part.LastModifiedUtc is { } modified ? new RemoteFileInfo(part.Size, modified) : null).ToList();
         try
@@ -366,6 +370,10 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
                     var (local, version) = await DownloadVersionAsync(remotes[i], info, cancellationToken).ConfigureAwait(false);
                     locals.Add(local);
                     versions.Add(version);
+                    if (_cache is not null)
+                    {
+                        held.Add(new FileStream(local, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.SequentialScan));
+                    }
                 }
 
                 var changed = -1;
@@ -393,6 +401,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
                 }
 
                 expected[remotes.Count - 1] = versions[remotes.Count - 1];
+                DisposeAll(held);
                 RemoveTemporaryDownloads(locals);
                 locals.Clear();
             }
@@ -400,18 +409,20 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         catch
         {
             // A later part failed (or the call was cancelled): the parts already downloaded go too.
+            DisposeAll(held);
             RemoveTemporaryDownloads(locals);
             throw;
         }
 
-        var streams = new List<Stream>();
+        var streams = held;
         try
         {
-            foreach (var local in locals)
+            if (_cache is null)
             {
-                streams.Add(_cache is null
-                    ? new TemporaryDownloadStream(local)
-                    : new FileStream(local, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.SequentialScan));
+                foreach (var local in locals)
+                {
+                    streams.Add(new TemporaryDownloadStream(local));
+                }
             }
 
             var callerCallback = dbcOptions?.ChecksumMismatch;
@@ -434,15 +445,24 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         }
         catch
         {
-            foreach (var stream in streams)
-            {
-                stream.Dispose();
-            }
+            var opened = streams.Count;
+            DisposeAll(streams);
 
             // A temporary stream deletes its file when disposed; those not opened yet are deleted here.
-            RemoveTemporaryDownloads(locals.Skip(streams.Count));
+            RemoveTemporaryDownloads(locals.Skip(opened));
             throw;
         }
+    }
+
+    // Disposes the streams and empties the list.
+    private static void DisposeAll(List<Stream> streams)
+    {
+        foreach (var stream in streams)
+        {
+            stream.Dispose();
+        }
+
+        streams.Clear();
     }
 
     // Without a cache, deletes downloads of this call that no stream owns, with their folders, as

@@ -68,6 +68,12 @@ public sealed class DatasusClientOptions
     /// Gets or sets the maximum total size of cached files, or <see langword="null"/> (the default)
     /// for no limit. When exceeded, the least recently used entries that are not in use are removed.
     /// </summary>
+    /// <remarks>
+    /// The limit is soft. It is applied after each download, and an entry in use is never removed,
+    /// the parts of a table being opened included: while a file downloads, and while a table opens,
+    /// the cache can hold up to the limit plus that file, or plus the parts of that table. Leave
+    /// that much free on the disk.
+    /// </remarks>
     public long? MaxCacheSizeBytes { get; set; }
 
     /// <summary>Gets or sets the maximum number of simultaneous FTP connections, from 1 to 4. The default is 2.</summary>
@@ -140,6 +146,14 @@ public sealed class DatasusClientOptions
     /// Gets or sets a value indicating whether each downloaded DBC is fully decompressed and its CRC-32
     /// checked before it is used or cached. The default is <see langword="true"/>.
     /// </summary>
+    /// <remarks>
+    /// When it is on, a download that fails the check is downloaded once more within the same
+    /// call. When it is off, that decompression is spared, and each part's CRC-32 is still checked
+    /// when the reader reaches the end of the part: with a cache, a part that fails it is marked
+    /// invalid, and the next opening, once that reader is disposed, downloads it again. So for a
+    /// program that always reads every record, turning it off saves one decompression on each
+    /// download, at the cost of finding a corrupt download only at the end of the reading.
+    /// </remarks>
     public bool VerifyOnDownload { get; set; } = true;
 
     /// <summary>
