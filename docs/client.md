@@ -159,6 +159,7 @@ Console.WriteLine($"{count} records");
 
 - **Paths** are relative to `/dissemin/publicos` (`RootPath`). URLs, `..`, backslashes and names that are invalid on Windows or Linux are rejected.
 - **Connections:** at most two by default (`MaxConnections`, four at most), to be gentle with the server; the limit applies per instance.
+  - **Disposing the client** closes the connections it keeps. An operation that waits for a connection then fails at once with `ObjectDisposedException`, without connecting, and so does one that needs a new connection later, to retry; an operation under way on a connection goes on to its end.
   - **A connection closed by force** (on a cancellation, a timeout or a limit that ran out) opens no other: a call that the FTP library would answer by reconnecting fails instead, as a transient failure, and is retried on a new connection.
 - **Retries:** transient failures (dropped connections, timeouts, FTP 4xx replies, truncated transfers) are retried up to `MaxRetries` times (4 by default), each time on another connection.
   - **Never retried:** a missing file (FTP 550), and a request that the server refuses with a permanent reply (FTP 5xx), a listing refused with 550 included.

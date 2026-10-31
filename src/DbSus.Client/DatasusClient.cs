@@ -490,8 +490,9 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Closes pooled connections. Readers from OpenReaderAsync and files already downloaded keep
-    /// working. A reader from OpenStreamingReaderAsync goes on with the transfer under way; going on
+    /// Closes pooled connections. An operation that waits for a connection then fails with
+    /// <see cref="ObjectDisposedException"/>, without connecting; one under way on a connection goes on.
+    /// Readers from OpenReaderAsync and files already downloaded keep working. A reader from OpenStreamingReaderAsync goes on with the transfer under way; going on
     /// to its next part, or resuming after a failure, needs a new transfer, so its Read then throws
     /// <see cref="ObjectDisposedException"/>, after the records already returned.
     /// </summary>
@@ -502,8 +503,9 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Closes pooled connections. Readers from OpenReaderAsync and files already downloaded keep
-    /// working. A reader from OpenStreamingReaderAsync goes on with the transfer under way; going on
+    /// Closes pooled connections. An operation that waits for a connection then fails with
+    /// <see cref="ObjectDisposedException"/>, without connecting; one under way on a connection goes on.
+    /// Readers from OpenReaderAsync and files already downloaded keep working. A reader from OpenStreamingReaderAsync goes on with the transfer under way; going on
     /// to its next part, or resuming after a failure, needs a new transfer, so its Read then throws
     /// <see cref="ObjectDisposedException"/>, after the records already returned.
     /// </summary>

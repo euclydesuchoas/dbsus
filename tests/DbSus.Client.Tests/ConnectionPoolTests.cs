@@ -150,6 +150,42 @@ public sealed class ConnectionPoolTests
         Assert.Single(created);
     }
 
+    // An operation that waits for a place when the pool is disposed stops waiting, and connects nothing.
+    [Fact(Timeout = 10_000)]
+    public async Task Dispose_AnOperationWaitingForAPlace_ThrowsObjectDisposedWithoutConnecting()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var created = new List<StubConnection>();
+        var pool = new ConnectionPool(new StubFactory(created), maxConnections: 1);
+        var lease = await pool.AcquireAsync(ct);
+        var waiting = pool.AcquireAsync(ct);
+        Assert.False(waiting.IsCompleted);
+
+        pool.Dispose();
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => waiting);
+        Assert.Single(created);
+        lease.Dispose();
+        Assert.Equal(1, pool.FreePlaces);
+        Assert.Equal(1, created[0].Disposals);
+    }
+
+    [Fact(Timeout = 10_000)]
+    public async Task CallerCanceledWhileWaitingForAPlace_IsACancellation()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var created = new List<StubConnection>();
+        using var pool = new ConnectionPool(new StubFactory(created), maxConnections: 1);
+        using var lease = await pool.AcquireAsync(ct);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var waiting = pool.AcquireAsync(cancellation.Token);
+
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiting);
+        Assert.Single(created);
+    }
+
     [Fact(Timeout = 10_000)]
     public async Task Abort_ClosesAnAbortableConnectionByForce()
     {

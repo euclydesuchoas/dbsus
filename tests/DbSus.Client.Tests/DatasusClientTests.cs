@@ -126,6 +126,28 @@ public sealed class DatasusClientTests : IDisposable
         Assert.False(File.Exists(path + ".partial"));
     }
 
+    // An operation that waits for a connection when the client is disposed fails at once, and
+    // connects nothing; the download under way goes on, and its place is free again at its end.
+    [Fact]
+    public async Task Dispose_AnOperationWaitingForAConnection_ThrowsObjectDisposed_AndConnectsNothing()
+    {
+        _fixture.Server.Add(Dados + "/RDMG2407.dbc", ClientFixture.Dbc("A1"));
+        _fixture.Server.Hold = (_, _) => true;
+        var client = _fixture.Client(cache: false, configure: options => options.MaxConnections = 1);
+        var download = Task.Run(() => client.DownloadAsync(Dados + "/RDMG2407.dbc", Ct), Ct);
+        await ReadAheadStreamTests.WaitUntilAsync(() => _fixture.Server.Held == 1, "the download to hold the only connection");
+        var info = client.GetInfoAsync(Dados + "/RDMG2407.dbc", Ct);
+        Assert.False(info.IsCompleted);
+
+        client.Dispose();
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => info);
+        _fixture.Server.ReleaseHeld();
+        await download;
+        Assert.Equal(1, _fixture.Server.ConnectionsOpened);
+        Assert.Equal(1, client.FreeConnectionPlaces);
+    }
+
     // The first download without a cache starts the clean-up of the temporary folders on the thread
     // pool; a later download of the same client does not start another one.
     [Fact]

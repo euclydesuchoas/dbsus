@@ -13,17 +13,42 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
 
     // Taken by Return and Dispose, so that a connection is never added to _idle after Dispose has emptied it.
     private readonly object _gate = new();
+
+    // Canceled by Dispose, so that an operation waiting for a place stops waiting. Never disposed:
+    // AcquireAsync may still link to it while Dispose runs.
+    private readonly CancellationTokenSource _closing = new();
     private volatile bool _disposed;
 
     /// <summary>Gets how many places are free; tests check it.</summary>
     internal int FreePlaces => _slots.CurrentCount;
 
+    /// <summary>
+    /// Lends a place and a connection. An operation that waits for a place when the pool is
+    /// disposed, or gets one afterward, connects nothing: it fails with
+    /// <see cref="ObjectDisposedException"/>, and the place it may have got is free again.
+    /// </summary>
     public async Task<Lease> AcquireAsync(CancellationToken cancellationToken)
     {
         Guard.NotDisposed(_disposed, this);
-        await _slots.WaitAsync(cancellationToken).ConfigureAwait(false);
+        using (var wait = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _closing.Token))
+        {
+            try
+            {
+                await _slots.WaitAsync(wait.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (_closing.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                throw Closed();
+            }
+        }
+
         try
         {
+            if (_disposed)
+            {
+                throw Closed();
+            }
+
             var connection = _idle.TryTake(out var idle) ? idle : await factory.ConnectAsync(cancellationToken).ConfigureAwait(false);
             return new Lease(this, connection);
         }
@@ -41,11 +66,16 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
             _disposed = true;
         }
 
+        _closing.Cancel();
+
         while (_idle.TryTake(out var connection))
         {
             connection.Dispose();
         }
     }
+
+    private static ObjectDisposedException Closed() =>
+        new(nameof(ConnectionPool), "The connections were closed while the operation waited for one, so no new connection is made.");
 
     // A connection for a lease that keeps its place; none once the pool is disposed.
     private Task<IDatasusConnection> ConnectInPlaceAsync(CancellationToken cancellationToken) =>

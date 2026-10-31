@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Changed
+
+- Disposing a `DatasusClient` now makes an operation that waits for one of its connections fail at once with `ObjectDisposedException`, without connecting. Before, it went on waiting until a connection was given back, and then opened a new one, after the client was disposed. An operation under way on a connection still goes on to its end.
+
 ### Fixed
 
 - `DbSus.Client`: after a connection was closed by force (on a cancellation, a read timeout, or the limit of a resumed opening that ran out), the FTP library could open it again by itself within the call under way, log in and send the call's commands on a connection that neither the cancellation nor the limit could close any more, so the call lasted as long as the library's own timeouts allowed. A connection closed by force now opens no other: the call fails as a transient failure, and a retry uses a new connection.
