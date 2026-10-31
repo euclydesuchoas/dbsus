@@ -29,7 +29,11 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
     /// </summary>
     public async Task<Lease> AcquireAsync(CancellationToken cancellationToken)
     {
-        Guard.NotDisposed(_disposed, this);
+        if (_disposed)
+        {
+            throw ClientDisposed("The client was disposed, so no new connection is made.");
+        }
+
         using (var wait = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _closing.Token))
         {
             try
@@ -38,7 +42,7 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
             }
             catch (OperationCanceledException) when (_closing.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
-                throw Closed();
+                throw ClientDisposed(WhileWaiting);
             }
         }
 
@@ -46,7 +50,7 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
         {
             if (_disposed)
             {
-                throw Closed();
+                throw ClientDisposed(WhileWaiting);
             }
 
             var connection = _idle.TryTake(out var idle) ? idle : await factory.ConnectAsync(cancellationToken).ConfigureAwait(false);
@@ -74,13 +78,15 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
         }
     }
 
-    private static ObjectDisposedException Closed() =>
-        new(nameof(ConnectionPool), "The connections were closed while the operation waited for one, so no new connection is made.");
+    private const string WhileWaiting = "The client was disposed while the operation waited for a connection, so no new connection is made.";
+
+    // The exception a caller of the client sees: it names the client, not this pool.
+    private static ObjectDisposedException ClientDisposed(string message) => new(typeof(DatasusClient).FullName, message);
 
     // A connection for a lease that keeps its place; none once the pool is disposed.
     private Task<IDatasusConnection> ConnectInPlaceAsync(CancellationToken cancellationToken) =>
         _disposed
-            ? throw new ObjectDisposedException(nameof(ConnectionPool), "The connections were closed, so no new connection is made.")
+            ? throw ClientDisposed("The client's connections were closed, so no new connection is made.")
             : factory.ConnectAsync(cancellationToken);
 
     // The place is freed whatever disposing the connection throws; the exception still propagates.

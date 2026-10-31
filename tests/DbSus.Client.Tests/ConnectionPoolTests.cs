@@ -163,7 +163,9 @@ public sealed class ConnectionPoolTests
 
         pool.Dispose();
 
-        await Assert.ThrowsAsync<ObjectDisposedException>(() => waiting);
+        // The caller sees the client's name, not the pool's.
+        var exception = await Assert.ThrowsAsync<ObjectDisposedException>(() => waiting);
+        Assert.Equal(typeof(DatasusClient).FullName, exception.ObjectName);
         Assert.Single(created);
         lease.Dispose();
         Assert.Equal(1, pool.FreePlaces);

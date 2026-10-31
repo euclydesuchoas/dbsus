@@ -141,7 +141,8 @@ public sealed class DatasusClientTests : IDisposable
 
         client.Dispose();
 
-        await Assert.ThrowsAsync<ObjectDisposedException>(() => info);
+        var exception = await Assert.ThrowsAsync<ObjectDisposedException>(() => info);
+        Assert.Equal(typeof(DatasusClient).FullName, exception.ObjectName);
         _fixture.Server.ReleaseHeld();
         await download;
         Assert.Equal(1, _fixture.Server.ConnectionsOpened);
