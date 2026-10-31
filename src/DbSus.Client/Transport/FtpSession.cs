@@ -36,7 +36,10 @@ internal abstract class FtpSession : IDisposable
 
     public abstract Task<Stream> OpenReadAsync(string path, long offset, CancellationToken cancellationToken);
 
-    /// <summary>Closes the control and data sockets now; the session cannot be used afterward.</summary>
+    /// <summary>
+    /// Closes the control and data sockets now; the session cannot be used afterward, and it opens
+    /// no connection again: a call that would reconnect fails with an <see cref="IOException"/>.
+    /// </summary>
     public abstract void Abort();
 
     public abstract void Dispose();
@@ -105,7 +108,13 @@ internal sealed class SocketTracker
     /// <summary>Gets how many data connections the hooks have reported.</summary>
     public int DataRegistrations => Volatile.Read(ref _dataRegistrations);
 
-    public void Track(FtpSocketStream stream, bool isData)
+    /// <summary>
+    /// Records a socket that FluentFTP is about to connect, and tells whether it may: once the
+    /// sockets were closed by force, none may, so a hook throws <see cref="ClosedByForce"/> before
+    /// FluentFTP connects it. FluentFTP reconnects by itself when it finds the control connection
+    /// closed, and after an abort that would open a connection nothing tracks.
+    /// </summary>
+    public bool Track(FtpSocketStream stream, bool isData)
     {
         Interlocked.Increment(ref isData ? ref _dataRegistrations : ref _controlRegistrations);
         lock (_gate)
@@ -118,13 +127,16 @@ internal sealed class SocketTracker
                     _streams.Add(stream);
                 }
 
-                return;
+                return true;
             }
         }
 
-        // Aborted already: a connection opened afterward is closed as well.
         Close(stream);
+        return false;
     }
+
+    /// <summary>What a hook throws, in place of connecting, once the sockets were closed by force.</summary>
+    public static IOException ClosedByForce() => new("The connection was closed by force; no new connection is opened for it.");
 
     public void CloseAll()
     {
@@ -187,17 +199,11 @@ internal sealed class AsyncFtpSession(string host, int port, FtpConfig config) :
     {
         public SocketTracker Sockets { get; } = new();
 
-        protected override Task ConnectAsync(FtpSocketStream stream, CancellationToken token)
-        {
-            Sockets.Track(stream, isData: false);
-            return base.ConnectAsync(stream, token);
-        }
+        protected override Task ConnectAsync(FtpSocketStream stream, CancellationToken token) =>
+            Sockets.Track(stream, isData: false) ? base.ConnectAsync(stream, token) : throw SocketTracker.ClosedByForce();
 
-        protected override Task ConnectAsync(FtpSocketStream stream, string host, int port, FtpIpVersion ipVersions, CancellationToken token)
-        {
-            Sockets.Track(stream, isData: true);
-            return base.ConnectAsync(stream, host, port, ipVersions, token);
-        }
+        protected override Task ConnectAsync(FtpSocketStream stream, string host, int port, FtpIpVersion ipVersions, CancellationToken token) =>
+            Sockets.Track(stream, isData: true) ? base.ConnectAsync(stream, host, port, ipVersions, token) : throw SocketTracker.ClosedByForce();
     }
 }
 
@@ -287,9 +293,9 @@ internal sealed class SyncFtpSession(string host, int port, FtpConfig config, So
 
         protected override void Connect(FtpSocketStream stream)
         {
-            if ((disabledForTest & SocketHooks.Control) == 0)
+            if ((disabledForTest & SocketHooks.Control) == 0 && !Sockets.Track(stream, isData: false))
             {
-                Sockets.Track(stream, isData: false);
+                throw SocketTracker.ClosedByForce();
             }
 
             base.Connect(stream);
@@ -297,9 +303,9 @@ internal sealed class SyncFtpSession(string host, int port, FtpConfig config, So
 
         protected override void Connect(FtpSocketStream stream, string host, int port, FtpIpVersion ipVersions)
         {
-            if ((disabledForTest & SocketHooks.Data) == 0)
+            if ((disabledForTest & SocketHooks.Data) == 0 && !Sockets.Track(stream, isData: true))
             {
-                Sockets.Track(stream, isData: true);
+                throw SocketTracker.ClosedByForce();
             }
 
             base.Connect(stream, host, port, ipVersions);

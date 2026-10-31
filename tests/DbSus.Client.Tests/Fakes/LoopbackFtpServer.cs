@@ -91,6 +91,13 @@ internal sealed class LoopbackFtpServer : IDisposable
     /// </summary>
     public string? CloseControlConnectionSilentlyAfter { get; set; }
 
+    /// <summary>
+    /// Gets or sets a line the server writes, after the reply, before it closes the control
+    /// connection as <see cref="CloseControlConnectionSilentlyAfter"/> asks, for example a 421: the
+    /// client then finds it there before its next command. <see langword="null"/> writes nothing.
+    /// </summary>
+    public string? CloseNotice { get; set; }
+
     /// <summary>Gets a task that completes when the server has closed a control connection as <see cref="CloseControlConnectionSilentlyAfter"/> asks.</summary>
     public Task ControlConnectionClosedSilently => _closedSilently.Task;
 
@@ -405,6 +412,11 @@ internal sealed class LoopbackFtpServer : IDisposable
 
                     if (command == CloseControlConnectionSilentlyAfter && Interlocked.Exchange(ref _silentCloses, 1) == 0)
                     {
+                        if (CloseNotice is { } notice)
+                        {
+                            await writer.WriteLineAsync(notice).ConfigureAwait(false);
+                        }
+
                         client.Close();
                         _closedSilently.TrySetResult(true);
                         return;
@@ -577,6 +589,9 @@ internal sealed class LoopbackFtpServer : IDisposable
         "FEAT" => AdvertiseEpsv ? "211-Features:\r\n EPSV\r\n SIZE\r\n MDTM\r\n REST STREAM\r\n211 End" : "211-Features:\r\n SIZE\r\n MDTM\r\n REST STREAM\r\n211 End",
         "SYST" => "215 Windows_NT",
         "PWD" => "257 \"/\" is the current directory.",
+
+        // FluentFTP sends it after it reconnects by itself, to go back to the folder it was in.
+        "CWD" => "250 CWD command successful.",
         "TYPE" => "200 Type set.",
         "OPTS" or "NOOP" => "200 OK.",
         "SIZE" when SizeReply is not null => SizeReply,

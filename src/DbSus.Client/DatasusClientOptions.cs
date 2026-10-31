@@ -78,7 +78,7 @@ public sealed class DatasusClientOptions
     /// <remarks>
     /// Opening a transfer that resumes an interrupted download or read, from a byte beyond the
     /// start, has a shorter limit of its own, 5 seconds, from the passive-mode request to the
-    /// server's reply to the transfer command; it may include a reconnection and login that the FTP
+    /// server's reply to the transfer command; it includes a reconnection and login that the FTP
     /// library makes by itself when it finds the control connection closed. When it runs out, the connection is closed and the
     /// attempt counts as a transient failure, retried on a new connection (see
     /// <see cref="MaxRetries"/> for when the retry starts over from the beginning).

@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Fixed
+
+- `DbSus.Client`: after a connection was closed by force (on a cancellation, a read timeout, or the limit of a resumed opening that ran out), the FTP library could open it again by itself within the call under way, log in and send the call's commands on a connection that neither the cancellation nor the limit could close any more, so the call lasted as long as the library's own timeouts allowed. A connection closed by force now opens no other: the call fails as a transient failure, and a retry uses a new connection.
+
 ## [0.1.0-preview.5] - 2026-10-27
 
 ### Added
