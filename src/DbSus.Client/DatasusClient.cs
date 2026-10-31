@@ -751,7 +751,22 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
                         $"The cached copy of {remote.Relative} is invalid and still open by a reader; dispose the readers and try again.");
                 }
 
-                await FetchVerifiedAsync(remote, info, entry.PartialPath, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    await FetchVerifiedAsync(remote, info, entry.PartialPath, cancellationToken).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // A download that failed before its first byte (a transfer the server refused,
+                    // say) leaves no empty file behind; one with bytes stays, for the next to resume.
+                    if (File.Exists(entry.PartialPath) && new FileInfo(entry.PartialPath).Length == 0)
+                    {
+                        FileLocks.TryDelete(entry.PartialPath);
+                    }
+
+                    throw;
+                }
+
                 WriteCacheEntry(remote, () => FileMoves.Replace(entry.PartialPath, entry.DataPath));
                 var now = _utcNow();
                 var meta = new EntryMeta(remote.Relative, info.Size, info.LastModifiedUtc, now, now, _options.VerifyOnDownload && IsDbc(remote));

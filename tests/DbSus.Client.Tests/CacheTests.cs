@@ -205,6 +205,33 @@ public sealed class CacheTests : IDisposable
         Assert.Equal(2, _fixture.Server.Transfers);
     }
 
+    // A transfer that the server refuses for good, before any byte, leaves no empty .partial behind;
+    // one that failed after some bytes keeps them, for the next download to resume.
+    [Fact]
+    public async Task DownloadAsync_TransferRefused_LeavesNoEmptyPartialFile()
+    {
+        _fixture.Server.Add(Dados + "/RDRR2206.dbc", ClientFixture.Dbc("A1"));
+        _fixture.Server.BeforeTransfer = _ => _fixture.Server.FailNextOperations(1, () => new DatasusRequestRefusedException("553 Requested action not taken.", "553", null));
+        var client = _fixture.Client();
+
+        await Assert.ThrowsAsync<DatasusRequestRefusedException>(() => client.DownloadAsync(Dados + "/RDRR2206.dbc", Ct));
+
+        Assert.Empty(Directory.EnumerateFiles(_fixture.CacheDirectory, "*.partial", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task DownloadAsync_FailedAfterSomeBytes_KeepsThemInThePartialFile()
+    {
+        _fixture.Server.Add(Dados + "/RDRR2206.dbc", ClientFixture.Dbc(Codes('A', 60)));
+        _fixture.Server.FailNextTransferAfter(100);
+        var client = _fixture.Client(configure: o => o.MaxRetries = 0);
+
+        await Assert.ThrowsAsync<DatasusRetriesExhaustedException>(() => client.DownloadAsync(Dados + "/RDRR2206.dbc", Ct));
+
+        var partial = Assert.Single(Directory.EnumerateFiles(_fixture.CacheDirectory, "*.partial", SearchOption.AllDirectories));
+        Assert.Equal(100, new FileInfo(partial).Length);
+    }
+
     [Fact]
     public async Task DownloadAsync_NewVersionOnTheServer_ReplacesTheOldEntryWhenUnused()
     {

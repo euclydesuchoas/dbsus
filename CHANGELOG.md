@@ -16,6 +16,7 @@ All notable changes to this project are documented in this file. The format foll
 
 - `DbSus.Client`: after a connection was closed by force (on a cancellation, a read timeout, or the limit of a resumed opening that ran out), the FTP library could open it again by itself within the call under way, log in and send the call's commands on a connection that neither the cancellation nor the limit could close any more, so the call lasted as long as the library's own timeouts allowed. A connection closed by force now opens no other: the call fails as a transient failure, and a retry uses a new connection.
 - With a cache and `MaxCacheSizeBytes`, `OpenReaderAsync` could remove a part of the table it was opening, already downloaded, to make room for the next part, and then fail with a `FileNotFoundException` about that local file: when the table held more than the limit, or when other entries used more recently filled it. Each part is now opened as soon as it is downloaded, and an entry in use is never removed, so the limit is soft: while a table opens, the cache can hold up to the limit plus its parts, as it can hold up to the limit plus a file while that file downloads.
+- With a cache, a download that failed before its first byte, for example one whose transfer the server refused, left an empty `.partial` file in its cache entry until the clean-up of orphans a day later. It is no longer left; a `.partial` file with bytes in it still stays, for the next download to resume.
 
 ## [0.1.0-preview.5] - 2026-10-27
 
