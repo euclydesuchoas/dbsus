@@ -14,6 +14,8 @@ dotnet test --solution DbSus.slnx --configuration Release --no-build
 
 The tests run on .NET 10 and, on Windows, also on .NET Framework 4.8.1. The build treats warnings as errors. Tests that need large samples skip themselves when the files are not there; nothing has to be downloaded to run the suite.
 
+Tests against the FTP server on the loopback interface give the client times that a slow or busy runner does not reach (`TestTimes`, in `tests/DbSus.Client.Tests/Fakes`): a connect or read timeout of 1 second or less only in a test of that timeout, and two times that race each other, such as a delay of the server and a limit of the client, at least 5 times apart.
+
 The `csharp` blocks of `README.md` and of `docs/*.md` are compiled, and most of them are run. After changing one:
 
 ```shell
