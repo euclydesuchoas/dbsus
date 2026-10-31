@@ -43,6 +43,10 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
 
     /// <summary>Creates a client for the DATASUS FTP server.</summary>
     /// <param name="options">Options, or <see langword="null"/> for the defaults.</param>
+    /// <exception cref="ArgumentException">
+    /// An option is not valid, for example a <see cref="DatasusClientOptions.RootPath"/> that is not
+    /// an acceptable path on the server; the message says which and why.
+    /// </exception>
     public DatasusClient(DatasusClientOptions? options = null)
         : this(options, null, null, null, null, null)
     {

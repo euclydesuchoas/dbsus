@@ -63,6 +63,62 @@ public class RemotePathTests
         Assert.Contains(reason, exception.Message, StringComparison.Ordinal);
     }
 
+    // Characters that the FTP library refuses in a path, or that hide in a name or break a line:
+    // refused before anything is sent, and shown escaped in the message.
+    [Theory]
+    [InlineData("/SIASUS/x\u0085.dbc", "control characters", "\\u0085")]
+    [InlineData("/SIASUS/x\u202E.dbc", "invisible format", "\\u202E")]
+    [InlineData("/SIASUS/x\u200B.dbc", "invisible format", "\\u200B")]
+    [InlineData("/SIASUS/x\uFEFF.dbc", "invisible format", "\\uFEFF")]
+    [InlineData("/SIASUS/x\u2028.dbc", "line separator", "\\u2028")]
+    [InlineData("/SIASUS/x\u2029.dbc", "line separator", "\\u2029")]
+    [InlineData("/SIASUS/x\U000E0001.dbc", "invisible format", "\\uE0001")]
+    [InlineData("/SIASUS/x%41.dbc", "'%' and ';'", "x%41.dbc")]
+    [InlineData("/SIASUS/x;y.dbc", "'%' and ';'", "x;y.dbc")]
+    public void Parse_CharactersTheFtpCommandCannotCarry_AreRefusedAndShownEscaped(string path, string reason, string shown)
+    {
+        var exception = Assert.Throws<ArgumentException>(() => RemotePath.Parse(path, Root));
+
+        // On .NET Framework the message ends with a line that names the parameter.
+        var message = exception.Message.Split([Environment.NewLine], StringSplitOptions.None)[0];
+        Assert.Contains(reason, message, StringComparison.Ordinal);
+        Assert.Contains(shown, message, StringComparison.Ordinal);
+        Assert.DoesNotContain(message, c => char.GetUnicodeCategory(c) is System.Globalization.UnicodeCategory.Control or System.Globalization.UnicodeCategory.Format);
+    }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/dissemin/publicos")]
+    [InlineData("/dissemin/publicos/")]
+    [InlineData("/dados abertos")]
+    public void RootProblem_AcceptableRoots_HaveNone(string root)
+    {
+        Assert.Null(RemotePath.RootProblem(root));
+    }
+
+    [Theory]
+    [InlineData("", "must start with '/'")]
+    [InlineData("dissemin/publicos", "must start with '/'")]
+    [InlineData("/dissemin/publicos\r\nDELE x.dbc", "control characters (U+000D)")]
+    [InlineData("/dissemin/publicos\u0000", "control characters (U+0000)")]
+    [InlineData("/dissemin/\u202Epublicos", "invisible format")]
+    [InlineData("/dissemin//publicos", "empty segment")]
+    [InlineData("/dissemin/../restritos", "'.' and '..'")]
+    [InlineData("/dissemin/publicos;", "'%' and ';'")]
+    [InlineData("/dissemin\\publicos", "separator")]
+    [InlineData("ftp://ftp.datasus.gov.br/dissemin", "must start with '/'")]
+    [InlineData("/x/ftp://y", "URLs")]
+    [InlineData("/dissemin/a:b", "invalid in file names")]
+    [InlineData("/dissemin/publicos.", "ends with a dot")]
+    public void RootProblem_UnacceptableRoots_SayWhy(string root, string reason)
+    {
+        var problem = RemotePath.RootProblem(root);
+
+        Assert.NotNull(problem);
+        Assert.Contains(reason, problem, StringComparison.Ordinal);
+        Assert.DoesNotContain(problem, c => c is '\r' or '\n' or '\0');
+    }
+
     [Theory]
     [InlineData("/SIASUS/COM10.dbc")]
     [InlineData("/SIASUS/CONSOLE.dbc")]

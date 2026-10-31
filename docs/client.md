@@ -157,7 +157,7 @@ Console.WriteLine($"{count} records");
 
 ## Behavior
 
-- **Paths** are relative to `/dissemin/publicos` (`RootPath`). URLs, `..`, backslashes and names that are invalid on Windows or Linux are rejected.
+- **Paths** are relative to `/dissemin/publicos` (`RootPath`). URLs, `..`, backslashes and names that are invalid on Windows or Linux are rejected, with `ArgumentException`, before anything is sent; so are control characters, invisible format and line separator characters (shown as `\uXXXX` in the message), and `%` and `;`, which the FTP library refuses in a path. `RootPath` is checked with the same rules when the client is created: one that is not acceptable makes the constructor throw `ArgumentException`, whose message says why. No command sent to the server ever holds a line break.
 - **Connections:** at most two by default (`MaxConnections`, four at most), to be gentle with the server; the limit applies per instance.
   - **Disposing the client** closes the connections it keeps. An operation that waits for a connection then fails at once with `ObjectDisposedException`, without connecting, and so does one that needs a new connection later, to retry; an operation under way on a connection goes on to its end.
   - **A connection closed by force** (on a cancellation, a timeout or a limit that ran out) opens no other: a call that the FTP library would answer by reconnecting fails instead, as a transient failure, and is retried on a new connection.

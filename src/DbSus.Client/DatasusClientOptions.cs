@@ -22,6 +22,13 @@ public sealed class DatasusClientOptions
     /// <c>/dissemin/publicos</c>, so <c>/SIASUS/200801_/Dados/PAMG2510a.dbc</c> names
     /// <c>/dissemin/publicos/SIASUS/200801_/Dados/PAMG2510a.dbc</c>.
     /// </summary>
+    /// <remarks>
+    /// It is checked when the client is created, with the rules of every path: it starts with
+    /// <c>/</c>; it has no control, invisible format or line separator character, no <c>\</c>,
+    /// <c>%</c> or <c>;</c>, no URL, no empty, <c>.</c> or <c>..</c> segment, and no segment that is
+    /// not a valid file name on Windows and Linux. Otherwise the <see cref="DatasusClient"/>
+    /// constructor throws <see cref="ArgumentException"/>, whose message says why.
+    /// </remarks>
     public string RootPath { get; set; } = "/dissemin/publicos";
 
     /// <summary>
@@ -162,9 +169,9 @@ public sealed class DatasusClientOptions
             throw new ArgumentException("Host is required.", nameof(Host));
         }
 
-        if (string.IsNullOrEmpty(RootPath) || RootPath[0] != '/')
+        if (RemotePath.RootProblem(RootPath) is { } rootProblem)
         {
-            throw new ArgumentException("RootPath must start with '/'.", nameof(RootPath));
+            throw new ArgumentException(rootProblem, nameof(RootPath));
         }
 
         if (MaxConnections is < 1 or > 4)

@@ -89,6 +89,7 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
 
     public Task<IReadOnlyList<RemoteEntry>> ListAsync(string directory, CancellationToken cancellationToken)
     {
+        RequireOneLine(directory);
         var step = FtpStep.Listing(directory, host, port);
         return Guard<IReadOnlyList<RemoteEntry>>(step, ConnectCount, async () =>
         {
@@ -130,8 +131,10 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
         }, cancellationToken);
     }
 
-    public Task<RemoteFileInfo> GetInfoAsync(string path, CancellationToken cancellationToken) =>
-        Guard(FtpStep.ReadingInfo(path, host, port), ConnectCount, async () =>
+    public Task<RemoteFileInfo> GetInfoAsync(string path, CancellationToken cancellationToken)
+    {
+        RequireOneLine(path);
+        return Guard(FtpStep.ReadingInfo(path, host, port), ConnectCount, async () =>
         {
             // Raw SIZE and MDTM: MDTM is UTC by definition (RFC 3659), so it is parsed here rather
             // than through FluentFTP's time-zone conversion.
@@ -139,6 +142,7 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
             var modified = await Expect(session.ExecuteAsync("MDTM " + path, cancellationToken), path).ConfigureAwait(false);
             return new RemoteFileInfo(ParseSize(size.Message, path), ParseModified(modified.Message, path));
         }, cancellationToken);
+    }
 
     // A SIZE reply that is not a size (not digits, or too large for a long) is a transport failure
     // like a truncated transfer, never a parsing exception of the framework.
@@ -165,6 +169,7 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
     // opening one from the start keeps the read timeout alone.
     public async Task<Stream> OpenReadAsync(string path, long offset, CancellationToken cancellationToken)
     {
+        RequireOneLine(path);
         var stream = await Guard(
             FtpStep.OpeningForReading(path, host, port),
             ConnectCount,
@@ -175,6 +180,16 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
     }
 
     public void Dispose() => session.Dispose();
+
+    // Defense in depth: the paths that reach here were checked (RemotePath), but a CR, LF or NUL in
+    // one would end the FTP command early and start another, so none is ever sent.
+    private static void RequireOneLine(string path)
+    {
+        if (path.IndexOfAny(['\r', '\n', '\0']) >= 0)
+        {
+            throw new ArgumentException("A path with a line break or a NUL character is never sent to the FTP server.", nameof(path));
+        }
+    }
 
     internal static async Task<FtpReply> Expect(Task<FtpReply> command, string subject)
     {
@@ -196,6 +211,14 @@ internal sealed class FtpConnection(FtpSession session, string host, int port, T
         try
         {
             return await operation().ConfigureAwait(false);
+        }
+        catch (FtpSanitizeException exception)
+        {
+            // The FTP library refuses the path itself, before sending it: asking again would get the
+            // same answer, so it is never retried.
+            throw new ArgumentException(
+                $"The FTP library refused the path while {step.Description}: {ServerText.Clean(exception.Message)}",
+                exception);
         }
         catch (FtpCommandException exception)
         {

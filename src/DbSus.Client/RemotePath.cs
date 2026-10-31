@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text;
+
 namespace DbSus.Client;
 
 /// <summary>
@@ -55,19 +58,9 @@ internal sealed class RemotePath
     {
         Guard.NotNull(path, nameof(path));
         root = NormalizeRoot(root);
-        if (path.Contains("://"))
+        if (CharactersProblem(path) is { } problem)
         {
-            throw Invalid(path, "URLs are not accepted; give a path relative to the root");
-        }
-
-        if (path.Any(c => c < 0x20 || c == 0x7F))
-        {
-            throw Invalid(path, "it contains control characters");
-        }
-
-        if (path.Any(c => c == '\\'))
-        {
-            throw Invalid(path, "use '/' as the separator");
+            throw Invalid(path, problem);
         }
 
         var rootSegments = root.Split(['/'], StringSplitOptions.RemoveEmptyEntries);
@@ -101,10 +94,74 @@ internal sealed class RemotePath
         var segments = relative.Split('/');
         foreach (var segment in segments)
         {
-            ValidateSegment(path, segment);
+            if (SegmentProblem(segment) is { } segmentProblem)
+            {
+                throw Invalid(path, segmentProblem);
+            }
         }
 
         return new RemotePath(root, segments);
+    }
+
+    /// <summary>
+    /// Checks a root for <see cref="DatasusClientOptions.RootPath"/> with the rules of
+    /// <see cref="Parse"/>, since it is sent to the server in front of every path, and gives the
+    /// message of what is wrong, or <see langword="null"/>. One <c>/</c> alone, the server's root,
+    /// is accepted, and so is one <c>/</c> at the end.
+    /// </summary>
+    public static string? RootProblem(string? root)
+    {
+        if (string.IsNullOrEmpty(root) || root![0] != '/')
+        {
+            return "RootPath must start with '/'.";
+        }
+
+        var problem = CharactersProblem(root);
+        var relative = NormalizeRoot(root);
+        if (problem is null && relative.Length > 0)
+        {
+            problem = relative.Substring(1).Split('/').Select(SegmentProblem).FirstOrDefault(found => found is not null);
+        }
+
+        return problem is null ? null : $"Invalid RootPath '{Shown(root)}': {problem}.";
+    }
+
+    // What makes a path unacceptable as a whole, whatever its segments: the FTP command it goes in
+    // must stay one line, and the FTP library refuses '%', ';' and some invisible characters in it.
+    private static string? CharactersProblem(string path)
+    {
+        if (path.Contains("://"))
+        {
+            return "URLs are not accepted; give a path relative to the root";
+        }
+
+        for (var i = 0; i < path.Length; i++)
+        {
+            switch (char.GetUnicodeCategory(path, i))
+            {
+                case UnicodeCategory.Control:
+                    return $"it contains control characters (U+{(int)path[i]:X4})";
+                case UnicodeCategory.Format or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator:
+                    return $"it contains an invisible format or line separator character (U+{char.ConvertToUtf32(path, i):X4})";
+            }
+
+            if (char.IsHighSurrogate(path[i]))
+            {
+                i++;
+            }
+        }
+
+        if (path.Any(c => c == '\\'))
+        {
+            return "use '/' as the separator";
+        }
+
+        if (path.Any(c => c is '%' or ';'))
+        {
+            return "'%' and ';' are not accepted, since the FTP library refuses them in a path";
+        }
+
+        return null;
     }
 
     private static string NormalizeRoot(string root)
@@ -113,42 +170,69 @@ internal sealed class RemotePath
         return trimmed.Length == 0 ? string.Empty : trimmed;
     }
 
-    private static void ValidateSegment(string path, string segment)
+    private static string? SegmentProblem(string segment)
     {
         if (segment.Length == 0)
         {
-            throw Invalid(path, "it contains an empty segment ('//')");
+            return "it contains an empty segment ('//')";
         }
 
         if (segment is "." or "..")
         {
-            throw Invalid(path, "'.' and '..' segments are not accepted");
+            return "'.' and '..' segments are not accepted";
         }
 
         if (segment.Any(InvalidCharacters.Contains))
         {
-            throw Invalid(path, $"segment '{segment}' contains a character invalid in file names");
+            return $"segment '{segment}' contains a character invalid in file names";
         }
 
         var last = segment[segment.Length - 1];
         if (last == '.' || last == ' ' || segment[0] == ' ')
         {
-            throw Invalid(path, $"segment '{segment}' starts or ends with a space or ends with a dot");
+            return $"segment '{segment}' starts or ends with a space or ends with a dot";
         }
 
         // Windows ignores spaces at the end of the stem, so "CON .dbc" is the device too.
         var stem = segment.Split('.')[0].TrimEnd(' ');
         if (ReservedNames.Contains(stem))
         {
-            throw Invalid(path, $"segment '{segment}' is a reserved device name on Windows");
+            return $"segment '{segment}' is a reserved device name on Windows";
         }
 
         if (segment.Length > 255)
         {
-            throw Invalid(path, "a segment is longer than 255 characters");
+            return "a segment is longer than 255 characters";
         }
+
+        return null;
+    }
+
+    // A path as a message shows it: characters that are invisible or would break the line as \uXXXX.
+    private static string Shown(string path)
+    {
+        var shown = new StringBuilder(path.Length);
+        for (var i = 0; i < path.Length; i++)
+        {
+            var pair = char.IsSurrogatePair(path, i);
+            if (char.GetUnicodeCategory(path, i) is UnicodeCategory.Control or UnicodeCategory.Format or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator)
+            {
+                shown.Append("\\u").Append(char.ConvertToUtf32(path, i).ToString("X4", CultureInfo.InvariantCulture));
+            }
+            else
+            {
+                shown.Append(path, i, pair ? 2 : 1);
+            }
+
+            if (pair)
+            {
+                i++;
+            }
+        }
+
+        return shown.ToString();
     }
 
     private static ArgumentException Invalid(string path, string reason) =>
-        new($"Invalid DATASUS path '{path}': {reason}.", nameof(path));
+        new($"Invalid DATASUS path '{Shown(path)}': {reason}.", nameof(path));
 }
