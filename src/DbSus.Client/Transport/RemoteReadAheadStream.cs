@@ -79,6 +79,9 @@ internal sealed class RemoteReadAheadStream : Stream
     private readonly Task? _after;
     private readonly Action<Exception>? _onFailed;
 
+    // Told of each transfer that opens and of the bytes received; the pump's alone.
+    private readonly ProgressMeter? _progress;
+
     // The pump, the consumer and each queued stop; the last of them to finish disposes _stop, which
     // must not be disposed while another of them still uses it.
     private int _owners = 2;
@@ -139,9 +142,10 @@ internal sealed class RemoteReadAheadStream : Stream
         _registration = cancellationToken.Register(OnCanceled);
     }
 
-    private RemoteReadAheadStream(ConnectionPool.Lease lease, RetryPolicy retry, RemotePath remote, RemoteFileInfo expected, long startAt, long restartFromStartUpTo, Task after, Action<Exception> onFailed, CancellationToken cancellationToken)
+    private RemoteReadAheadStream(ConnectionPool.Lease lease, RetryPolicy retry, RemotePath remote, RemoteFileInfo expected, long startAt, long restartFromStartUpTo, Task after, Action<Exception> onFailed, ProgressMeter? progress, CancellationToken cancellationToken)
         : this(lease, Stream.Null, retry, remote, expected, restartFromStartUpTo, cancellationToken)
     {
+        _progress = progress;
         _onLease = true;
         _after = after;
         _onFailed = onFailed;
@@ -260,9 +264,10 @@ internal sealed class RemoteReadAheadStream : Stream
     /// <param name="after">Ends when nothing else uses the lease's connection any more.</param>
     /// <param name="onFailed">Called once, with the failure, when the stream has failed for good.</param>
     /// <param name="cancellationToken">Cancels every read, for the life of the stream.</param>
-    internal static RemoteReadAheadStream StartOnLease(ConnectionPool.Lease lease, RetryPolicy retry, RemotePath remote, RemoteFileInfo expected, long startAt, long restartFromStartUpTo, Task after, Action<Exception> onFailed, CancellationToken cancellationToken)
+    /// <param name="progress">Told of each transfer that opens and of the bytes received, or <see langword="null"/>.</param>
+    internal static RemoteReadAheadStream StartOnLease(ConnectionPool.Lease lease, RetryPolicy retry, RemotePath remote, RemoteFileInfo expected, long startAt, long restartFromStartUpTo, Task after, Action<Exception> onFailed, CancellationToken cancellationToken, ProgressMeter? progress = null)
     {
-        var stream = new RemoteReadAheadStream(lease, retry, remote, expected, startAt, restartFromStartUpTo, after, onFailed, cancellationToken);
+        var stream = new RemoteReadAheadStream(lease, retry, remote, expected, startAt, restartFromStartUpTo, after, onFailed, progress, cancellationToken);
         stream.Completion = Task.Run(stream.PumpAsync, CancellationToken.None);
         return stream;
     }
@@ -432,6 +437,7 @@ internal sealed class RemoteReadAheadStream : Stream
                         var opening = first;
                         first = false;
                         await ResumeAsync(fromStart, opening, token).ConfigureAwait(false);
+                        _progress?.Start(_received, fromStart ? 0 : _received);
                     }
 
                     var end = await TransferAsync(token).ConfigureAwait(false);
@@ -538,6 +544,7 @@ internal sealed class RemoteReadAheadStream : Stream
 
             Publish(read);
             _received += read;
+            _progress?.Advance(_received);
         }
 
         try
@@ -810,7 +817,7 @@ internal sealed class RemoteReadAheadStream : Stream
         }
     }
 
-    private static string Operation(RemotePath remote) => $"Streaming {remote.Relative}";
+    internal static string Operation(RemotePath remote) => $"Streaming {remote.Relative}";
 
     // As the retry policy reports a transient failure after its last attempt.
     private static DatasusRetriesExhaustedException Exhausted(RemotePath remote, TransientTransportException exception, int attempts) =>

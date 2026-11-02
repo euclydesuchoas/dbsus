@@ -1,1 +1,27 @@
 #nullable enable
+DbSus.Client.DatasusClient.DownloadAsync(DbSus.Client.DatasusFileRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<string!>!
+DbSus.Client.DatasusClient.OpenReaderAsync(DbSus.Client.DatasusFileRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfReader!>!
+DbSus.Client.DatasusClient.OpenStreamingReaderAsync(DbSus.Client.DatasusFileRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<DbSus.Dbf.DbfReader!>!
+DbSus.Client.DatasusFileRequest
+DbSus.Client.DatasusFileRequest.DatasusFileRequest(DbSus.Client.DatasusTableInfo! table) -> void
+DbSus.Client.DatasusFileRequest.DatasusFileRequest(string! path) -> void
+DbSus.Client.DatasusFileRequest.DbcOptions.get -> DbSus.Dbc.DbcReadOptions?
+DbSus.Client.DatasusFileRequest.DbcOptions.set -> void
+DbSus.Client.DatasusFileRequest.DbfOptions.get -> DbSus.Dbf.DbfReadOptions?
+DbSus.Client.DatasusFileRequest.DbfOptions.set -> void
+DbSus.Client.DatasusFileRequest.Path.get -> string?
+DbSus.Client.DatasusFileRequest.Progress.get -> System.IProgress<DbSus.Client.DatasusProgressInfo!>?
+DbSus.Client.DatasusFileRequest.Progress.set -> void
+DbSus.Client.DatasusFileRequest.Table.get -> DbSus.Client.DatasusTableInfo?
+DbSus.Client.DatasusProgressInfo
+DbSus.Client.DatasusProgressInfo.BytesDone.get -> long
+DbSus.Client.DatasusProgressInfo.Operation.get -> string!
+DbSus.Client.DatasusProgressInfo.RemotePath.get -> string!
+DbSus.Client.DatasusProgressInfo.ResumedAt.get -> long
+DbSus.Client.DatasusProgressInfo.Stage.get -> DbSus.Client.DatasusProgressStage
+DbSus.Client.DatasusProgressInfo.TotalBytes.get -> long
+DbSus.Client.DatasusProgressStage
+DbSus.Client.DatasusProgressStage.Downloading = 0 -> DbSus.Client.DatasusProgressStage
+DbSus.Client.DatasusProgressStage.FromCache = 2 -> DbSus.Client.DatasusProgressStage
+DbSus.Client.DatasusProgressStage.Streaming = 3 -> DbSus.Client.DatasusProgressStage
+DbSus.Client.DatasusProgressStage.Verifying = 1 -> DbSus.Client.DatasusProgressStage

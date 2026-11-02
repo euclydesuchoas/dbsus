@@ -84,6 +84,8 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 ## API and behavior
 
 - **Parameters after a release.** An optional parameter and its default value are compiled into the caller, so a new parameter comes as a new overload, never as one more optional parameter of an existing method, which would break binary compatibility; and a default value does not change unless the changelog announces it as a breaking change.
+- **What belongs to one call comes in a request (November 2026).** A client is often shared by a whole application, where a progress callback in `DatasusClientOptions` could not tell two calls for the same table apart. So the progress is of one call, in a `DatasusFileRequest`, the first parameter of an overload with a type of its own; the next option of one call is one more property, without more overloads. The operation refuses what it would ignore (`DownloadAsync`, a table or read options) instead of leaving it aside in silence. The price: `DownloadAsync(null)`, with a literal `null`, which could only throw, became ambiguous; `OpenReaderAsync(null)` and `OpenStreamingReaderAsync(null)` already were.
+- **Progress reports at most every 250 ms, not every so many bytes (November 2026).** A count of bytes is no limit on a fast link and leaves a slow one silent. Each transfer also reports its start and each file its end, whatever the clock says.
 
 ### Naming
 

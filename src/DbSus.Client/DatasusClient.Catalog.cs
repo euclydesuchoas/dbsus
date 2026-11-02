@@ -154,7 +154,7 @@ public sealed partial class DatasusClient
     /// a <see cref="FileNotFoundException"/>. This is the way to
     /// know whether a table exists and which files it has; pass the result to
     /// <see cref="OpenReaderAsync(DatasusTableInfo, DbfReadOptions, DbcReadOptions, CancellationToken)"/>
-    /// to read it, or its parts to <see cref="DownloadAsync"/>.
+    /// to read it, or its parts to <see cref="DownloadAsync(string, CancellationToken)"/>.
     /// </remarks>
     /// <param name="dataset">The dataset, from <see cref="DatasusCatalog"/>.</param>
     /// <param name="uf">The state.</param>
@@ -205,7 +205,7 @@ public sealed partial class DatasusClient
     /// Each candidate is looked for as <see cref="FindTableAsync"/> does. The result has
     /// <see cref="DatasusTableInfo.Uf"/> set to <see langword="null"/>; pass it to
     /// <see cref="OpenReaderAsync(DatasusTableInfo, DbfReadOptions, DbcReadOptions, CancellationToken)"/>
-    /// to read it, or its parts to <see cref="DownloadAsync"/>.
+    /// to read it, or its parts to <see cref="DownloadAsync(string, CancellationToken)"/>.
     /// </remarks>
     /// <param name="dataset">The dataset, from <see cref="DatasusCatalog"/>.</param>
     /// <param name="period">A month for a monthly dataset, a year for a yearly one.</param>
@@ -365,7 +365,7 @@ public sealed partial class DatasusClient
     {
         Guard.NotDisposed(_disposed, this);
         Guard.NotNull(table, nameof(table));
-        return OpenPartsAsync(table.Parts, dbfOptions, dbcOptions, cancellationToken);
+        return OpenPartsAsync(table.Parts, dbfOptions, dbcOptions, progress: null, cancellationToken);
     }
 
     // A dataset is an argument here: one without the files asked for is refused as such, with the
@@ -500,7 +500,7 @@ public sealed partial class DatasusClient
         var table = await FindInAsync(dataset, era, era.Directory, fileName, uf, period, isPreliminary: false, cancellationToken).ConfigureAwait(false);
         if (table is not null)
         {
-            return await OpenPartsAsync(table.Parts, dbfOptions, dbcOptions, cancellationToken).ConfigureAwait(false);
+            return await OpenPartsAsync(table.Parts, dbfOptions, dbcOptions, progress: null, cancellationToken).ConfigureAwait(false);
         }
 
         DatasusRequestRefusedException? notListed = null;

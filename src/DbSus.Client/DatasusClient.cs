@@ -78,7 +78,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     /// <returns>
     /// The entries; their <see cref="DatasusFileInfo.LastModifiedUtc"/> is <see langword="null"/> (listing times are imprecise).
     /// The names are the ones the server sends, as they are: they are checked only when they become a path
-    /// (for example given to <see cref="DownloadAsync"/>), so a name may hold characters that no path accepts.
+    /// (for example given to <see cref="DownloadAsync(string, CancellationToken)"/>), so a name may hold characters that no path accepts.
     /// </returns>
     /// <exception cref="DatasusRequestRefusedException">
     /// The server refused the listing of the directory with a permanent reply (FTP 5xx, 550 included: the
@@ -310,7 +310,50 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         Guard.NotDisposed(_disposed, this);
         var remote = RemotePath.Parse(path, Root);
         var info = await GetRemoteInfoAsync(remote, cancellationToken).ConfigureAwait(false);
-        return (await DownloadVersionAsync(remote, info, cancellationToken).ConfigureAwait(false)).Path;
+        return (await DownloadVersionAsync(remote, info, progress: null, cancellationToken).ConfigureAwait(false)).Path;
+    }
+
+    /// <summary>
+    /// Downloads one file as <see cref="DownloadAsync(string, CancellationToken)"/> does, from a
+    /// request that says who receives the progress of this call (see <see cref="DatasusFileRequest.Progress"/>).
+    /// </summary>
+    /// <remarks>Everything said for <see cref="DownloadAsync(string, CancellationToken)"/> holds.</remarks>
+    /// <param name="request">The request, by path. <see cref="DatasusFileRequest.Progress"/> receives the progress, if set.</param>
+    /// <param name="cancellationToken">Cancels the download.</param>
+    /// <returns>The full local path of the downloaded file.</returns>
+    /// <exception cref="ArgumentException">
+    /// The path is not acceptable; or the request has a table, which is not one file (make a request
+    /// by path for each of <see cref="DatasusTableInfo.Parts"/>), or read options, which do not apply
+    /// to a download. Nothing was sent to the server.
+    /// </exception>
+    /// <exception cref="FileNotFoundException">The file does not exist (FTP 550; never retried).</exception>
+    /// <exception cref="InvalidDataException">The file failed its CRC-32 check twice.</exception>
+    /// <exception cref="DatasusRetriesExhaustedException">
+    /// Transient failures persisted after every retry, or the file changed on the server at every
+    /// attempt to download it.
+    /// </exception>
+    /// <exception cref="DatasusRequestRefusedException">The server refused the request permanently.</exception>
+    /// <exception cref="InsufficientDiskSpaceException">There is not enough free disk space for the file.</exception>
+    /// <exception cref="IOException">A file of the cache entry could not be written.</exception>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = OverloadsJustification)]
+    public async Task<string> DownloadAsync(DatasusFileRequest request, CancellationToken cancellationToken = default)
+    {
+        Guard.NotDisposed(_disposed, this);
+        Guard.NotNull(request, nameof(request));
+        var progress = request.Progress;
+        if (request.Path is not { } path)
+        {
+            throw new ArgumentException("DownloadAsync gives back one file, and a table is not one: make a request by path for each of DatasusTableInfo.Parts.", nameof(request));
+        }
+
+        if (request.DbfOptions is not null || request.DbcOptions is not null)
+        {
+            throw new ArgumentException("DownloadAsync reads no record, so DbfOptions and DbcOptions do not apply to it: leave them null.", nameof(request));
+        }
+
+        var remote = RemotePath.Parse(path, Root);
+        var info = await GetRemoteInfoAsync(remote, cancellationToken).ConfigureAwait(false);
+        return (await DownloadVersionAsync(remote, info, progress, cancellationToken).ConfigureAwait(false)).Path;
     }
 
     /// <summary>
@@ -341,7 +384,35 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     {
         Guard.NotDisposed(_disposed, this);
         var parts = await FindPartsAsync(path, cancellationToken).ConfigureAwait(false);
-        return await OpenPartsAsync(parts, dbfOptions, dbcOptions, cancellationToken).ConfigureAwait(false);
+        return await OpenPartsAsync(parts, dbfOptions, dbcOptions, progress: null, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Downloads every part of a table and opens them as one <see cref="DbfReader"/>, as the overloads
+    /// that take a path or a table do, from a request that says who receives the progress of this call
+    /// (see <see cref="DatasusFileRequest.Progress"/>).
+    /// </summary>
+    /// <remarks>
+    /// Everything said for
+    /// <see cref="OpenReaderAsync(string, DbfReadOptions, DbcReadOptions, CancellationToken)"/> and
+    /// <see cref="OpenReaderAsync(DatasusTableInfo, DbfReadOptions, DbcReadOptions, CancellationToken)"/> holds.
+    /// </remarks>
+    /// <param name="request">The request, by path or by table, with its read options and its progress.</param>
+    /// <param name="cancellationToken">Cancels the downloads.</param>
+    /// <returns>A reader positioned before the first record, over every part in order.</returns>
+    /// <exception cref="FileNotFoundException">No such file, or a part is missing.</exception>
+    /// <exception cref="DatasusRequestRefusedException">
+    /// The server refused the listing of the file's folder with a permanent reply (FTP 5xx, 550 included: the
+    /// folder does not exist or may not be read). It is not retried.
+    /// </exception>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = OverloadsJustification)]
+    public async Task<DbfReader> OpenReaderAsync(DatasusFileRequest request, CancellationToken cancellationToken = default)
+    {
+        Guard.NotDisposed(_disposed, this);
+        Guard.NotNull(request, nameof(request));
+        var (dbfOptions, dbcOptions, progress) = (request.DbfOptions, request.DbcOptions, request.Progress);
+        var parts = request.Table?.Parts ?? await FindPartsAsync(request.Path!, cancellationToken).ConfigureAwait(false);
+        return await OpenPartsAsync(parts, dbfOptions, dbcOptions, progress, cancellationToken).ConfigureAwait(false);
     }
 
     // Downloads the parts, one after the other, and opens them as one reader. A part that comes
@@ -353,7 +424,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     // cache, each part is opened as soon as it is downloaded: an entry that is open is never
     // pruned, so the size limit cannot remove a part before the reader has it; the cache holds
     // more than the limit for a moment instead.
-    private async Task<DbfReader> OpenPartsAsync(IReadOnlyList<DatasusFileInfo> parts, DbfReadOptions? dbfOptions, DbcReadOptions? dbcOptions, CancellationToken cancellationToken)
+    private async Task<DbfReader> OpenPartsAsync(IReadOnlyList<DatasusFileInfo> parts, DbfReadOptions? dbfOptions, DbcReadOptions? dbcOptions, IProgress<DatasusProgressInfo>? progress, CancellationToken cancellationToken)
     {
         var locals = new List<string>();
         var held = new List<Stream>();
@@ -367,7 +438,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
                 for (var i = 0; i < remotes.Count; i++)
                 {
                     var info = expected[i] ?? await GetRemoteInfoAsync(remotes[i], cancellationToken).ConfigureAwait(false);
-                    var (local, version) = await DownloadVersionAsync(remotes[i], info, cancellationToken).ConfigureAwait(false);
+                    var (local, version) = await DownloadVersionAsync(remotes[i], info, progress, cancellationToken).ConfigureAwait(false);
                     locals.Add(local);
                     versions.Add(version);
                     if (_cache is not null)
@@ -617,17 +688,22 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
 
     private static bool IsDbc(RemotePath remote) => string.Equals(Path.GetExtension(remote.Name), ".dbc", StringComparison.OrdinalIgnoreCase);
 
-    private static bool VerifyDbc(string path, CancellationToken cancellationToken)
+    // Reports how much of the file the check has read, and its last byte only once the check passed.
+    private static bool VerifyDbc(string path, ProgressMeter? meter, long size, CancellationToken cancellationToken)
     {
         try
         {
-            using var dbf = DbcFile.OpenAsDbf(path);
+            meter?.Start(0);
+            var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.SequentialScan);
+            using var dbf = DbcFile.OpenAsDbf(file);
             var buffer = new byte[81920];
             while (dbf.Read(buffer, 0, buffer.Length) > 0)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                meter?.Advance(Math.Min(file.Position, size - 1));
             }
 
+            meter?.Advance(size);
             return true;
         }
         catch (InvalidDataException)
@@ -693,15 +769,15 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         }, cancellationToken);
 
     // The local file, and the version of it that was downloaded.
-    private async Task<(string Path, RemoteFileInfo Version)> DownloadVersionAsync(RemotePath remote, RemoteFileInfo info, CancellationToken cancellationToken)
+    private async Task<(string Path, RemoteFileInfo Version)> DownloadVersionAsync(RemotePath remote, RemoteFileInfo info, IProgress<DatasusProgressInfo>? progress, CancellationToken cancellationToken)
     {
         for (var restarts = 0; ; restarts++)
         {
             try
             {
                 var local = _cache is null
-                    ? await DownloadToTempAsync(remote, info, cancellationToken).ConfigureAwait(false)
-                    : await DownloadToCacheAsync(_cache, remote, info, cancellationToken).ConfigureAwait(false);
+                    ? await DownloadToTempAsync(remote, info, progress, cancellationToken).ConfigureAwait(false)
+                    : await DownloadToCacheAsync(_cache, remote, info, progress, cancellationToken).ConfigureAwait(false);
                 return (local, info);
             }
             catch (RemoteFileChangedException changed) when (restarts < MaxVersionRestarts)
@@ -723,7 +799,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         }
     }
 
-    private async Task<string> DownloadToCacheAsync(CacheStore cache, RemotePath remote, RemoteFileInfo info, CancellationToken cancellationToken)
+    private async Task<string> DownloadToCacheAsync(CacheStore cache, RemotePath remote, RemoteFileInfo info, IProgress<DatasusProgressInfo>? progress, CancellationToken cancellationToken)
     {
         var entry = cache.EntryFor(remote, info);
         if (!Directory.Exists(entry.Directory))
@@ -736,6 +812,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
 
         WriteCacheEntry(remote, () => Directory.CreateDirectory(entry.Directory));
         var gate = _gates.GetOrAdd(entry.Directory, _ => new SemaphoreSlim(1, 1));
+        ProgressMeter? fromCache = null;
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -744,6 +821,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
                 if (entry.IsValidFor(remote, info))
                 {
                     entry.Touch(_utcNow());
+                    fromCache = Meter(progress, $"Reading {remote.Relative} from the cache", remote, DatasusProgressStage.FromCache, info.Size);
                     return entry.DataPath;
                 }
 
@@ -755,7 +833,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
 
                 try
                 {
-                    await FetchVerifiedAsync(remote, info, entry.PartialPath, cancellationToken).ConfigureAwait(false);
+                    await FetchVerifiedAsync(remote, info, entry.PartialPath, progress, cancellationToken).ConfigureAwait(false);
                 }
                 catch
                 {
@@ -778,6 +856,9 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         finally
         {
             gate.Release();
+
+            // Past the entry's locks: however long the callback takes, it holds up no other call.
+            fromCache?.Start(info.Size);
         }
 
         Maintain(() =>
@@ -788,7 +869,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         return entry.DataPath;
     }
 
-    private async Task<string> DownloadToTempAsync(RemotePath remote, RemoteFileInfo info, CancellationToken cancellationToken)
+    private async Task<string> DownloadToTempAsync(RemotePath remote, RemoteFileInfo info, IProgress<DatasusProgressInfo>? progress, CancellationToken cancellationToken)
     {
         var entry = _temp.Create(remote.Name);
         if (Interlocked.Exchange(ref _tempCleaned, 1) == 0)
@@ -802,7 +883,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         {
             using (FileLocks.TryAcquire(entry.LockPath))
             {
-                await FetchVerifiedAsync(remote, info, entry.PartialPath, cancellationToken).ConfigureAwait(false);
+                await FetchVerifiedAsync(remote, info, entry.PartialPath, progress, cancellationToken).ConfigureAwait(false);
                 File.Move(entry.PartialPath, entry.DataPath);
             }
 
@@ -816,13 +897,14 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         }
     }
 
-    private async Task FetchVerifiedAsync(RemotePath remote, RemoteFileInfo info, string partialPath, CancellationToken cancellationToken)
+    private async Task FetchVerifiedAsync(RemotePath remote, RemoteFileInfo info, string partialPath, IProgress<DatasusProgressInfo>? progress, CancellationToken cancellationToken)
     {
         for (var download = 1; ; download++)
         {
-            await FetchAsync(remote, info, partialPath, cancellationToken).ConfigureAwait(false);
+            await FetchAsync(remote, info, partialPath, progress, cancellationToken).ConfigureAwait(false);
+            var meter = Meter(progress, $"Verifying {remote.Relative}", remote, DatasusProgressStage.Verifying, info.Size);
             if (!_options.VerifyOnDownload || !IsDbc(remote)
-                || await Task.Run(() => VerifyDbc(partialPath, cancellationToken), cancellationToken).ConfigureAwait(false))
+                || await Task.Run(() => VerifyDbc(partialPath, meter, info.Size, cancellationToken), cancellationToken).ConfigureAwait(false))
             {
                 return;
             }
@@ -837,8 +919,10 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1835", Justification = "net472 and netstandard2.0 have no Memory-based Stream overloads.")]
-    private Task<bool> FetchAsync(RemotePath remote, RemoteFileInfo info, string partialPath, CancellationToken cancellationToken)
+    private Task<bool> FetchAsync(RemotePath remote, RemoteFileInfo info, string partialPath, IProgress<DatasusProgressInfo>? progress, CancellationToken cancellationToken)
     {
+        var operation = $"Downloading {remote.Relative}";
+        var meter = Meter(progress, operation, remote, DatasusProgressStage.Downloading, info.Size);
         var existing = File.Exists(partialPath) ? new FileInfo(partialPath).Length : 0;
         EnsureDiskSpace(Path.GetDirectoryName(partialPath)!, remote, Math.Max(0, info.Size - existing));
         var sentTooMuch = false;
@@ -849,7 +933,7 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
         // without starting again after progress. The evidence is spent by the attempt that starts
         // over, once its transfer opened: only the next attempt starts over.
         var resumptionFailedToOpen = false;
-        return _retry.RunAsync($"Downloading {remote.Relative}", remote.Relative, async (attempt, token) =>
+        return _retry.RunAsync(operation, remote.Relative, async (attempt, token) =>
         {
             var offset = File.Exists(partialPath) ? new FileInfo(partialPath).Length : 0;
             if (offset > info.Size)
@@ -889,7 +973,8 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
                 using (var source = await OpenTransferAsync(lease, offset, token).ConfigureAwait(false))
                 {
                     resumptionFailedToOpen &= !startsOver;
-                    more = await CopyAtMostAsync(source, target, info.Size - offset, token).ConfigureAwait(false);
+                    meter?.Start(offset, offset);
+                    more = await CopyAtMostAsync(source, target, info.Size - offset, meter, offset, token).ConfigureAwait(false);
                 }
 
                 if (more)
@@ -900,6 +985,11 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
                     throw new TransientTransportException(
                         $"The server sent more than the {info.Size} bytes of {remote.Relative} that it announced; the partial download was discarded.");
                 }
+            }
+            else
+            {
+                // Every byte is here already, from an earlier attempt or another process.
+                meter?.Start(offset, offset);
             }
 
             var length = new FileInfo(partialPath).Length;
@@ -931,9 +1021,9 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
 
     // Copies at most `remaining` bytes and tells whether the source had more. It asks for one byte
     // beyond what remains, to tell an exact end from a server that sends too much; that byte, and
-    // anything after it, is never written.
+    // anything after it, is never written. The meter counts from `done`, the bytes the target had.
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1835", Justification = "net472 and netstandard2.0 have no Memory-based Stream overloads.")]
-    private static async Task<bool> CopyAtMostAsync(Stream source, Stream target, long remaining, CancellationToken cancellationToken)
+    private static async Task<bool> CopyAtMostAsync(Stream source, Stream target, long remaining, ProgressMeter? meter, long done, CancellationToken cancellationToken)
     {
         var buffer = new byte[81920];
         while (true)
@@ -952,8 +1042,13 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
 
             await target.WriteAsync(buffer, 0, read, cancellationToken).ConfigureAwait(false);
             remaining -= read;
+            done += read;
+            meter?.Advance(done);
         }
     }
+
+    private ProgressMeter? Meter(IProgress<DatasusProgressInfo>? progress, string operation, RemotePath remote, DatasusProgressStage stage, long totalBytes) =>
+        progress is null ? null : new ProgressMeter(progress, _utcNow, operation, remote, stage, totalBytes);
 
     private FileStream OpenPartial(RemotePath remote, string partialPath)
     {

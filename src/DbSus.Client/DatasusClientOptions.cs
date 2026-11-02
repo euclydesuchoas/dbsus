@@ -45,7 +45,7 @@ public sealed class DatasusClientOptions
     /// 0755 on Linux, so other users can read the downloaded files). That location cannot be
     /// changed; to keep downloaded microdata in a folder you control, set a cache directory.
     /// Files opened by <c>OpenReaderAsync</c> are deleted, with their folder, when the reader is
-    /// disposed; a file returned by <see cref="DatasusClient.DownloadAsync"/> is the caller's to
+    /// disposed; a file returned by <see cref="DatasusClient.DownloadAsync(string, CancellationToken)"/> is the caller's to
     /// delete. Folders left behind for more than 24 hours, whose files are not open, are removed by
     /// the first download without a cache of a later client and by
     /// <see cref="DatasusClient.PruneCacheAsync"/>; so, for one more version, are those that earlier

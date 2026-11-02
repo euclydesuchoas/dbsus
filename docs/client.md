@@ -98,7 +98,8 @@ catch (DatasusRemoteFileChangedException)
 }
 ```
 
-- **Four ways to open.**
+- **Five ways to open.**
+  - `OpenStreamingReaderAsync(request)` takes a `DatasusFileRequest`, by path or by table, as the two that follow, with who receives the progress of that call (see "Following the progress of one call" below).
   - `OpenStreamingReaderAsync(path)` takes the path of any part, or of the unsplit name. Like `FindPartsAsync`, it lists the folder on the server to find the other parts; in the largest folders that listing runs to a few megabytes.
   - `OpenStreamingReaderAsync(table)` takes a `DatasusTableInfo` found earlier (`FindTableAsync`, `FindNationalTableAsync`, `ListTablesAsync`, `ListNationalTablesAsync`) and reads exactly its parts, without listing the folder again. It is the way to read preliminary data.
   - `OpenStreamingReaderAsync(dataset, uf, period)` and `OpenNationalStreamingReaderAsync(dataset, period)` find the table in the folder of final data as `OpenReaderAsync(dataset, uf, period)` and `OpenNationalReaderAsync` do, with the same exceptions, and read it as the overload that takes a table does. They open final data only.
@@ -155,6 +156,44 @@ Console.WriteLine($"{count} records");
   - Either way, a transfer that has not delivered every byte yet is stopped, and its connection closed. Disposing the reader also closes a transfer that has every byte but has not ended yet.
 - **Memory:** a buffer of about 1 MiB for each part read so far, held until the reader is disposed, on the managed heap.
 
+## Following the progress of one call
+
+`OpenReaderAsync`, `OpenStreamingReaderAsync` and `DownloadAsync` also take a `DatasusFileRequest`: what to read, the read options, and who receives the progress of that call alone, even on a client shared by the whole application.
+
+```csharp
+using System;
+using DbSus.Client;
+
+await using var client = new DatasusClient(new DatasusClientOptions { CacheDirectory = "datasus-cache" });
+
+// By path, or by a table found first: new DatasusFileRequest(table).
+var request = new DatasusFileRequest("/SIASUS/200801_/Dados/PAMG2407.dbc")
+{
+    Progress = new Progress<DatasusProgressInfo>(info =>
+        Console.WriteLine($"{info.RemotePath}: {info.Stage}, {info.BytesDone:N0} of {info.TotalBytes:N0} bytes")),
+};
+
+using var reader = await client.OpenReaderAsync(request);
+```
+
+- **What a report says.** `Operation` (for people to read), `RemotePath`, `Stage`, `BytesDone`, `TotalBytes` and `ResumedAt`. A table of several parts reports part by part, each with its own path and size; the sizes of all of them are in `DatasusTableInfo.Parts`.
+
+| `Stage` | When | `BytesDone` counts |
+|---|---|---|
+| `Downloading` | The file is being downloaded, to the cache or to the temporary folder. | The bytes of the local file, those of a resumed partial file included. |
+| `Verifying` | The downloaded `.dbc` is being checked (`VerifyOnDownload`). | The bytes of the local file read so far. The last one is reported only when the check passes. |
+| `FromCache` | The file came from the cache, without a transfer. | Every byte: one report. |
+| `Streaming` | The file is being read without a download. | The bytes received from the server, up to about 1 MiB ahead of what the reader has consumed. |
+
+- **`ResumedAt`** is the byte the transfer under way asked the server to start from: above 0 for a resumption, 0 otherwise.
+- **`BytesDone` can go back in a download**, to 0, when it starts over: the file changed on the server (`TotalBytes` then changes too), a resumption could not open, or the check failed. A table republished while it is downloaded reports its parts again. Reading without a download it never goes back: bytes read again are dropped, and not counted.
+- **How often.** At the start of each transfer and of each check, when a file reaches its size, and in between at most once every 250 ms, however fast the link is.
+- **On which thread.** `Report` is called on the thread that moves the operation forward, usually one of the thread pool, one report at a time and in order. Reading without a download, that is always a thread of the pool, never the one that calls `Read`, and a report can arrive just after the reader is disposed. `Report` holds up the transfer while it runs, and with a cache also another call for the same file, so keep it short. `Progress<T>`, as in the example, instead posts each report to the context it was created in or to the pool: reports can then arrive out of order, and after the call has ended. Write a class of your own that implements `IProgress<DatasusProgressInfo>` when the order matters.
+- **Its exceptions are ignored,** as those of `OnRetry`: the operation goes on.
+- **Two calls for the same file, with a cache.** The second waits for the entry that the first is downloading, without any report while it waits, and receives one `FromCache` at the end. If the first fails, the second goes on to download, and reports that.
+- **`DownloadAsync` gives back one file and reads no record,** so a request with a table or with read options fails with `ArgumentException`, before anything is sent, rather than leaving them aside in silence. Make a request by path for each of `DatasusTableInfo.Parts`.
+- **From a dataset, a state and a period,** find the table first (`FindTableAsync`, `FindNationalTableAsync`), and make the request with it.
+
 ## Behavior
 
 - **Paths** are relative to `/dissemin/publicos` (`RootPath`). URLs, `..`, backslashes and names that are invalid on Windows or Linux are rejected, with `ArgumentException`, before anything is sent; so are control characters, invisible format and line separator characters (shown as `\uXXXX` in the message), and `%` and `;`, which the FTP library refuses in a path. `RootPath` is checked with the same rules when the client is created: one that is not acceptable makes the constructor throw `ArgumentException`, whose message says why. No command sent to the server ever holds a line break.
@@ -178,7 +217,7 @@ When a connection fails or takes long, see [FTP troubleshooting](https://github.
 
 | Exception | When |
 |---|---|
-| `ArgumentException` | The path is not acceptable (the message says why), or a request to the catalog is malformed: a year where a month is needed, a period that is not set, a dataset the catalog does not have, or a dataset without the files asked for (by state, or for the whole country). |
+| `ArgumentException` | The path is not acceptable (the message says why); a request to the catalog is malformed: a year where a month is needed, a period that is not set, a dataset the catalog does not have, or a dataset without the files asked for (by state, or for the whole country); or a `DatasusFileRequest` given to `DownloadAsync` has a table or read options. |
 | `ArgumentOutOfRangeException` | In the catalog: a value that is not a state; a period before the oldest folder layout the catalog knows for the file type; or, for a dataset whose file names carry two digits of the year (every monthly one, and the yearly ones of PCE, RESP, ESUSNOTIFICA-DCCR, the five SIM file types for the whole country only and every one of SINAN), a period more than ninety-nine years after the start of the layout in use now, whose file name would be the one of an earlier period. |
 | `FileNotFoundException` | The file does not exist (FTP 550 to a request for a file), a part before the last one is missing, or the server has no table for a dataset and period, of a state or for the whole country (the message says when only a preliminary one exists, and when the folder of preliminary data could not be listed). |
 | `DatasusTransferException` | The base of the next three: a transfer with the server failed. Catch it to handle all of them; `Attempts`, `FtpReplyCode` and `RemotePath` are defined here. |

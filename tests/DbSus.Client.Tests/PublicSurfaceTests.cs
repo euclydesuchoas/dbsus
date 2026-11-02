@@ -41,6 +41,37 @@ public class PublicSurfaceTests
         Assert.Contains("<member name=\"M:DbSus.Client.DatasusClientOptions.#ctor\">", documentation, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void DatasusProgressInfo_IsReadOnly_AndOnlyTheClientCreatesIt()
+    {
+        var type = typeof(DatasusProgressInfo);
+        var constructors = type.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+        Assert.True(type.IsSealed);
+        Assert.NotEmpty(constructors);
+        Assert.All(constructors, constructor => Assert.True(constructor.IsAssembly, constructor.ToString()));
+        Assert.All(type.GetProperties(), property => Assert.Null(property.SetMethod));
+    }
+
+    [Fact]
+    public void DatasusProgressStage_KeepsItsValues()
+    {
+        Assert.Equal(0, (int)DatasusProgressStage.Downloading);
+        Assert.Equal(1, (int)DatasusProgressStage.Verifying);
+        Assert.Equal(2, (int)DatasusProgressStage.FromCache);
+        Assert.Equal(3, (int)DatasusProgressStage.Streaming);
+    }
+
+    [Fact]
+    public void DatasusFileRequest_IsSealed_AndWhatItReadsCannotChange()
+    {
+        var type = typeof(DatasusFileRequest);
+
+        Assert.True(type.IsSealed);
+        Assert.Null(type.GetProperty(nameof(DatasusFileRequest.Path))!.SetMethod);
+        Assert.Null(type.GetProperty(nameof(DatasusFileRequest.Table))!.SetMethod);
+    }
+
     private static void AssertReadOnlyFileInfo(PropertyInfo property)
     {
         Assert.Equal(typeof(DatasusFileInfo), property.PropertyType);

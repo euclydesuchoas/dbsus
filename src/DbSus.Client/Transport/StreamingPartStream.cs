@@ -19,12 +19,13 @@ internal sealed class StreamingPartStream : Stream
     private readonly byte[] _ahead;
     private readonly long _restartFromStartUpTo;
     private readonly CancellationToken _cancellationToken;
+    private readonly ProgressMeter? _progress;
     private readonly object _gate = new();
     private RemoteReadAheadStream? _body;
     private int _position;
     private bool _disposed;
 
-    public StreamingPartStream(StreamingSession session, RetryPolicy retry, RemotePath remote, RemoteFileInfo expected, byte[] ahead, long restartFromStartUpTo, CancellationToken cancellationToken)
+    public StreamingPartStream(StreamingSession session, RetryPolicy retry, RemotePath remote, RemoteFileInfo expected, byte[] ahead, long restartFromStartUpTo, CancellationToken cancellationToken, ProgressMeter? progress = null)
     {
         _session = session;
         _retry = retry;
@@ -33,6 +34,7 @@ internal sealed class StreamingPartStream : Stream
         _ahead = ahead;
         _restartFromStartUpTo = restartFromStartUpTo;
         _cancellationToken = cancellationToken;
+        _progress = progress;
         session.AddPart();
     }
 
@@ -68,7 +70,7 @@ internal sealed class StreamingPartStream : Stream
             Guard.NotDisposed(_disposed, this);
             if (_body is null)
             {
-                _body = _session.StartPart(after => RemoteReadAheadStream.StartOnLease(_session.Lease, _retry, _remote, _expected, _ahead.Length, _restartFromStartUpTo, after, _session.Failed, _cancellationToken));
+                _body = _session.StartPart(after => RemoteReadAheadStream.StartOnLease(_session.Lease, _retry, _remote, _expected, _ahead.Length, _restartFromStartUpTo, after, _session.Failed, _cancellationToken, _progress));
             }
 
             body = _body;

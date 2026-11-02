@@ -121,20 +121,56 @@ public sealed partial class DatasusClient
     public async Task<DbfReader> OpenStreamingReaderAsync(string path, DbfReadOptions? dbfOptions = null, DbcReadOptions? dbcOptions = null, CancellationToken cancellationToken = default)
     {
         Guard.NotDisposed(_disposed, this);
-        _ = RemotePath.Parse(path, Root); // a path that is not acceptable throws before a place is taken
-        var releaseReader = ReserveStreamingReader();
-        IReadOnlyList<DatasusFileInfo> parts;
-        try
+        return await OpenStreamingByPathAsync(path, dbfOptions, dbcOptions, progress: null, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Preview: this method's API and behavior may change before a stable release. Opens a table for
+    /// reading straight from the server, without downloading it, as the overloads that take a path or
+    /// a table do, from a request that says who receives the progress of this call (see
+    /// <see cref="DatasusFileRequest.Progress"/>).
+    /// </summary>
+    /// <remarks>
+    /// Everything said for
+    /// <see cref="OpenStreamingReaderAsync(string, DbfReadOptions?, DbcReadOptions?, CancellationToken)"/> and
+    /// <see cref="OpenStreamingReaderAsync(DatasusTableInfo, DbfReadOptions?, DbcReadOptions?, CancellationToken)"/>
+    /// holds. The progress counts the bytes received from the server, up to about 1 MiB ahead of what
+    /// the reader has consumed, and comes on threads of the thread pool, never on the one that calls
+    /// <see cref="DbfReader.Read"/>.
+    /// </remarks>
+    /// <param name="request">The request, by path or by table, with its read options and its progress.</param>
+    /// <param name="cancellationToken">Cancels the opening and, afterward, every read of the reader. Dispose the reader after a cancellation too: if the transfer of the part being read already had every byte, only disposing it lets its place go.</param>
+    /// <returns>A reader positioned before the first record, after every part's header has been read and checked.</returns>
+    /// <exception cref="ObjectDisposedException">The client is disposed.</exception>
+    /// <exception cref="ArgumentException">
+    /// The path is not acceptable (the message says why). It is checked before the limit of readers,
+    /// and nothing was sent to the server.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="DatasusClientOptions.MaxConnections"/> is 1, or MaxConnections - 1 readers from
+    /// these methods are open already. Nothing was sent to the server.
+    /// </exception>
+    /// <exception cref="FileNotFoundException">No such file, or a part is missing.</exception>
+    /// <exception cref="DatasusRemoteFileChangedException">
+    /// The first part changed on the server, or a later part changed so that its header no longer fits the table.
+    /// </exception>
+    /// <exception cref="DatasusRequestRefusedException">The server refused a request permanently. It is not retried.</exception>
+    /// <exception cref="DatasusRetriesExhaustedException">Transient failures persisted after every retry.</exception>
+    /// <exception cref="InvalidDataException">A part's header is invalid, or the parts' schemas differ.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was canceled during the opening.</exception>
+    [SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = OverloadsJustification)]
+    public async Task<DbfReader> OpenStreamingReaderAsync(DatasusFileRequest request, CancellationToken cancellationToken = default)
+    {
+        Guard.NotDisposed(_disposed, this);
+        Guard.NotNull(request, nameof(request));
+        var (dbfOptions, dbcOptions, progress) = (request.DbfOptions, request.DbcOptions, request.Progress);
+        if (request.Table is { } table)
         {
-            parts = await FindPartsAsync(path, cancellationToken).ConfigureAwait(false);
-        }
-        catch
-        {
-            releaseReader();
-            throw;
+            var releaseReader = ReserveStreamingReader();
+            return await OpenStreamingPartsAsync(table.Parts, dbfOptions, dbcOptions, progress, releaseReader, cancellationToken).ConfigureAwait(false);
         }
 
-        return await OpenStreamingPartsAsync(parts, dbfOptions, dbcOptions, releaseReader, cancellationToken).ConfigureAwait(false);
+        return await OpenStreamingByPathAsync(request.Path!, dbfOptions, dbcOptions, progress, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -204,7 +240,7 @@ public sealed partial class DatasusClient
         Guard.NotDisposed(_disposed, this);
         Guard.NotNull(table, nameof(table));
         var releaseReader = ReserveStreamingReader();
-        return await OpenStreamingPartsAsync(table.Parts, dbfOptions, dbcOptions, releaseReader, cancellationToken).ConfigureAwait(false);
+        return await OpenStreamingPartsAsync(table.Parts, dbfOptions, dbcOptions, progress: null, releaseReader, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -337,6 +373,26 @@ public sealed partial class DatasusClient
         };
     }
 
+    // A table by the path of any part: the path is checked, then the place of a streaming reader is
+    // taken, then the parts are found.
+    private async Task<DbfReader> OpenStreamingByPathAsync(string path, DbfReadOptions? dbfOptions, DbcReadOptions? dbcOptions, IProgress<DatasusProgressInfo>? progress, CancellationToken cancellationToken)
+    {
+        _ = RemotePath.Parse(path, Root); // a path that is not acceptable throws before a place is taken
+        var releaseReader = ReserveStreamingReader();
+        IReadOnlyList<DatasusFileInfo> parts;
+        try
+        {
+            parts = await FindPartsAsync(path, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            releaseReader();
+            throw;
+        }
+
+        return await OpenStreamingPartsAsync(parts, dbfOptions, dbcOptions, progress, releaseReader, cancellationToken).ConfigureAwait(false);
+    }
+
     // The final table of one file name, read without a download: the place of a streaming reader
     // first, as for a path, then the table, found as OpenFinalCoreAsync finds it, with the message
     // that names the overload that takes a table. Preliminary data is never opened here.
@@ -374,14 +430,14 @@ public sealed partial class DatasusClient
             throw;
         }
 
-        return await OpenStreamingPartsAsync(table.Parts, dbfOptions, dbcOptions, releaseReader, cancellationToken).ConfigureAwait(false);
+        return await OpenStreamingPartsAsync(table.Parts, dbfOptions, dbcOptions, progress: null, releaseReader, cancellationToken).ConfigureAwait(false);
     }
 
     // The versions first (on any place of the pool), then one place for the reader's life: the
     // headers of the parts after the first are read on it, one after the other, and each part's
     // body later, when the reader gets to it. Until the session holds that place, a failure lets
     // the reservation go here; from then on, the session lets both go together.
-    private async Task<DbfReader> OpenStreamingPartsAsync(IReadOnlyList<DatasusFileInfo> parts, DbfReadOptions? dbfOptions, DbcReadOptions? dbcOptions, Action releaseReader, CancellationToken cancellationToken)
+    private async Task<DbfReader> OpenStreamingPartsAsync(IReadOnlyList<DatasusFileInfo> parts, DbfReadOptions? dbfOptions, DbcReadOptions? dbcOptions, IProgress<DatasusProgressInfo>? progress, Action releaseReader, CancellationToken cancellationToken)
     {
         var files = new List<(RemotePath Remote, RemoteFileInfo Info)>();
         ConnectionPool.Lease lease;
@@ -421,7 +477,8 @@ public sealed partial class DatasusClient
 
             for (var i = 0; i < files.Count; i++)
             {
-                streams.Add(new StreamingPartStream(session, _retry, files[i].Remote, files[i].Info, ahead[i], _options.RestartFromStartUpTo, cancellationToken));
+                var meter = Meter(progress, RemoteReadAheadStream.Operation(files[i].Remote), files[i].Remote, DatasusProgressStage.Streaming, files[i].Info.Size);
+                streams.Add(new StreamingPartStream(session, _retry, files[i].Remote, files[i].Info, ahead[i], _options.RestartFromStartUpTo, cancellationToken, meter));
             }
 
             // Opening the reader reads the first part's header from its transfer, synchronously, and

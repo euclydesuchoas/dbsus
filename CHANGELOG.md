@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- `DbSus.Client` reports the progress of one call. `OpenReaderAsync`, `OpenStreamingReaderAsync` and `DownloadAsync` have a new overload that takes a `DatasusFileRequest`: by path or by table, with the read options and an `IProgress<DatasusProgressInfo>` of that call alone, also on a client shared by the whole application. A report has the operation, the file's path, the stage (`Downloading`, `Verifying`, `FromCache`, `Streaming`), the bytes done and the total, and the byte the transfer resumed from. It comes at the start of each transfer and of each check, when a file reaches its size, and in between at most once every 250 ms; the callback's exceptions are ignored. Reading without a download, the bytes counted are the ones received, not the ones the reader has consumed. With a cache, a call that waits for the entry another call is downloading receives one `FromCache` at the end. `DownloadAsync` refuses a request with a table or with read options, with `ArgumentException`. The other overloads do not change, but a call of `DownloadAsync` with a literal `null`, which could only throw, no longer compiles: it is ambiguous between the two. See "Following the progress of one call" in the client guide.
+
 ### Changed
 
 - Disposing a `DatasusClient` now makes an operation that waits for one of its connections fail at once with `ObjectDisposedException`, without connecting. Before, it went on waiting until a connection was given back, and then opened a new one, after the client was disposed. An operation under way on a connection still goes on to its end. The exception names the client (`ObjectName` is `DbSus.Client.DatasusClient`), as it does when a method of a disposed client is called; before, an operation that needed a connection after `Dispose`, to retry, got one that named an internal type.
