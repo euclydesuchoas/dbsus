@@ -9,7 +9,7 @@
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
     <PackageTags>datasus;sus;dbc;dbf;dbase;datareader;ado.net;brazil;brasil;health;saude</PackageTags>
     <Description>Fully managed reader for the .dbc (compressed dBase) and .dbf files distributed by DATASUS: DBC decompression, streaming DBF reading and a DbDataReader. Independent project, not affiliated with the Brazilian Ministry of Health or DATASUS.</Description>
-    <PackageReleaseNotes>DBC decompression, streaming DBF reader and split tables. The changes in each version are in CHANGELOG.md: https://github.com/euclydesuchoas/dbsus/blob/main/CHANGELOG.md</PackageReleaseNotes>
+    <PackageReleaseNotes>DBC decompression, streaming DBF reader and split tables. The changes in each version are in CHANGELOG.md: https://github.com/euclydesuchoas/dbsus/blob/main/CHANGELOG.md and questions and comments go to the Discussions: https://github.com/euclydesuchoas/dbsus/discussions</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
