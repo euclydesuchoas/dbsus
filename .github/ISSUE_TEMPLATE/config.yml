@@ -1,1 +1,5 @@
 blank_issues_enabled: false
+contact_links:
+  - name: Questions
+    url: https://github.com/euclydesuchoas/dbsus/discussions
+    about: To ask how to do something with DbSus or DbSus.Client.

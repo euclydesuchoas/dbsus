@@ -1,0 +1,53 @@
+name: Comment on your use
+description: How you use DbSus or DbSus.Client, what worked and what got in the way. No problem needed.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not attach a file of DATASUS and do not paste the content of records.** Those files can hold personal data, and an issue is public.
+
+        For a question, use the Discussions. For a problem, use the bug report.
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      options:
+        - DbSus
+        - DbSus.Client
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: The version of the package, as in the project file or in the output of `dotnet list package`.
+    validations:
+      required: true
+  - type: input
+    id: framework
+    attributes:
+      label: Target framework or runtime
+      placeholder: net10.0, .NET 8 with the netstandard2.0 build, net481
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Ubuntu 24.04, Windows 11
+    validations:
+      required: true
+  - type: textarea
+    id: use
+    attributes:
+      label: How you use it
+      description: What you read or download, about how much, and which parts of the package you use, for example reading without a download.
+    validations:
+      required: true
+  - type: textarea
+    id: comment
+    attributes:
+      label: What worked and what got in the way
+    validations:
+      required: false

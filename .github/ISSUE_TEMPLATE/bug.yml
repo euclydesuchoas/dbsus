@@ -1,5 +1,5 @@
 name: Bug report
-description: A problem with DbSus or DbSus.Client. A question fits here too.
+description: A problem with DbSus or DbSus.Client. For a question, use the Discussions.
 body:
   - type: markdown
     attributes:
@@ -20,15 +20,22 @@ body:
   - type: input
     id: version
     attributes:
-      label: Version
+      label: Package version
       description: The version of the package, as in the project file or in the output of `dotnet list package`.
     validations:
       required: true
   - type: input
     id: framework
     attributes:
-      label: Target framework and operating system
-      placeholder: net10.0 on Ubuntu, net481 on Windows
+      label: Target framework or runtime
+      placeholder: net10.0, .NET 8 with the netstandard2.0 build, net481
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Ubuntu 24.04, Windows 11
     validations:
       required: true
   - type: input

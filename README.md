@@ -127,7 +127,7 @@ while (reader.Read())   // the checksums are confirmed when Read returns false
 
 ## Questions and problems
 
-To ask a question or to report a problem, open an issue in the repository on GitHub (the **Issues** tab) and say the package, its version, the target framework and the operating system. Do not attach a file of DATASUS and do not paste the content of records, which can hold personal data: give the path of the file on the server. To report a vulnerability, see "Security" below; to change the code, see [contributing](https://github.com/euclydesuchoas/dbsus/blob/main/CONTRIBUTING.md).
+To ask a question, open a discussion: <https://github.com/euclydesuchoas/dbsus/discussions>. To report a problem or to comment on how you use DbSus, open an issue in the repository on GitHub (the **Issues** tab has a form for each), which asks for the package, its version, the target framework or runtime and the operating system. Do not attach a file of DATASUS and do not paste the content of records, which can hold personal data: give the path of the file on the server. To report a vulnerability, see "Security" below; to change the code, see [contributing](https://github.com/euclydesuchoas/dbsus/blob/main/CONTRIBUTING.md).
 
 ## Integrity
 
