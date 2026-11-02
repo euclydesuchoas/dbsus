@@ -72,8 +72,12 @@ public sealed class DatasusProgressInfo
     public long TotalBytes { get; }
 
     /// <summary>
-    /// Gets the byte the transfer under way asked the server to start from: 0 for a transfer from
-    /// the start, and for the stages without a transfer, so a value above 0 tells a resumption.
+    /// Gets the byte the transfer under way asked the server to start from, above 0 only when it
+    /// resumes: after a failure in this call, or from the partial download of an earlier one. It is 0
+    /// for a transfer from the start, which is also how reading without a download reads a later
+    /// part, so its first <see cref="BytesDone"/> is past the header read ahead at the opening. It is
+    /// 0 when nothing is transferred: in the stages without a transfer, and for a download that
+    /// finds every byte there already.
     /// </summary>
     public long ResumedAt { get; }
 }

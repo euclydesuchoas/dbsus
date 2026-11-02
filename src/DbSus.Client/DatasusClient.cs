@@ -988,8 +988,9 @@ public sealed partial class DatasusClient : IDisposable, IAsyncDisposable
             }
             else
             {
-                // Every byte is here already, from an earlier attempt or another process.
-                meter?.Start(offset, offset);
+                // Every byte is here already, from an earlier attempt or another process: nothing
+                // is transferred, so nothing resumes.
+                meter?.Start(offset);
             }
 
             var length = new FileInfo(partialPath).Length;

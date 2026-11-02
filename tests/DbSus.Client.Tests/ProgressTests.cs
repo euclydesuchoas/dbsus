@@ -103,6 +103,45 @@ public sealed class ProgressTests : IDisposable
             _progress.Shape.Where(report => report.Stage == Downloading));
     }
 
+    // The bytes of an earlier call, all there, and not yet moved into place: no transfer, no resumption.
+    [Fact]
+    public async Task EveryByteInThePartialDownloadOfAnEarlierCall_NothingIsTransferred_AndNothingResumes()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        _fixture.Server.Add(Single, Content);
+        _fixture.Server.FailNextTransferAfter(4000);
+        await Assert.ThrowsAsync<DatasusRetriesExhaustedException>(() => _fixture.Client(configure: options => options.MaxRetries = 0).DownloadAsync(Single, ct));
+        File.WriteAllBytes(Assert.Single(Directory.EnumerateFiles(_fixture.CacheDirectory, "*.partial", SearchOption.AllDirectories)), Content);
+
+        await _fixture.Client().DownloadAsync(Request(Single), ct);
+
+        Assert.Equal([0L], _fixture.Server.TransferOffsets);
+        Assert.Equal([(Downloading, Size, Size, 0L)], _progress.Shape.Where(report => report.Stage == Downloading));
+    }
+
+    // The same within a call: the transfer had every byte, and the size asked after it failed.
+    [Fact]
+    public async Task EveryByteFromAnEarlierAttempt_TheAttemptWithoutATransferReportsNoResumption()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        _fixture.Server.Add(Single, Content);
+        var failed = 0;
+        _progress.Then = report =>
+        {
+            if (report.BytesDone == Size && Interlocked.Exchange(ref failed, 1) == 0)
+            {
+                _fixture.Server.FailNextOperations(1, () => new TransientTransportException("A transient failure."));
+            }
+        };
+
+        await _fixture.Client().DownloadAsync(Request(Single), ct);
+
+        Assert.Equal([0L], _fixture.Server.TransferOffsets);
+        Assert.Equal(
+            [(Downloading, 0L, Size, 0L), (Downloading, Size, Size, 0L), (Downloading, Size, Size, 0L)],
+            _progress.Shape.Where(report => report.Stage == Downloading));
+    }
+
     [Fact]
     public async Task ResumptionThatFailsToOpen_StartsOver_ReportsNothingForIt_AndGoesBackToZero()
     {
@@ -339,6 +378,30 @@ public sealed class ProgressTests : IDisposable
                 (PartB, ahead, (long)b.Length, 0L), (PartB, (long)b.Length, (long)b.Length, 0L),
             ],
             _progress.Reports.Select(report => (report.RemotePath, report.BytesDone, report.TotalBytes, report.ResumedAt)));
+    }
+
+    // Without a drop, no part resumes: a later part's transfer starts from byte 0 and drops the header
+    // read ahead, so its first report has BytesDone past the header, and ResumedAt at 0.
+    [Fact(Timeout = 60_000)]
+    public async Task Streaming_WithoutADrop_TheFirstReportOfEachPart_HasResumedAtZero()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var a = ClientFixture.Dbc(Codes('A', 300));
+        var b = ClientFixture.Dbc(Codes('B', 200));
+        const string PartC = Dados + "/PAMG2407c.dbc";
+        var c = ClientFixture.Dbc(Codes('C', 100));
+        _fixture.Server.Add(PartA, a);
+        _fixture.Server.Add(PartB, b);
+        _fixture.Server.Add(PartC, c);
+        using var reader = await _fixture.Client().OpenStreamingReaderAsync(Request(Split), ct);
+
+        Assert.Equal(600, ReadToTheEnd(reader));
+
+        await ReadAheadStreamTests.WaitUntilAsync(() => _progress.Reports.Any(report => report.RemotePath == PartC && report.BytesDone == c.Length), "the last report");
+        var first = _progress.Reports.GroupBy(report => report.RemotePath).Select(part => part.First()).Select(report => (report.RemotePath, report.BytesDone, report.ResumedAt));
+        Assert.Equal([(PartA, 0L, 0L), (PartB, HeaderAhead(b), 0L), (PartC, HeaderAhead(c), 0L)], first);
+        Assert.All(_progress.Reports, report => Assert.Equal(0L, report.ResumedAt));
+        Assert.All(_fixture.Server.TransferOffsets, offset => Assert.Equal(0L, offset));
     }
 
     [Fact(Timeout = 60_000)]
@@ -597,6 +660,38 @@ public sealed class ProgressTests : IDisposable
         Assert.Contains((Streaming, Cut, Size, Cut), streaming.Shape);
         Assert.All(streaming.Shape, report => Assert.Equal(Streaming, report.Stage));
     }
+
+    // With the FTP library in between, on both targets: a table of two parts read to its end sends no REST.
+    [Fact(Timeout = 120_000)]
+    public async Task OverTheFtpLibrary_WithoutADrop_NoRestIsSent_AndResumedAtStaysAtZero()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var a = ClientFixture.Dbc(Codes('A', 300));
+        var b = ClientFixture.Dbc(Codes('B', 200));
+        using var server = new LoopbackFtpServer { AdvertiseEpsv = false };
+        server.Files[FakeServer.Root + PartA] = a;
+        server.Files[FakeServer.Root + PartB] = b;
+        var options = TestTimes.Loopback(server.Port);
+        options.InitialRetryDelay = TimeSpan.Zero;
+        await using var client = new DatasusClient(options);
+        DatasusFileInfo[] parts =
+        [
+            new(PartA, "PAMG2407a.dbc", a.Length, null, isDirectory: false),
+            new(PartB, "PAMG2407b.dbc", b.Length, null, isDirectory: false),
+        ];
+        var table = new DatasusTableInfo(DatasusCatalog.SiaSus.PA, DatasusUf.MG, DatasusPeriod.OfMonth(2024, 7), isPreliminary: false, Split, parts);
+
+        using (var reader = await client.OpenStreamingReaderAsync(new DatasusFileRequest(table) { Progress = _progress }, ct))
+        {
+            Assert.Equal(500, ReadToTheEnd(reader));
+        }
+
+        Assert.Empty(server.Restarts);
+        Assert.All(_progress.Reports, report => Assert.Equal(0L, report.ResumedAt));
+        Assert.Equal(HeaderAhead(b), _progress.Reports.First(report => report.RemotePath == PartB).BytesDone);
+    }
+
+    private static long HeaderAhead(byte[] dbc) => (dbc[8] | (dbc[9] << 8)) + 4L;
 
     private static string[] Codes(char letter, int count) =>
         [.. Enumerable.Range(0, count).Select(i => letter + (i % 1000).ToString("000", System.Globalization.CultureInfo.InvariantCulture))];
