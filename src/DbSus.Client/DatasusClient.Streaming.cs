@@ -72,8 +72,11 @@ public sealed partial class DatasusClient
     /// <para>
     /// The reader moves its transfers forward on threads of the thread pool: while it opens it takes
     /// more than one of them at a time, and while it reads its transfer needs them too. With the
-    /// pool at its defaults that can only delay the opening or the reading; with a fixed cap on the
-    /// pool's threads, blocking on this method from a thread of the pool (for example with
+    /// pool at its defaults that can only delay the opening or the reading, since the pool adds
+    /// threads, but the delay can reach seconds: in a test against a local server that shares the
+    /// same pool, the slowest opening on .NET Framework 4.8.1, limited to two cores with other work
+    /// on them, took up to about 10 s; on .NET 10, in the same conditions, less than 0.4 s. With a
+    /// fixed cap on the pool's threads, blocking on this method from a thread of the pool (for example with
     /// <c>GetAwaiter().GetResult()</c>), or calling <see cref="DbfReader.Read"/> from threads of the
     /// pool, can stay stopped, without an exception, until threads of the pool are free. Use
     /// <see langword="await"/> for the opening, and read from a thread outside the pool.
