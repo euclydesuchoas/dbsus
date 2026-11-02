@@ -6,15 +6,28 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [0.1.0-preview.6] - 2026-11-12
+
 ### Added
 
 - `DbSus.Client` reports the progress of one call. `OpenReaderAsync`, `OpenStreamingReaderAsync` and `DownloadAsync` have a new overload that takes a `DatasusFileRequest`: by path or by table, with the read options and an `IProgress<DatasusProgressInfo>` of that call alone, also on a client shared by the whole application. A report has the operation, the file's path, the stage (`Downloading`, `Verifying`, `FromCache`, `Streaming`), the bytes done and the total, and the byte the transfer resumed from. It comes at the start of each transfer and of each check, when a file reaches its size, and in between at most once every 250 ms; the callback's exceptions are ignored. Reading without a download, the bytes counted are the ones received, not the ones the reader has consumed. With a cache, a call that waits for the entry another call is downloading receives one `FromCache` at the end. `DownloadAsync` refuses a request with a table or with read options, with `ArgumentException`. The other overloads do not change, but a call of `DownloadAsync` with a literal `null`, which could only throw, no longer compiles: it is ambiguous between the two. See "Following the progress of one call" in the client guide.
+- A place for questions and comments: the Discussions of the repository, at https://github.com/euclydesuchoas/dbsus/discussions, and an issue form for comments on use, beside the one for bugs. Both forms ask for the package version, the target framework or runtime and the operating system. The README and the release notes of the packages point to them.
+
+### Known limitations
+
+The limitations of 0.1.0-preview.5 still hold, except that resuming with `REST` is no longer exercised against simulated servers only (see Notes). These are the ones of reading without a download, and one more:
+
+- After the token of a reader from `OpenStreamingReaderAsync` or `OpenNationalStreamingReaderAsync` is canceled, the reader keeps its place among the connections, and among the readers the client allows, until it is disposed if the transfer of the part being read already had every byte when it saw the cancellation. Disposing the reader always lets both go: dispose it after a cancellation too.
+- Reading without a download moves its transfers forward on threads of the thread pool. With a fixed cap on the pool's threads, an opening blocked on from a thread of the pool, or reads made from threads of the pool, can stay stopped, without an exception, until threads of the pool are free. With the pool at its defaults that can only delay them, but the delay can reach seconds: in a test against a local server that shares the same pool, the slowest opening on .NET Framework 4.8.1, limited to two cores with other work on them, took up to about 10 s; on .NET 10, in the same conditions, less than 0.4 s. Await the opening and read from a thread outside the pool: the client guide has an example.
+- Each part already read keeps its buffer until the reader is disposed, so a table of many parts holds more memory toward its end.
+- A transfer that ends without the server's final reply makes the next command on that connection wait first, for a while that the FTP library sets, and then go on; the data read is not affected. This holds for downloads as well.
+- On Linux and macOS, `DOTNET_SYSTEM_IO_DISABLEFILELOCKING` turns off the file locks of .NET, and the `entry.lock` of each cache entry then no longer coordinates processes: do not share a cache between processes with it set.
 
 ### Changed
 
 - Disposing a `DatasusClient` now makes an operation that waits for one of its connections fail at once with `ObjectDisposedException`, without connecting. Before, it went on waiting until a connection was given back, and then opened a new one, after the client was disposed. An operation under way on a connection still goes on to its end. The exception names the client (`ObjectName` is `DbSus.Client.DatasusClient`), as it does when a method of a disposed client is called; before, an operation that needed a connection after `Dispose`, to retry, got one that named an internal type.
 - `DatasusClientOptions.RootPath` is now checked when the client is created, with the rules of every path, and a root that is not acceptable makes the `DatasusClient` constructor throw `ArgumentException`, whose message says why. Before, only its leading `/` was checked, and a root with a line break in it could add commands to those sent to the server.
-- A path with a control character, an invisible format or line separator character (U+200B, U+202E, U+2028 and the like), `%` or `;` is now rejected with `ArgumentException` before anything is sent, and the message shows such characters as `\uXXXX`. Before, the FTP library refused `%`, `;` and some of those characters when it opened a transfer, and that refusal was retried as a transient failure until the retries ran out. A refusal of a path by the FTP library is now never retried, and no command sent to the server holds a line break or a NUL.
+- A path with a control character, an invisible format or line separator character (U+200B, U+202E, U+2028 and the like), `%` or `;` is now rejected with `ArgumentException` before anything is sent, and the message shows such characters as `\uXXXX`. Before, the FTP library refused `%`, `;` and some of those characters when it opened a transfer, and that refusal was retried as a transient failure until the retries ran out. A refusal of a path by the FTP library is now an `ArgumentException` too, never retried, and no command sent to the server holds a line break or a NUL.
 
 ### Fixed
 
@@ -25,6 +38,7 @@ All notable changes to this project are documented in this file. The format foll
 ### Notes
 
 - Resuming a dropped transfer with `REST` was exercised once against the real DATASUS server, in November 2026, on one file, with the drop made on the client's side, in a download and in the reader without a download. A table of several parts, a drop started by the server, and the fallback to byte 0 when a resumption does not open were not exercised.
+- The client guide and the XML of `VerifyOnDownload` now say when it can be turned off: for a program that always reads every record, that saves one decompression on each download, at the cost of finding a corrupt download only at the end of the reading.
 
 ## [0.1.0-preview.5] - 2026-10-27
 
