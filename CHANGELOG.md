@@ -22,6 +22,10 @@ All notable changes to this project are documented in this file. The format foll
 - With a cache and `MaxCacheSizeBytes`, `OpenReaderAsync` could remove a part of the table it was opening, already downloaded, to make room for the next part, and then fail with a `FileNotFoundException` about that local file: when the table held more than the limit, or when other entries used more recently filled it. Each part is now opened as soon as it is downloaded, and an entry in use is never removed, so the limit is soft: while a table opens, the cache can hold up to the limit plus its parts, as it can hold up to the limit plus a file while that file downloads.
 - With a cache, a download that failed before its first byte, for example one whose transfer the server refused, left an empty `.partial` file in its cache entry until the clean-up of orphans a day later. It is no longer left; a `.partial` file with bytes in it still stays, for the next download to resume.
 
+### Notes
+
+- Resuming a dropped transfer with `REST` was exercised once against the real DATASUS server, in November 2026, on one file, with the drop made on the client's side, in a download and in the reader without a download. A table of several parts, a drop started by the server, and the fallback to byte 0 when a resumption does not open were not exercised.
+
 ## [0.1.0-preview.5] - 2026-10-27
 
 ### Added
