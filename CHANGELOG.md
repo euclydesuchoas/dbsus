@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
-## [0.1.0-preview.6] - 2026-11-12
+## [0.1.0-preview.6] - 2026-11-16
 
 ### Added
 
