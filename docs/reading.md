@@ -19,6 +19,10 @@ while (reader.Read())
 
 The DBC is decompressed while you read: no temporary file, no full copy in memory. The reader is a `DbDataReader` that reads forward only.
 
+The reader is forward-only. It is not thread-safe, and the asynchronous methods it inherits from `DbDataReader` complete synchronously.
+
+DbSus reads; it does not write `.dbc` files. It writes `.dbf` files only as the output of a conversion.
+
 Converting a `.dbc` into a `.dbf` file by path is all or nothing: the DBF is written to a temporary file and moved into place only at the end, so no partial file is left on failure. The overload that writes to a stream (`ConvertToDbf(Stream, Stream)`) writes as it decompresses: on failure, what was already written stays in that stream.
 
 ```csharp
@@ -40,6 +44,8 @@ Types follow the DBF header:
 | `L` | `bool` |
 
 Blank numbers, dates and logicals, and dates made of zeros, are `DBNull`. A blank `C` field is an empty string, or `DBNull` with `DbfReadOptions.BlankStringsAsNull`. Content that does not parse throws `FormatException`, naming the field and the record but never the value; for `N`, `F` and `D` fields, `DbfReadOptions.UnconvertibleValues` can read it as null instead (see "Values that do not convert" below). Other field types (for example `M`, memo, whose data lives in a separate file) are not interpreted: `DbfField.IsSupported` is `false` and their stored bytes are available through `GetRawBytes`.
+
+Tested with dBase III files (version 0x03). One DATASUS file with another version byte (0x30, a SIASUS-ABO file) was read without error; nothing else is known about files of that version. Field types `C`, `N`, `F`, `D` and `L` are interpreted; others, such as `M` (memo), are exposed only as their stored bytes, and memo files are not read.
 
 ### Who closes what
 
