@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Notes
 
+- The README, which is also the page of both packages on nuget.org, is shorter: it keeps what the library is, how to install it, two short examples, the main limitations and the security notes, and the details it had are in the guides it links to.
 - A package test in CI now also runs on .NET 11: an application that targets `net11.0`, built with SDK 11, gets the `net10.0` build of both packages and runs on the .NET 11 runtime.
 
 ## [0.1.0-preview.6] - 2026-11-16
