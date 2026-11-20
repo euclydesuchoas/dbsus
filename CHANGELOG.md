@@ -6,6 +6,12 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [0.1.0-preview.7] - 2026-11-23
+
+### Known limitations
+
+The limitations of 0.1.0-preview.6 still hold.
+
 ### Changed
 
 - `DbSus.Client` no longer cleans up `DbSus/downloads` in the system temporary directory, the shared folder that 0.1.0-preview.2 and earlier used for downloads without a cache; 0.1.0-preview.4 to 0.1.0-preview.6 still removed what those versions left there. If you used 0.1.0-preview.2 or earlier without a cache, you can delete the `DbSus` folder of the temporary directory.
