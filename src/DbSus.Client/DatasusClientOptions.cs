@@ -48,8 +48,9 @@ public sealed class DatasusClientOptions
     /// disposed; a file returned by <see cref="DatasusClient.DownloadAsync(string, CancellationToken)"/> is the caller's to
     /// delete. Folders left behind for more than 24 hours, whose files are not open, are removed by
     /// the first download without a cache of a later client and by
-    /// <see cref="DatasusClient.PruneCacheAsync"/>; so, for one more version, are those that earlier
-    /// versions left in <c>DbSus/downloads</c>.
+    /// <see cref="DatasusClient.PruneCacheAsync"/>. The folder that 0.1.0-preview.2 and earlier
+    /// used, <c>DbSus/downloads</c> in the temporary directory, is no longer cleaned up; it can be
+    /// deleted.
     /// </para>
     /// <para>
     /// Cache layout: <c>&lt;cache&gt;/&lt;remote path&gt;/&lt;file&gt;/&lt;size&gt;-&lt;MDTM&gt;/</c> with the file,

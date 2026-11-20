@@ -285,8 +285,8 @@ internal sealed class CacheStore(string root, long? maxBytes, Func<DateTime> utc
 /// or deleting it. The folder is created only if nothing has that name; on the <c>net10.0</c> build
 /// outside Windows it is readable by its owner only (0700), and elsewhere it has the system's
 /// default permissions (usually 0755 on Linux). Folders left behind (older than 24 hours, lock free,
-/// files not open) are removed later, and so, for one more version, are those of the folder that
-/// earlier versions used, <c>DbSus/downloads/&lt;32 hex digits&gt;</c>.
+/// files not open) are removed later. The folder that 0.1.0-preview.2 and earlier used,
+/// <c>DbSus/downloads</c>, is no longer entered.
 /// </summary>
 internal sealed class TempStore(string temporaryDirectory, Func<DateTime> utcNow)
 {
@@ -295,11 +295,6 @@ internal sealed class TempStore(string temporaryDirectory, Func<DateTime> utcNow
     private const string LockFileName = "entry.lock";
 
     public static string DefaultDirectory => Path.GetTempPath();
-
-    // The folder of version 0.1.0-preview.2 and earlier, cleaned for one more version.
-    private string LegacyParent => Path.Combine(temporaryDirectory, "DbSus");
-
-    private string LegacyRoot => Path.Combine(LegacyParent, "downloads");
 
     public CacheEntry Create(string fileName)
     {
@@ -409,13 +404,9 @@ internal sealed class TempStore(string temporaryDirectory, Func<DateTime> utcNow
             {
             }
         }
-
-        RemoveIfEmpty(LegacyRoot);
-        RemoveIfEmpty(LegacyParent);
     }
 
-    // Folders named as this class names them: DbSus-<32 hex> in the temporary directory and, from
-    // earlier versions, <32 hex> in DbSus/downloads (unless DbSus or downloads is a link).
+    // Folders named as this class names them: DbSus-<32 hex> in the temporary directory.
     private List<string> Candidates()
     {
         var found = new List<string>();
@@ -425,13 +416,6 @@ internal sealed class TempStore(string temporaryDirectory, Func<DateTime> utcNow
             {
                 found.AddRange(Directory.EnumerateDirectories(temporaryDirectory, FolderPrefix + "*")
                     .Where(directory => IsHex32(Path.GetFileName(directory).Substring(FolderPrefix.Length))));
-            }
-
-            if (Directory.Exists(LegacyRoot)
-                && !CacheStore.IsLink(new DirectoryInfo(LegacyParent))
-                && !CacheStore.IsLink(new DirectoryInfo(LegacyRoot)))
-            {
-                found.AddRange(Directory.EnumerateDirectories(LegacyRoot).Where(directory => IsHex32(Path.GetFileName(directory))));
             }
         }
         catch (IOException)
@@ -504,22 +488,4 @@ internal sealed class TempStore(string temporaryDirectory, Func<DateTime> utcNow
     };
 
     private static bool IsHex32(string name) => name.Length == 32 && name.All(c => c is (>= '0' and <= '9') or (>= 'a' and <= 'f'));
-
-    private static void RemoveIfEmpty(string directory)
-    {
-        try
-        {
-            var folder = new DirectoryInfo(directory);
-            if (folder.Exists && !CacheStore.IsLink(folder) && !folder.EnumerateFileSystemInfos().Any())
-            {
-                folder.Delete();
-            }
-        }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
-    }
 }

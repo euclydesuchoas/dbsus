@@ -115,7 +115,7 @@ public sealed class TempStoreTests : IDisposable
     [InlineData("DbSus-0123456789ABCDEF0123456789ABCDEF", "upper case")]
     [InlineData("DbSus-0123456789abcdef0123456789abcdeg", "not hex")]
     [InlineData("Other-0123456789abcdef0123456789abcdef", "another prefix")]
-    [InlineData("0123456789abcdef0123456789abcdef", "no prefix, outside the old folder")]
+    [InlineData("0123456789abcdef0123456789abcdef", "no prefix")]
     public void CleanOrphans_FolderNamedOtherwise_IsKept(string name, string why)
     {
         var folder = OldDownload(name, "RDRR2206.dbc");
@@ -126,12 +126,10 @@ public sealed class TempStoreTests : IDisposable
     }
 
     // An empty folder (its lock file deleted and the folder not, by an interrupted removal).
-    [Theory]
-    [InlineData("DbSus-0123456789abcdef0123456789abcdef")]
-    [InlineData("DbSus/downloads/0123456789abcdef0123456789abcdef")]
-    public void CleanOrphans_OldEmptyFolderWithoutItsLockFile_IsRemoved(string relative)
+    [Fact]
+    public void CleanOrphans_OldEmptyFolderWithoutItsLockFile_IsRemoved()
     {
-        var folder = Path.Combine(Temp, relative);
+        var folder = Path.Combine(Temp, "DbSus-" + Hex);
         Directory.CreateDirectory(folder);
         Directory.SetLastWriteTimeUtc(folder, _now.AddDays(-2));
 
@@ -239,28 +237,21 @@ public sealed class TempStoreTests : IDisposable
         Assert.False(Directory.Exists(Path.Combine(_workspace, "missing")));
     }
 
-    // The folder of earlier versions, DbSus/downloads/<32 hex>, for one more version; then the
-    // folders left empty.
+    // The folder of 0.1.0-preview.2 and earlier, DbSus/downloads/<32 hex>, is no longer entered:
+    // an old download there, as those versions left it, stays with its parents.
     [Fact]
-    public void CleanOrphans_FolderOfEarlierVersions_IsRemoved_WithItsEmptyParents()
+    public void CleanOrphans_FolderOfEarlierVersions_IsLeftAsItIs()
     {
-        var legacy = Path.Combine(Temp, "DbSus", "downloads");
-        OldDownload(Path.Combine("DbSus", "downloads", Hex), "RDRR2206.dbc");
-
-        Store.CleanOrphans();
-
-        Assert.False(Directory.Exists(legacy));
-        Assert.False(Directory.Exists(Path.Combine(Temp, "DbSus")));
-    }
-
-    [Fact]
-    public void CleanOrphans_FolderOfEarlierVersionsNamedOtherwise_IsKept_AndSoAreItsParents()
-    {
-        var folder = OldDownload(Path.Combine("DbSus", "downloads", "not-a-download"), "RDRR2206.dbc");
+        var folder = OldDownload(Path.Combine("DbSus", "downloads", Hex), "RDRR2206.dbc");
+        var empty = Path.Combine(Temp, "DbSus", "downloads", new string('1', 32));
+        Directory.CreateDirectory(empty);
+        Directory.SetLastWriteTimeUtc(empty, _now.AddDays(-2));
 
         Store.CleanOrphans();
 
         Assert.True(File.Exists(Path.Combine(folder, "RDRR2206.dbc")));
+        Assert.True(File.Exists(Path.Combine(folder, "entry.lock")));
+        Assert.True(Directory.Exists(empty));
     }
 
     [Fact]
@@ -289,22 +280,6 @@ public sealed class TempStoreTests : IDisposable
 
         Assert.True(File.Exists(Path.Combine(folder, "RDRR2206.dbc")));
         Assert.True(File.Exists(Path.Combine(behind, "RDRR2206.dbc")));
-    }
-
-    [Fact]
-    public void CleanOrphans_FolderOfEarlierVersionsBehindALink_IsNotEntered()
-    {
-        var behind = Path.Combine(Outside, "DbSusElsewhere");
-        var download = Path.Combine(behind, "downloads", Hex);
-        Directory.CreateDirectory(download);
-        File.WriteAllText(Path.Combine(download, "entry.lock"), string.Empty);
-        File.WriteAllText(Path.Combine(download, "RDRR2206.dbc"), "synthetic");
-        Directory.SetLastWriteTimeUtc(download, _now.AddDays(-2));
-        CacheLinkTests.MakeDirectoryLink(Path.Combine(Temp, "DbSus"), behind);
-
-        Store.CleanOrphans();
-
-        Assert.True(File.Exists(Path.Combine(download, "RDRR2206.dbc")));
     }
 
 #if NET

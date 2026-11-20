@@ -67,10 +67,10 @@ public sealed class CacheLinkTests : IDisposable
     [Fact]
     public async Task PruneCacheAsync_OldLinkAmongTheTemporaryDownloads_LeavesWhatIsBehindIt()
     {
-        var outside = OutsideEntryFile();
-        var legacy = Path.Combine(_fixture.TempDirectory, "DbSus", "downloads");
-        Directory.CreateDirectory(legacy);
-        var link = Path.Combine(legacy, "0123456789abcdef0123456789abcdef");
+        // Behind the link, what a clean-up that followed it would remove: a lock file and one file.
+        var outside = OutsideEntryFile("entry.lock");
+        Directory.CreateDirectory(_fixture.TempDirectory);
+        var link = Path.Combine(_fixture.TempDirectory, "DbSus-0123456789abcdef0123456789abcdef");
         MakeDirectoryLink(link, Path.GetDirectoryName(outside)!);
         _fixture.Now = DateTime.UtcNow.AddDays(2);
 
