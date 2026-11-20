@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- A net11.0 consumer built with SDK 11 (global.json in this folder; run from here), as an
+       application on .NET 11 sees the packages: it gets their net10.0 build and runs on the .NET 11
+       runtime. The repository itself still builds with SDK 10. Same program as the parent. -->
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../Program.cs" />
+  </ItemGroup>
+
+</Project>

@@ -10,6 +10,10 @@ All notable changes to this project are documented in this file. The format foll
 
 - `DbSus.Client` no longer cleans up `DbSus/downloads` in the system temporary directory, the shared folder that 0.1.0-preview.2 and earlier used for downloads without a cache; 0.1.0-preview.4 to 0.1.0-preview.6 still removed what those versions left there. If you used 0.1.0-preview.2 or earlier without a cache, you can delete the `DbSus` folder of the temporary directory.
 
+### Notes
+
+- A package test in CI now also runs on .NET 11: an application that targets `net11.0`, built with SDK 11, gets the `net10.0` build of both packages and runs on the .NET 11 runtime.
+
 ## [0.1.0-preview.6] - 2026-11-16
 
 ### Added

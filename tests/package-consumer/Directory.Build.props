@@ -1,6 +1,7 @@
 <!--
   Stops the repository's build settings (signing, analyzers) from applying: these projects play an
-  outside consumer. Shared by PackageConsumer.csproj and sdk8/PackageConsumer.Sdk8.csproj.
+  outside consumer. Shared by PackageConsumer.csproj, sdk8/PackageConsumer.Sdk8.csproj and
+  sdk11/PackageConsumer.Sdk11.csproj.
 -->
 <Project InitialTargets="RequireDbSusVersion">
 

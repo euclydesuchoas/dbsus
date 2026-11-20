@@ -203,7 +203,7 @@ Decompression dominates typical use: it consumed the compressed file at about 78
 - **Synthetic DBCs** built in memory (literal-only implode, independent CRC-32) cover the wrapper in CI.
 - **Cross-process locks** are tested with two real processes on Windows (.NET 10 and .NET Framework) and Linux.
 - **Client:** an in-memory fake server injects failures (dropped transfers, 421, republished and corrupt files, low disk space, cancellation, concurrency). Tests against the real server run only on request.
-- **Package consumers in CI:** an outside application restores the packed packages and checks which build it loaded (net8.0 → `netstandard2.0`, net10.0 → `net10.0`, net481 → `net472`), runs again with the oldest accepted dependency versions pinned (NU1605 guard), and once more built with SDK 8, which, unlike SDK 10, does not prune framework packages from the restore.
+- **Package consumers in CI:** an outside application restores the packed packages and checks which build it loaded (net8.0 → `netstandard2.0`, net10.0 → `net10.0`, net481 → `net472`), runs again with the oldest accepted dependency versions pinned (NU1605 guard), once more built with SDK 8, which, unlike SDK 10, does not prune framework packages from the restore, and as a `net11.0` application built with SDK 11, which gets the `net10.0` build and runs on the .NET 11 runtime. The SDK of the repository stays 10 (`global.json`); only that consumer uses SDK 11.
 
 ## Packaging
 

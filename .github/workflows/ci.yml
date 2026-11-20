@@ -41,7 +41,8 @@ jobs:
 
   # Packs DbSus and DbSus.Client and runs an outside consumer against the packages, once per asset
   # (net8.0 -> netstandard2.0, net10.0 -> net10.0 and, on Windows, net481 -> net472), then with the
-  # oldest accepted dependency versions pinned, and the net8.0 consumer once more built with SDK 8.
+  # oldest accepted dependency versions pinned, the net8.0 consumer once more built with SDK 8, and a
+  # net11.0 consumer built with SDK 11 that runs the net10.0 build on the .NET 11 runtime.
   packages:
     name: Package consumers (${{ matrix.os }})
     needs: build-and-test
@@ -58,11 +59,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # SDK 10 from global.json, plus SDK 8 for the net8.0 consumers (runtime 8, and the build with SDK 8).
+      # SDK 10 from global.json, plus SDK 8 for the net8.0 consumers (runtime 8, and the build with SDK 8)
+      # and SDK 11 for the net11.0 consumer. The repository's global.json (10.0, latestFeature) keeps
+      # SDK 10 for everything outside sdk8/ and sdk11/, which have global.json files of their own.
       - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            11.0.x
 
       - run: dotnet pack DbSus.slnx --configuration Release --output artifacts/packages
 
@@ -128,6 +133,14 @@ jobs:
         run: dotnet --version
 
       - working-directory: tests/package-consumer/sdk8
+        run: dotnet run --configuration Release -p:DbSusVersion=${{ steps.version.outputs.value }}
+
+      # A net11.0 consumer built with SDK 11 (global.json in that folder), as an application on .NET 11
+      # sees the packages: it gets the net10.0 build and runs on the .NET 11 runtime.
+      - working-directory: tests/package-consumer/sdk11
+        run: dotnet --version
+
+      - working-directory: tests/package-consumer/sdk11
         run: dotnet run --configuration Release -p:DbSusVersion=${{ steps.version.outputs.value }}
 
       # Keeps the packages that passed every consumer above, the only ones meant for publishing.

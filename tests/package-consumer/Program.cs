@@ -14,9 +14,10 @@ Directory.CreateDirectory(work);
 
 try
 {
+    // net10.0 and later (the net11.0 consumer of sdk11/) get the net10.0 build; net8.0 gets netstandard2.0.
 #if NETFRAMEWORK
     const string expectedAsset = ".NETFramework,Version=v4.7.2";
-#elif NET10_0
+#elif NET10_0_OR_GREATER
     const string expectedAsset = ".NETCoreApp,Version=v10.0";
 #else
     const string expectedAsset = ".NETStandard,Version=v2.0";

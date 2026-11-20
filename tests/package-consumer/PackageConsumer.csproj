@@ -6,7 +6,7 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(TargetFrameworks);net481</TargetFrameworks>
-    <DefaultItemExcludes>$(DefaultItemExcludes);sdk8/**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);sdk8/**;sdk11/**</DefaultItemExcludes>
   </PropertyGroup>
 
 </Project>

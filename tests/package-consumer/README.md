@@ -7,8 +7,9 @@ An outside application that restores the packed `DbSus` and `DbSus.Client` packa
 | `net8.0` | `netstandard2.0` |
 | `net10.0` | `net10.0` |
 | `net481` (Windows only) | `net472` |
+| `net11.0` (in `sdk11/`) | `net10.0` |
 
-`sdk8/` builds the same program for `net8.0` with SDK 8 (its own `global.json`), which, unlike SDK 10, does not prune packages that are part of the framework from the restore.
+`sdk8/` builds the same program for `net8.0` with SDK 8 (its own `global.json`), which, unlike SDK 10, does not prune packages that are part of the framework from the restore. `sdk11/` builds it for `net11.0` with SDK 11 (its own `global.json`), as an application on .NET 11 does, and runs it on the .NET 11 runtime; the repository itself still builds with SDK 10.
 
 ## Running it locally
 
@@ -29,6 +30,10 @@ dotnet run --project tests/package-consumer --configuration Release --framework 
 
 # The net8.0 consumer built with SDK 8 (run from that folder so its global.json applies).
 cd tests/package-consumer/sdk8
+dotnet run --configuration Release -p:DbSusVersion=<version>
+
+# The net11.0 consumer built with SDK 11, the same way (from sdk8/ above).
+cd ../sdk11
 dotnet run --configuration Release -p:DbSusVersion=<version>
 ```
 

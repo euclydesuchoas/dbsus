@@ -9,7 +9,7 @@ Both packages target `net10.0`, `net472` and `netstandard2.0`.
 | | Runtimes |
 |---|---|
 | Supported | .NET 8 or later; .NET Framework 4.7.2 or later (the declared minimum; it gets the `net472` build); other `netstandard2.0` platforms |
-| Tested | The test suite runs on .NET 10 and .NET Framework 4.8.1. A package test in CI also runs on .NET 8, with the `netstandard2.0` build. |
+| Tested | The test suite runs on .NET 10 and .NET Framework 4.8.1. A package test in CI also runs on .NET 8, with the `netstandard2.0` build, and on .NET 11, in an application that targets `net11.0` and gets the `net10.0` build. |
 
 The supported runtimes are the ones the packages are built for, whether or not Microsoft still supports them; Microsoft's support for .NET 8 and .NET 9 ended in November 2026.
 
