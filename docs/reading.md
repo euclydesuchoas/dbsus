@@ -17,9 +17,9 @@ while (reader.Read())
 }
 ```
 
-The DBC is decompressed while you read: no temporary file, no full copy in memory. The reader is a `DbDataReader` that reads forward only.
+The DBC is decompressed while you read: no temporary file, no full copy in memory. The reader is a `DbDataReader` that reads forward only. It is not thread-safe, and the asynchronous methods it inherits from `DbDataReader` complete synchronously.
 
-The reader is forward-only. It is not thread-safe, and the asynchronous methods it inherits from `DbDataReader` complete synchronously.
+Records marked as deleted are skipped; set `DbfReadOptions.IncludeDeletedRecords` to `true` to have them returned as well.
 
 DbSus reads; it does not write `.dbc` files. It writes `.dbf` files only as the output of a conversion.
 

@@ -69,6 +69,7 @@ Reading by path, without a download, and everything else the client does are in 
 - The reader is forward-only and not thread-safe. `DatasusClient` is thread-safe.
 - A listing from the server can be partial if the client's read of it fails while the server still answers `226` (see "A known limit of listings" in [FTP troubleshooting](https://github.com/euclydesuchoas/dbsus/blob/main/docs/ftp-troubleshooting.md)).
 - Reading a table without a download (`OpenStreamingReaderAsync`) is opt-in and in preview: its API and its behavior may change before a stable release.
+- The handling of stalled reads in `DbSus.Client` was verified on .NET 10 and .NET Framework 4.8.1; .NET 8 and 9, Mono, Unity and Xamarin were not checked (see [compatibility](https://github.com/euclydesuchoas/dbsus/blob/main/docs/compatibility.md)).
 
 The other limitations are in the guides and in the [changelog](https://github.com/euclydesuchoas/dbsus/blob/main/CHANGELOG.md).
 
@@ -82,11 +83,11 @@ Keep the cache folder writable only by you. What `DbSus.Client` checks of what t
 
 To report a vulnerability of DbSus itself, in private, see the [security policy](https://github.com/euclydesuchoas/dbsus/blob/main/SECURITY.md).
 
-## License
-
-[MIT](https://github.com/euclydesuchoas/dbsus/blob/main/LICENSE). The DBC decompressor is a C# port of Mark Adler's `blast.c` (zlib license); see the [third-party notices](https://github.com/euclydesuchoas/dbsus/blob/main/THIRD-PARTY-NOTICES.md). The package icon is an original design of this project and is covered by the same MIT license.
-
 ## More
 
 - Guides: [reading](https://github.com/euclydesuchoas/dbsus/blob/main/docs/reading.md), [client](https://github.com/euclydesuchoas/dbsus/blob/main/docs/client.md), [DATASUS paths and file names](https://github.com/euclydesuchoas/dbsus/blob/main/docs/datasus-paths.md), [FTP troubleshooting](https://github.com/euclydesuchoas/dbsus/blob/main/docs/ftp-troubleshooting.md), [performance](https://github.com/euclydesuchoas/dbsus/blob/main/docs/performance.md), [compatibility](https://github.com/euclydesuchoas/dbsus/blob/main/docs/compatibility.md), [changelog](https://github.com/euclydesuchoas/dbsus/blob/main/CHANGELOG.md).
 - Questions: open a discussion, <https://github.com/euclydesuchoas/dbsus/discussions>. To report a problem or to comment on how you use DbSus, open an issue in the repository on GitHub (the **Issues** tab has a form for each). Do not attach a file of DATASUS and do not paste the content of records, which can hold personal data: give the path of the file on the server. To change the code, see [contributing](https://github.com/euclydesuchoas/dbsus/blob/main/CONTRIBUTING.md).
+
+## License
+
+[MIT](https://github.com/euclydesuchoas/dbsus/blob/main/LICENSE). The DBC decompressor is a C# port of Mark Adler's `blast.c` (zlib license); see the [third-party notices](https://github.com/euclydesuchoas/dbsus/blob/main/THIRD-PARTY-NOTICES.md). The package icon is an original design of this project and is covered by the same MIT license.
