@@ -166,7 +166,9 @@ public sealed class ReadAheadStreamStressTests
             server.StallTransferAfter = null;
             server.Files["/dissemin/publicos/X/A.dbc"] = Content(scenario.Size + 1, scenario.Seed);
         });
-        using var pool = new ConnectionPool(new FtpConnectionFactory(options), 1);
+        // The read timeout limits the transfer, as in the client; the replies on the control
+        // connection have a time of their own (see TransferTimeoutConnectionFactory).
+        using var pool = new ConnectionPool(new TransferTimeoutConnectionFactory(options), 1);
         var size = scenario.Fault == Fault.EndEarlyAlways ? scenario.Size + 10 : scenario.Size;
         var (ended, failure) = await ConsumeAsync(scenario, content, pool, policy, Version(size));
         Check(scenario, ended, failure, retries.Count);

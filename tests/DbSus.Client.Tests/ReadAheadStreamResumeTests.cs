@@ -878,8 +878,10 @@ public sealed class ReadAheadStreamResumeTests
         }
     }
 
+    // The read timeout limits the transfer, as in the client; the replies on the control connection
+    // have a time of their own (see TransferTimeoutConnectionFactory).
     internal static ConnectionPool LoopbackPool(LoopbackFtpServer server, TimeSpan readTimeout, TimeSpan? resumeOpenTimeout = null) => new(
-        new FtpConnectionFactory(new DatasusClientOptions
+        new TransferTimeoutConnectionFactory(new DatasusClientOptions
         {
             Host = "127.0.0.1",
             Port = server.Port,

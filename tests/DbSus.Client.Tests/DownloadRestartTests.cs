@@ -441,6 +441,9 @@ public sealed class DownloadRestartTests : IDisposable
             CacheDirectory = Path.Combine(_fixture.Workspace, "loopback-cache"),
         };
         configure(options);
-        return new DatasusClient(options);
+
+        // The read timeout limits the transfer, as in the client; the replies on the control
+        // connection have a time of their own (see TransferTimeoutConnectionFactory).
+        return new DatasusClient(options, new TransferTimeoutConnectionFactory(options), null, null, null, null);
     }
 }
