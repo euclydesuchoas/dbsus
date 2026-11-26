@@ -90,6 +90,13 @@ internal sealed class FakeServer
         set => Volatile.Write(ref _resumptionsThatTimeOut, value);
     }
 
+    /// <summary>
+    /// Gets or sets what a transfer that is about to drop (see <see cref="FailNextTransferAfter"/>)
+    /// waits for first, so that a test can make something happen before the drop; the thread that
+    /// reads is blocked meanwhile. <see langword="null"/> for none.
+    /// </summary>
+    public Task? DropWaitsFor { get; set; }
+
     public static DateTime Time(int minute) => new(2025, 8, 8, 12, minute, 0, DateTimeKind.Utc);
 
     public void Add(string relativePath, byte[] content, DateTime? modifiedUtc = null) =>
@@ -300,6 +307,7 @@ internal sealed class FakeServer
 
             if (failAfter is { } limit && _served >= limit)
             {
+                server.DropWaitsFor?.Wait(60_000, CancellationToken.None);
                 throw new IOException("Connection reset by the fake server.");
             }
 

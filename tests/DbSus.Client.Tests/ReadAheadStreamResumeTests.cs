@@ -260,6 +260,8 @@ public sealed class ReadAheadStreamResumeTests
         await AssertNothingHeldAsync(pool, () => server.Active);
     }
 
+    // The drop waits for the pool's Dispose, so the resumption it calls for always comes after it,
+    // however the threads are scheduled.
     [Fact(Timeout = 30_000)]
     public async Task PoolDisposed_ThenADrop_FailsWithObjectDisposedAfterTheBytesOfTheBuffer()
     {
@@ -268,10 +270,13 @@ public sealed class ReadAheadStreamResumeTests
         var server = new FakeServer();
         server.Add(FilePath, content);
         server.FailNextTransferAfter(300_000);
+        var poolDisposed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        server.DropWaitsFor = poolDisposed.Task;
         var pool = new ConnectionPool(server.Factory(), 1);
         using var stream = await RemoteReadAheadStream.OpenAsync(pool, new Retries(3).Policy, Remote, Version(content.Length), ct);
 
         pool.Dispose();
+        poolDisposed.SetResult(true);
 
         var (data, failure) = ReadAll(stream, new Random(67));
         AssertSameBytes(content.Take(300_000).ToArray(), data);
