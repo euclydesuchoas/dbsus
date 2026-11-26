@@ -287,6 +287,43 @@ public sealed class ReadAheadStreamResumeTests
         Assert.Equal(0, server.ActiveConnections);
     }
 
+    // The pool is disposed while the resumption connects: that connection is closed unused, and no
+    // transfer starts on it.
+    [Fact(Timeout = 30_000)]
+    public async Task PoolDisposedWhileTheResumptionConnects_ClosesThatConnection_AndFailsWithObjectDisposed()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var content = Content(600_000, seed: 100);
+        var server = new FakeServer();
+        server.Add(FilePath, content);
+        server.FailNextTransferAfter(300_000);
+        var connecting = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        server.Connecting = async number =>
+        {
+            if (number == 2)
+            {
+                connecting.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            }
+        };
+        var pool = new ConnectionPool(server.Factory(), 1);
+        using var stream = await RemoteReadAheadStream.OpenAsync(pool, new Retries(3).Policy, Remote, Version(content.Length), ct);
+        await WithinAsync(connecting.Task, ct);
+
+        pool.Dispose();
+        release.SetResult(true);
+
+        var (data, failure) = ReadAll(stream, new Random(101));
+        AssertSameBytes(content.Take(300_000).ToArray(), data);
+        var disposed = Assert.IsType<ObjectDisposedException>(failure);
+        Assert.Contains("could not resume at byte 300000", disposed.Message, StringComparison.Ordinal);
+        Assert.Equal(2, server.ConnectionsOpened);
+        Assert.Equal(1, server.Transfers);
+        await AssertEndsAsync(stream);
+        Assert.Equal(0, server.ActiveConnections);
+    }
+
     [Fact(Timeout = 30_000)]
     public async Task DuringTheBackoff_TheConsumerReadsWhatTheBufferHolds()
     {

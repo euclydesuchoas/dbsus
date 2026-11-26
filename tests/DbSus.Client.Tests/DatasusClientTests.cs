@@ -149,6 +149,34 @@ public sealed class DatasusClientTests : IDisposable
         Assert.Equal(1, client.FreeConnectionPlaces);
     }
 
+    // An operation that is opening a connection when the client is disposed fails as soon as the
+    // connection is made; that connection is closed unused, and nothing is asked of the server on it.
+    [Fact]
+    public async Task Dispose_WhileAnOperationConnects_ClosesThatConnection_AndThrowsObjectDisposed()
+    {
+        _fixture.Server.Add(Dados + "/RDMG2407.dbc", ClientFixture.Dbc("A1"));
+        var connecting = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _fixture.Server.Connecting = async _ =>
+        {
+            connecting.TrySetResult(true);
+            await release.Task.ConfigureAwait(false);
+        };
+        var client = _fixture.Client(cache: false);
+        var info = client.GetInfoAsync(Dados + "/RDMG2407.dbc", Ct);
+        await ReadAheadStreamTests.WaitUntilAsync(() => connecting.Task.IsCompleted, "the operation to start connecting");
+
+        client.Dispose();
+        release.SetResult(true);
+
+        var exception = await Assert.ThrowsAsync<ObjectDisposedException>(() => info);
+        Assert.Equal(typeof(DatasusClient).FullName, exception.ObjectName);
+        Assert.Equal(1, _fixture.Server.ConnectionsOpened);
+        Assert.Equal(0, _fixture.Server.ActiveConnections);
+        Assert.Equal(0, _fixture.Server.InfoCalls);
+        Assert.Equal(2, client.FreeConnectionPlaces);
+    }
+
     // The first download without a cache starts the clean-up of the temporary folders on the thread
     // pool; a later download of the same client does not start another one.
     [Fact]

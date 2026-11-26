@@ -25,7 +25,9 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
     /// <summary>
     /// Lends a place and a connection. An operation that waits for a place when the pool is
     /// disposed, or gets one afterward, connects nothing: it fails with
-    /// <see cref="ObjectDisposedException"/>, and the place it may have got is free again.
+    /// <see cref="ObjectDisposedException"/>, and the place it may have got is free again. One that
+    /// is connecting when the pool is disposed fails the same way once connected, and that
+    /// connection is closed unused.
     /// </summary>
     public async Task<Lease> AcquireAsync(CancellationToken cancellationToken)
     {
@@ -54,7 +56,7 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
             }
 
             var connection = _idle.TryTake(out var idle) ? idle : await factory.ConnectAsync(cancellationToken).ConfigureAwait(false);
-            return new Lease(this, connection);
+            return new Lease(this, Admit(connection));
         }
         catch
         {
@@ -84,10 +86,30 @@ internal sealed class ConnectionPool(IDatasusConnectionFactory factory, int maxC
     private static ObjectDisposedException ClientDisposed(string message) => new(typeof(DatasusClient).FullName, message);
 
     // A connection for a lease that keeps its place; none once the pool is disposed.
-    private Task<IDatasusConnection> ConnectInPlaceAsync(CancellationToken cancellationToken) =>
-        _disposed
-            ? throw ClientDisposed("The client's connections were closed, so no new connection is made.")
-            : factory.ConnectAsync(cancellationToken);
+    private async Task<IDatasusConnection> ConnectInPlaceAsync(CancellationToken cancellationToken)
+    {
+        if (_disposed)
+        {
+            throw ClientDisposed("The client's connections were closed, so no new connection is made.");
+        }
+
+        return Admit(await factory.ConnectAsync(cancellationToken).ConfigureAwait(false));
+    }
+
+    // The last look at Dispose before a connection is handed to an operation. Dispose may have come
+    // while the connection was made (or, for an idle one, while it was taken): then it is closed
+    // unused, and the operation fails as one that waited for a connection does. A Dispose that comes
+    // after this look finds the operation under way on its connection, which goes on.
+    private IDatasusConnection Admit(IDatasusConnection connection)
+    {
+        if (!_disposed)
+        {
+            return connection;
+        }
+
+        connection.Dispose();
+        throw ClientDisposed("The client was disposed while the operation got a connection, so that connection was closed unused.");
+    }
 
     // The place is freed whatever disposing the connection throws; the exception still propagates.
     // A lease whose replacement failed has no connection left to keep or close.

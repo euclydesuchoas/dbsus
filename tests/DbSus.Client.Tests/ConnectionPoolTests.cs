@@ -136,6 +136,34 @@ public sealed class ConnectionPoolTests
         Assert.Equal(1, created[0].Disposals);
     }
 
+    // Disposed while the replacement connects: the new connection is closed as soon as it is made,
+    // and the lease is left without one.
+    [Fact(Timeout = 10_000)]
+    public async Task ReplaceConnection_PoolDisposedWhileConnecting_ClosesTheNewConnectionAndThrowsObjectDisposed()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var created = new List<StubConnection>();
+        var connecting = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pool = new ConnectionPool(new StubFactory(created, connecting: made => made == 1 ? Hold(connecting, release) : Task.CompletedTask), maxConnections: 1);
+        var lease = await pool.AcquireAsync(ct);
+        var replacing = lease.ReplaceConnectionAsync(ct);
+        await connecting.Task;
+
+        pool.Dispose();
+        release.SetResult(true);
+
+        var exception = await Assert.ThrowsAsync<ObjectDisposedException>(() => replacing);
+        Assert.Equal(typeof(DatasusClient).FullName, exception.ObjectName);
+        Assert.Equal(2, created.Count);
+        Assert.Equal(1, created[0].Disposals);
+        Assert.Equal(1, created[1].Disposals);
+        Assert.Throws<InvalidOperationException>(() => lease.Connection);
+        lease.Dispose();
+        Assert.Equal(1, pool.FreePlaces);
+        Assert.Equal(1, created[1].Disposals);
+    }
+
     [Fact(Timeout = 10_000)]
     public async Task ReplaceConnection_AfterDispose_ThrowsObjectDisposed()
     {
@@ -170,6 +198,29 @@ public sealed class ConnectionPoolTests
         lease.Dispose();
         Assert.Equal(1, pool.FreePlaces);
         Assert.Equal(1, created[0].Disposals);
+    }
+
+    // An operation that is connecting when the pool is disposed fails once connected, as one that
+    // waited for a place does, and its new connection is closed unused.
+    [Fact(Timeout = 10_000)]
+    public async Task Dispose_WhileAnOperationConnects_ClosesTheNewConnectionAndThrowsObjectDisposed()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var created = new List<StubConnection>();
+        var connecting = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pool = new ConnectionPool(new StubFactory(created, connecting: _ => Hold(connecting, release)), maxConnections: 1);
+        var acquiring = pool.AcquireAsync(ct);
+        await connecting.Task;
+
+        pool.Dispose();
+        release.SetResult(true);
+
+        var exception = await Assert.ThrowsAsync<ObjectDisposedException>(() => acquiring);
+        Assert.Equal(typeof(DatasusClient).FullName, exception.ObjectName);
+        Assert.Single(created);
+        Assert.Equal(1, created[0].Disposals);
+        Assert.Equal(1, pool.FreePlaces);
     }
 
     [Fact(Timeout = 10_000)]
@@ -221,6 +272,13 @@ public sealed class ConnectionPoolTests
         Assert.Null(changed.InnerException);
     }
 
+    // Tells the test that a connect has started, and holds it until the test releases it.
+    private static async Task Hold(TaskCompletionSource<bool> started, TaskCompletionSource<bool> release)
+    {
+        started.TrySetResult(true);
+        await release.Task.ConfigureAwait(false);
+    }
+
     internal sealed class StubConnection : IDatasusConnection, IAbortableConnection
     {
         public bool IsBroken { get; set; }
@@ -253,9 +311,20 @@ public sealed class ConnectionPoolTests
         }
     }
 
-    internal sealed class StubFactory(List<StubConnection> created, Func<StubConnection>? create = null) : IDatasusConnectionFactory
+    // connecting, when given, is awaited by each connect before its connection is made, with the
+    // number of connections made so far.
+    internal sealed class StubFactory(List<StubConnection> created, Func<StubConnection>? create = null, Func<int, Task>? connecting = null) : IDatasusConnectionFactory
     {
-        public Task<IDatasusConnection> ConnectAsync(CancellationToken cancellationToken)
+        public Task<IDatasusConnection> ConnectAsync(CancellationToken cancellationToken) =>
+            connecting is null ? Connect(cancellationToken) : ConnectAfterAsync(connecting, cancellationToken);
+
+        private async Task<IDatasusConnection> ConnectAfterAsync(Func<int, Task> before, CancellationToken cancellationToken)
+        {
+            await before(created.Count).ConfigureAwait(false);
+            return await Connect(cancellationToken).ConfigureAwait(false);
+        }
+
+        private Task<IDatasusConnection> Connect(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var connection = create?.Invoke() ?? new StubConnection();

@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Fixed
+
+- `DbSus.Client`: disposing a `DatasusClient` while one of its operations was opening a new connection (to start, or to retry or resume a transfer) let that operation go on with the new connection after the client was disposed; a reader from `OpenStreamingReaderAsync` could then resume its transfer. Now that connection is closed unused as soon as it is made, and the operation fails with `ObjectDisposedException`, as one that waits for a connection does.
+
 ## [0.1.0-preview.7] - 2026-11-23
 
 ### Known limitations

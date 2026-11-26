@@ -91,6 +91,12 @@ internal sealed class FakeServer
     }
 
     /// <summary>
+    /// Gets or sets what each connect awaits, with the number of that connect from 1, before the
+    /// connection is made, as a slow login would hold it; <see langword="null"/> for none.
+    /// </summary>
+    public Func<int, Task>? Connecting { get; set; }
+
+    /// <summary>
     /// Gets or sets what a transfer that is about to drop (see <see cref="FailNextTransferAfter"/>)
     /// waits for first, so that a test can make something happen before the drop; the thread that
     /// reads is blocked meanwhile. <see langword="null"/> for none.
@@ -161,7 +167,18 @@ internal sealed class FakeServer
 
     private sealed class Factory_(FakeServer server) : IDatasusConnectionFactory
     {
-        public Task<IDatasusConnection> ConnectAsync(CancellationToken cancellationToken)
+        private int _connects;
+
+        public Task<IDatasusConnection> ConnectAsync(CancellationToken cancellationToken) =>
+            server.Connecting is { } connecting ? ConnectAfterAsync(connecting, cancellationToken) : Connect(cancellationToken);
+
+        private async Task<IDatasusConnection> ConnectAfterAsync(Func<int, Task> connecting, CancellationToken cancellationToken)
+        {
+            await connecting(Interlocked.Increment(ref _connects)).ConfigureAwait(false);
+            return await Connect(cancellationToken).ConfigureAwait(false);
+        }
+
+        private Task<IDatasusConnection> Connect(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (server._connectFailures.TryDequeue(out var failure))
