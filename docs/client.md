@@ -10,7 +10,7 @@ using System.Threading;
 using DbSus.Client;
 
 // Thread-safe: one instance can be shared, e.g. services.AddSingleton(client).
-await using var client = new DatasusClient(new DatasusClientOptions { CacheDirectory = @"D:\datasus-cache" });
+await using var client = new DatasusClient(new DatasusClientOptions { CacheDirectory = "datasus-cache" });
 using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(30));   // every method takes a token
 var token = timeout.Token;
 
