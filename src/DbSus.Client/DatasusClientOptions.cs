@@ -88,14 +88,24 @@ public sealed class DatasusClientOptions
     /// <summary>Gets or sets the time allowed to connect. The default is 30 seconds.</summary>
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
-    /// <summary>Gets or sets the longest silence tolerated on a connection. The default is 60 seconds.</summary>
+    /// <summary>Gets or sets how long each reply of the server and each read of data may take. The default is 60 seconds.</summary>
     /// <remarks>
+    /// <para>
+    /// It limits each wait, not a whole operation: every reply on the control connection (the
+    /// greeting, the login, <c>SIZE</c>, <c>MDTM</c>, <c>REST</c>, the final reply of a listing, and
+    /// <c>QUIT</c> when a connection closes), and each read of the data of a listing or a transfer. A
+    /// transfer that keeps receiving data, however slowly, is never cut by it. A wait that runs out in
+    /// an operation counts as a transient failure, retried on a new connection. A lower value finds a
+    /// stalled transfer sooner, and also leaves a slow server less time to answer each command.
+    /// </para>
+    /// <para>
     /// Opening a transfer that resumes an interrupted download or read, from a byte beyond the
     /// start, has a shorter limit of its own, 5 seconds, from the passive-mode request to the
     /// server's reply to the transfer command; it includes a reconnection and login that the FTP
     /// library makes by itself when it finds the control connection closed. When it runs out, the connection is closed and the
     /// attempt counts as a transient failure, retried on a new connection (see
     /// <see cref="MaxRetries"/> for when the retry starts over from the beginning).
+    /// </para>
     /// </remarks>
     public TimeSpan ReadTimeout { get; set; } = TimeSpan.FromSeconds(60);
 
