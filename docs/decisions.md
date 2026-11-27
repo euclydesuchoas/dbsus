@@ -181,17 +181,7 @@ Twenty files across SIM, SINASC, SINAN, SIH, SIA and CNES were examined in aggre
 
 ## Performance
 
-BenchmarkDotNet, Release, net10.0, AMD Ryzen 9 9950X3D, one large SIA-PA file (126 MB DBC, 1.17 GB DBF, 2,956,469 records × 60 fields):
-
-| Benchmark | DBF throughput | Allocated per record |
-|---|---|---|
-| Decompress only | 847 MB/s | 0.05 B |
-| Decompress + read records | 730 MB/s | 0.06 B |
-| + 3 typed getters | 661 MB/s | 0.06 B |
-| + 2 converted `C` fields | 637 MB/s | 0.06 B |
-| Every value of every field (`GetValues`, boxed) | 295 MB/s | 1,867 B |
-
-Decompression dominates typical use: it consumed the compressed file at about 78 MB/s (126 MB in about 1.6 s; see `docs/performance.md`). When files come from the DATASUS server through `OpenReaderAsync`, the client downloads each one, or every part of a table, to a file before the first record is read, so the time of the network and the time of decompression add up; and with `VerifyOnDownload` (the default) a `.dbc` is decompressed once when its download ends, to check its CRC-32, and again when it is read. The reader without a download (`OpenStreamingReaderAsync`, preview) decompresses the data as it arrives, once, checking the CRC-32 at the end of each part. No figure in this guide includes either.
+The measurements are in `docs/performance.md`. Decompression dominates typical use: reading the records of one large SIA-PA file consumed the compressed file at about 78 MB/s (126 MB in about 1.6 s). When files come from the DATASUS server through `OpenReaderAsync`, the client downloads each one, or every part of a table, to a file before the first record is read, so the time of the network and the time of decompression add up; and with `VerifyOnDownload` (the default) a `.dbc` is decompressed once when its download ends, to check its CRC-32, and again when it is read. The reader without a download (`OpenStreamingReaderAsync`, preview) decompresses the data as it arrives, once, checking the CRC-32 at the end of each part. No figure in this guide includes either.
 
 ## Testing
 
