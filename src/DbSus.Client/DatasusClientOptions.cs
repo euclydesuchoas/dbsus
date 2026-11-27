@@ -92,8 +92,8 @@ public sealed class DatasusClientOptions
     /// <remarks>
     /// <para>
     /// It limits each wait, not a whole operation: every reply on the control connection (the
-    /// greeting, the login, <c>SIZE</c>, <c>MDTM</c>, <c>REST</c>, the final reply of a listing, and
-    /// <c>QUIT</c> when a connection closes), and each read of the data of a listing or a transfer. A
+    /// greeting, the login and the reply to each command, such as <c>SIZE</c>, <c>MDTM</c>, <c>REST</c>
+    /// and the final reply of a listing; <c>QUIT</c> when a connection closes) and each read of data. A
     /// transfer that keeps receiving data, however slowly, is never cut by it. A wait that runs out in
     /// an operation counts as a transient failure, retried on a new connection. A lower value finds a
     /// stalled transfer sooner, and also leaves a slow server less time to answer each command.

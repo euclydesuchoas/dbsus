@@ -12,7 +12,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Notes
 
-- `DbSus.Client`: the documentation of `DatasusClientOptions.ReadTimeout` now says what it limits: each reply on the control connection, from the greeting and the login to `SIZE`, `MDTM`, `REST`, the final reply of a listing and `QUIT`, and each read of data. Lowering it to find a stalled transfer sooner also leaves a slow server less time to answer each command. Its behavior did not change.
+- `DbSus.Client`: the documentation of `DatasusClientOptions.ReadTimeout` now says what it limits: every reply on the control connection (the greeting, the login and the reply to each command, such as `SIZE`, `MDTM`, `REST` and the final reply of a listing; `QUIT` when a connection closes) and each read of data. Lowering it to find a stalled transfer sooner also leaves a slow server less time to answer each command. Its behavior did not change.
 
 ## [0.1.0-preview.7] - 2026-11-23
 
