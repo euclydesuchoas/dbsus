@@ -26,9 +26,10 @@
 //
 // Links: every Markdown link in those files must be absolute; links into this repository must
 // point at an existing file on the main branch, with no #anchor (nuget.org does not resolve them).
-// The one other link into the repository accepted is the page of a workflow, in exactly the form
-// https://github.com/euclydesuchoas/dbsus/actions/workflows/<file>.yml, with no query and no anchor,
-// for a <file>.yml that exists in .github/workflows (the target of the CI badge of the README).
+// The other links into the repository accepted are, in exactly these forms, with no query and no
+// anchor: the page of a workflow, https://github.com/euclydesuchoas/dbsus/actions/workflows/<file>.yml,
+// for a <file>.yml that exists in .github/workflows (the target of the CI badge of the README); and
+// the pages .../issues, .../issues/new/choose and .../discussions of the repository.
 //
 // Output goes to tests/doc-examples/obj/generated/ and is never committed. The process fails, with
 // the file and line, on a block it does not recognize, on a broken link, or when there is no block.
@@ -181,7 +182,7 @@ static void CheckLinks(string source, string[] lines, List<string> errors)
             else if (url.Contains("github.com/euclydesuchoas/dbsus", StringComparison.Ordinal))
             {
                 var root = FindRepositoryRoot(Directory.GetCurrentDirectory());
-                if (IsWorkflowPage(url, root))
+                if (IsWorkflowPage(url, root) || IsRepositoryPage(url))
                 {
                     continue;
                 }
@@ -189,7 +190,7 @@ static void CheckLinks(string source, string[] lines, List<string> errors)
                 if (!url.StartsWith(RepositoryUrl, StringComparison.Ordinal) || url.Contains('#', StringComparison.Ordinal)
                     || !File.Exists(Path.Combine(root, url.Substring(RepositoryUrl.Length))))
                 {
-                    errors.Add($"{location}: link '{url}' must point at an existing file under {RepositoryUrl}, without an anchor, or be {WorkflowsUrl}<file>.yml for a workflow file that exists.");
+                    errors.Add($"{location}: link '{url}' must point at an existing file under {RepositoryUrl}, without an anchor, be {WorkflowsUrl}<file>.yml for a workflow file that exists, or be one of {string.Join(", ", RepositoryPages.Urls)}.");
                 }
             }
         }
@@ -203,6 +204,9 @@ static bool IsWorkflowPage(string url, string root)
     var match = Regex.Match(url, @"^https://github\.com/euclydesuchoas/dbsus/actions/workflows/([A-Za-z0-9_.-]+\.yml)$");
     return match.Success && File.Exists(Path.Combine(root, ".github", "workflows", match.Groups[1].Value));
 }
+
+// A page of the repository that is not a file: exactly one of RepositoryPages.Urls.
+static bool IsRepositoryPage(string url) => Array.IndexOf(RepositoryPages.Urls, url) >= 0;
 
 static string ProgramCode(List<Block> blocks)
 {
@@ -247,6 +251,17 @@ static string FindRepositoryRoot(string start)
     }
 
     throw new InvalidOperationException("Run this from inside the DbSus repository.");
+}
+
+// The pages of the repository that are not files and that a link may point at, in exactly these forms.
+internal static class RepositoryPages
+{
+    public static readonly string[] Urls =
+    [
+        "https://github.com/euclydesuchoas/dbsus/issues",
+        "https://github.com/euclydesuchoas/dbsus/issues/new/choose",
+        "https://github.com/euclydesuchoas/dbsus/discussions",
+    ];
 }
 
 internal sealed class Block
