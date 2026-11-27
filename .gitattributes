@@ -9,3 +9,6 @@
 
 # Strong-name key pair.
 *.snk binary
+
+# Images (the package icon).
+*.png binary
